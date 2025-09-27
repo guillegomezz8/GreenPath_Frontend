@@ -62,7 +62,7 @@ export function AnimatedLogo({ src, alt, size = "auto", className = "" }) {
         }}
       />
       <div
-        className="absolute rounded-full hidden sm:block"
+        className="absolute rounded-full"
         style={{
           width: "calc(var(--dot) * 0.8)",
           height: "calc(var(--dot) * 0.8)",
