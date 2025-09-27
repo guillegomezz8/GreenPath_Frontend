@@ -165,13 +165,21 @@ export default function WorkerDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/workers")}>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        {/* Left section: Back button + Avatar + Info */}
+        <div className="flex items-start gap-3 sm:items-center sm:gap-4 min-w-0 flex-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate("/workers")}
+            className="flex-shrink-0 mt-2 sm:mt-0"
+          >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div className="flex items-center gap-4">
-            <Avatar className="w-14 h-14">
+          
+          {/* Avatar + Info container */}
+          <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+            <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
               {worker && getAvatarSrc(worker) && (
                 <AvatarImage
                   src={getAvatarSrc(worker)}
@@ -179,45 +187,59 @@ export default function WorkerDetail() {
                   className="object-cover"
                 />
               )}
-              <AvatarFallback className="bg-primary text-primary-foreground font-bold text-lg">
+              <AvatarFallback className="bg-primary text-primary-foreground font-bold text-sm sm:text-lg">
                 {getInitials(worker?.name, worker?.surname)}
               </AvatarFallback>
             </Avatar>
-            <div className="text-left">
-              <h1 className="text-3xl font-bold text-foreground">
+            
+            <div className="text-left min-w-0 flex-1">
+              <h1 className="text-lg sm:text-2xl lg:text-3xl font-bold text-foreground leading-tight">
                 {loading ? "Cargando..." : `${worker?.name ?? ""} ${worker?.surname ?? ""}`}
               </h1>
-              <p className="text-muted-foreground">
-                {loading ? "—" : `Nombre de Usuario: ${worker?.username ?? "—"}`}
+              <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
+                {loading ? "—" : (
+                  <>
+                    <span className="hidden sm:inline">Nombre de Usuario: </span>
+                    <span className="sm:hidden">Usuario: </span>
+                    <span className="font-medium">{worker?.username ?? "—"}</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-2">
+        {/* Right section: Action buttons */}
+        <div className="flex gap-2 sm:gap-3 flex-shrink-0 self-start lg:self-center">
+          {/* Edit button */}
           <Button
             variant="outline"
             size="sm"
             disabled={loading || !worker}
             onClick={() => navigate(`/workers/${id}/edit`)}
+            className="flex-1 sm:flex-none min-w-0"
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
+            <Edit className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden xs:inline sm:hidden md:inline">Editar</span>
           </Button>
+
+          {/* Delete button */}
           <Button
             variant="destructive"
             size="sm"
             disabled={loading || !worker || deleting}
             onClick={() => setDeleteOpen(true)}
+            className="flex-1 sm:flex-none min-w-0"
           >
             {deleting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Eliminando…
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin flex-shrink-0" />
+                <span className="hidden xs:inline sm:hidden md:inline">Eliminando…</span>
               </>
             ) : (
               <>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Eliminar
+                <Trash2 className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden xs:inline sm:hidden md:inline">Eliminar</span>
               </>
             )}
           </Button>
