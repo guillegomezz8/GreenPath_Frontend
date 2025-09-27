@@ -158,7 +158,7 @@ export default function CollectionCreate() {
             <Package className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
             <span>Crear Recogida</span>
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
             Rellena la información para registrar una nueva recogida
           </p>
         </div>
