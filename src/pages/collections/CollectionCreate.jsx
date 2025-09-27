@@ -140,17 +140,21 @@ export default function CollectionCreate() {
   return (
     <div className="space-y-6">
       {/* Header */}
-
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/collections")}>
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate("/collections")}
+          className="flex-shrink-0 mt-1 sm:mt-0"
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Package className="w-8 h-8 text-primary" />
-            Crear Recogida
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
+            <Package className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+            <span>Crear Recogida</span>
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
             Rellena la información para registrar una nueva recogida
           </p>
         </div>
@@ -325,7 +329,7 @@ export default function CollectionCreate() {
           </Button>
           <Button type="submit">
             <Save className="w-4 h-4 mr-2" />
-            Programar Recogida
+            Crear Recogida
           </Button>
         </div>
       </form>

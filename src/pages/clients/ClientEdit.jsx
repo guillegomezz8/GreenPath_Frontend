@@ -13,9 +13,9 @@ import { useAuth } from "@/context/AuthProvider";
 const displayToCode = (label) => {
   switch ((label || "").toLowerCase()) {
     case "cada semana": return "WEEKLY";
-    case "cada 2 semanas": return "TWO_WEEKS";
-    case "cada 3 semanas": return "THREE_WEEKS";
-    case "cada 4 semanas": return "FOUR_WEEKS";
+    case "cada 2 semanas": return "2_WEEKS";
+    case "cada 3 semanas": return "3_WEEKS";
+    case "cada 4 semanas": return "4_WEEKS";
     default: return "WEEKLY";
   }
 };
@@ -109,18 +109,25 @@ export default function EditarCliente() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/clients")}>
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate("/clients")}
+          className="flex-shrink-0 mt-1 sm:mt-0"
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            Editar Cliente
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
+            <Users className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+            <span>Editar Cliente</span>
           </h1>
-          <p className="text-muted-foreground">Modifica la información del cliente</p>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
+            Modifica la información del cliente
+          </p>
         </div>
-      </div>
+    </div>
 
       {/* Usuario asociado */}
       <Card>

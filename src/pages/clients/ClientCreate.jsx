@@ -68,16 +68,21 @@ export default function ClientCreate() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/clients")}>
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate("/clients")}
+          className="flex-shrink-0 mt-1 sm:mt-0"
+        >
           <ArrowLeft className="w-4 h-4" />
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            Crear Cliente
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
+            <Users className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+            <span>Crear Cliente</span>
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
             Rellena la información para registrar un nuevo cliente
           </p>
         </div>
