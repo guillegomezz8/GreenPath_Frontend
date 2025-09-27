@@ -123,7 +123,7 @@ export default function EditarCliente() {
             <Users className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
             <span>Editar Cliente</span>
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
             Modifica la información del cliente
           </p>
         </div>
@@ -272,13 +272,24 @@ export default function EditarCliente() {
               </div>
             </div>
 
-            <div className="flex gap-4 pt-4">
-              <Button type="button" variant="outline" onClick={() => navigate("/clients")} className="flex-1">
-                Cancelar
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => navigate("/clients")} 
+                className="flex-1 order-2 sm:order-1 h-10 sm:h-9"
+              >
+                <span className="text-sm sm:text-base">Cancelar</span>
               </Button>
-              <Button type="submit" disabled={loading || fetching} className="flex-1 gap-2">
-                <Save className="w-4 h-4" />
-                {loading ? "Guardando..." : "Actualizar Cliente"}
+              <Button 
+                type="submit" 
+                disabled={loading || fetching} 
+                className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9"
+              >
+                <Save className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm sm:text-base">
+                  {loading ? "Guardando..." : "Actualizar Cliente"}
+                </span>
               </Button>
             </div>
           </form>

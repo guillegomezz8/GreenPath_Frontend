@@ -142,7 +142,7 @@ export default function PaginatedScaffold({
               </h1>
             )}
             {!!subtitle && (
-              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl">
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl text-left">
                 {subtitle}
               </p>
             )}
@@ -184,11 +184,6 @@ export default function PaginatedScaffold({
             {/* Filtros */}
             {filters.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground flex-shrink-0">
-                    Filtrar por frecuencia:
-                  </span>
-                </div>
                 <div className={`grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
                   {filters.map((opt) => {
                     const isActive = selectedFilter === opt;
