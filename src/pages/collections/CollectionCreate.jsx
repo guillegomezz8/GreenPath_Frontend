@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Calendar, MapPin, Calculator, Package } from "lucide-react";
+import { ArrowLeft, Save, MapPin, Calculator, Package } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,10 +16,12 @@ export default function CollectionCreate() {
   const { api } = useAuth();
   const { toast } = useToast();
 
+  const [loading, setLoading] = useState(false);
+
   const [clients, setClients] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [workers, setWorkers] = useState([]);
-  
+
   const [formData, setFormData] = useState({
     client: id ?? "",
     route: "",
@@ -36,22 +38,21 @@ export default function CollectionCreate() {
     { value: "CONTENEDORES", label: "Contenedores (1000L cada uno)" }
   ];
 
-  // Traer clientes rutas y trabajadores
-
+  // Traer clientes, rutas y trabajadores
   const fetchClients = useCallback(async () => {
-      const res = await api().get("clients");
-      setClients(res.data.results);
-  }, []);
+    const res = await api().get("clients");
+    setClients(res.data.results || []);
+  }, [api]);
 
   const fetchRoutes = useCallback(async () => {
-      const res = await api().get("routes");
-      setRoutes(res.data.results);
-  }, []);
+    const res = await api().get("routes");
+    setRoutes(res.data.results || []);
+  }, [api]);
 
   const fetchWorkers = useCallback(async () => {
-      const res = await api().get("workers");
-      setWorkers(res.data.results);
-  }, []);
+    const res = await api().get("workers");
+    setWorkers(res.data.results || []);
+  }, [api]);
 
   useEffect(() => {
     fetchClients();
@@ -63,7 +64,7 @@ export default function CollectionCreate() {
     const containerNumber = parseInt(formData.container_number) || 0;
     const pricePerLiter = parseFloat(formData.price_per_liter) || 0;
     const volumePerContainer = formData.container_type === "BIDONES" ? 60 : 1000;
-    
+
     const litersCollected = containerNumber * volumePerContainer;
     const totalPrice = litersCollected * pricePerLiter;
 
@@ -79,30 +80,31 @@ export default function CollectionCreate() {
       toast({
         title: "Error",
         description: "Los campos Cliente, Ruta y Fecha de Recogida son obligatorios",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
-    if (parseInt(formData.container_number) < 1) {
+    if ((parseInt(formData.container_number) || 0) < 1) {
       toast({
         title: "Error",
         description: "El número de contenedores debe ser mayor a 0",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
-    if (parseFloat(formData.price_per_liter) <= 0) {
+    if ((parseFloat(formData.price_per_liter) || 0) <= 0) {
       toast({
         title: "Error",
         description: "El precio por litro debe ser mayor a 0",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     try {
+      setLoading(true);
       await api().post("collections/", {
         client: Number(formData.client),
         worker: formData.worker ? Number(formData.worker) : null,
@@ -111,12 +113,12 @@ export default function CollectionCreate() {
         container_type: formData.container_type,
         container_number: Number(formData.container_number),
         price_per_liter: formData.price_per_liter,
-        notes: formData.notes
+        notes: formData.notes,
       });
 
       toast({
         title: "Recogida programada",
-        description: `Recogida creada exitosamente`
+        description: "Recogida creada exitosamente",
       });
 
       navigate("/collections");
@@ -125,15 +127,17 @@ export default function CollectionCreate() {
       toast({
         title: "Error",
         description: "No se pudo crear la recogida. Inténtalo de nuevo.",
-        variant: "destructive"
+        variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -141,9 +145,9 @@ export default function CollectionCreate() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate("/collections")}
           className="flex-shrink-0 mt-1 sm:mt-0"
         >
@@ -190,10 +194,13 @@ export default function CollectionCreate() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="route">Ruta *</Label>
-                <Select value={formData.route} onValueChange={(value) => handleChange("route", value)}>
+                <Select
+                  value={formData.route}
+                  onValueChange={(value) => handleChange("route", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar ruta" />
                   </SelectTrigger>
@@ -209,7 +216,10 @@ export default function CollectionCreate() {
 
               <div className="space-y-2">
                 <Label htmlFor="worker">Trabajador</Label>
-                <Select value={formData.worker} onValueChange={(value) => handleChange("worker", value)}>
+                <Select
+                  value={formData.worker}
+                  onValueChange={(value) => handleChange("worker", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar trabajador" />
                   </SelectTrigger>
@@ -249,18 +259,23 @@ export default function CollectionCreate() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="container_type">Tipo de Contenedor *</Label>
-                <Select value={formData.container_type} onValueChange={(value) => handleChange("container_type", value)}>
+                <Select
+                  value={formData.container_type}
+                  onValueChange={(value) => handleChange("container_type", value)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar tipo" />
                   </SelectTrigger>
                   <SelectContent>
-                    {containerTypes.map(type => (
-                      <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                    {containerTypes.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="container_number">Número de Contenedores *</Label>
                 <Input
@@ -319,19 +334,28 @@ export default function CollectionCreate() {
                 rows={4}
               />
             </div>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/collections")}
+                className="flex-1 order-2 sm:order-1 h-10 sm:h-9"
+              >
+                <span className="text-sm sm:text-base">Cancelar</span>
+              </Button>
+              <Button
+                type="submit"
+                disabled={loading}
+                className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9"
+              >
+                <Save className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm sm:text-base">
+                  {loading ? "Guardando..." : "Crear Recogida"}
+                </span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
-
-        {/* Botones de acción */}
-        <div className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate("/recogidas")}>
-            Cancelar
-          </Button>
-          <Button type="submit">
-            <Save className="w-4 h-4 mr-2" />
-            Crear Recogida
-          </Button>
-        </div>
       </form>
     </div>
   );

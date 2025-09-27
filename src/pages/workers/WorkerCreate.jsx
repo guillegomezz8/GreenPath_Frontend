@@ -109,7 +109,7 @@ export default function WorkerCreate() {
             <UserCheck className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
             <span>Crear Trabajador</span>
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
             Rellena la información para registrar un nuevo trabajador
           </p>
         </div>
@@ -237,13 +237,19 @@ export default function WorkerCreate() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="address">Dirección</Label>
+              <div className="space-y-2 col-span-full md:col-span-2">
+                <Label 
+                  htmlFor="address"
+                  className="text-sm font-medium text-foreground"
+                >
+                  Dirección
+                </Label>
                 <Input
                   id="address"
                   value={formData.address}
                   onChange={(e) => update("address", e.target.value)}
                   placeholder="C/ Ejemplo 123, Sevilla"
+                  className="w-full text-sm sm:text-base"
                 />
               </div>
 
@@ -258,22 +264,24 @@ export default function WorkerCreate() {
               </div>
             </div>
 
-            <div className="flex gap-4 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/workers")}
-                className="flex-1"
+                className="flex-1 order-2 sm:order-1 h-10 sm:h-9"
               >
-                Cancelar
+                <span className="text-sm sm:text-base">Cancelar</span>
               </Button>
               <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 gap-2"
+                className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9"
               >
-                <Save className="w-4 h-4" />
-                {loading ? "Guardando..." : "Crear Trabajador"}
+                <Save className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm sm:text-base">
+                  {loading ? "Guardando..." : "Crear Trabajador"}
+                </span>
               </Button>
             </div>
           </form>
