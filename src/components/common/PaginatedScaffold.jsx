@@ -4,12 +4,12 @@ import { Input } from "@/components/ui/input";
 import { Search as SearchIcon } from "lucide-react";
 
 const COLS_MAP = {
-  1: "md:grid-cols-1",
-  2: "md:grid-cols-2",
-  3: "md:grid-cols-3",
-  4: "md:grid-cols-4",
-  5: "md:grid-cols-5",
-  6: "md:grid-cols-6",
+  1: "sm:grid-cols-1",
+  2: "sm:grid-cols-1 md:grid-cols-2",
+  3: "sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3",
+  4: "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4",
+  5: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5",
+  6: "sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6",
 };
 
 /**
@@ -51,7 +51,7 @@ export default function PaginatedScaffold({
 
   // Contenido
   children,
-  contentClassName = "grid grid-cols-1 lg:grid-cols-2 gap-6",
+  contentClassName = "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6",
 
   // Loading & Empty
   loading = false,
@@ -68,20 +68,35 @@ export default function PaginatedScaffold({
   paginationClassName = "",
 
   // Wrapper general
-  className = "space-y-6",
+  className = "space-y-4 md:space-y-6",
 }) {
 
-  const colsNumber = Math.max(1, Math.min(countsCols ?? countDefs.length, 6));
-  const mdColsClass = COLS_MAP[colsNumber] || "md:grid-cols-4";
+  // Calcular columnas de forma más inteligente para responsive
+  const getResponsiveColumns = () => {
+    const numCounts = countDefs.length;
+    if (countsCols) {
+      return Math.max(1, Math.min(countsCols, 6));
+    }
+    
+    // Auto-detectar mejor distribución según cantidad
+    if (numCounts <= 2) return 2;
+    if (numCounts <= 3) return 3;
+    if (numCounts <= 4) return 4;
+    if (numCounts <= 6) return Math.min(numCounts, 6);
+    return 4; // Por defecto para muchos elementos
+  };
+
+  const colsNumber = getResponsiveColumns();
+  const responsiveColsClass = COLS_MAP[colsNumber] || "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
 
   const defaultSearch = (
-    <div className="flex-1 relative">
-      <SearchIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+    <div className="flex-1 relative min-w-0">
+      <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
       <Input
         placeholder={searchPlaceholder}
         value={searchValue}
         onChange={(e) => onSearchChange?.(e.target.value)}
-        className="pl-10"
+        className="pl-10 w-full"
       />
     </div>
   );
@@ -92,18 +107,25 @@ export default function PaginatedScaffold({
       variant={isActive ? "default" : "outline"}
       size="sm"
       onClick={onClick}
+      className={`text-xs sm:text-sm h-8 px-3 justify-center min-w-0 ${
+        isActive 
+          ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+          : "hover:bg-muted"
+      }`}
     >
-      {opt}
+      <span className="truncate">{opt}</span>
     </Button>
   );
 
   const defaultCountCard = (def, value) => (
-    <Card key={def.key}>
-      <CardContent className="pt-6 text-center">
-        <div className={`text-2xl font-bold ${def.className || ""}`}>
-          {value ?? 0}
+    <Card key={def.key} className="hover:shadow-md transition-shadow">
+      <CardContent className="pt-4 pb-4 px-4 text-center">
+        <div className={`text-xl sm:text-2xl font-bold leading-tight ${def.className || "text-primary"}`}>
+          {typeof value === 'number' ? value.toLocaleString() : (value ?? 0)}
         </div>
-        <p className="text-sm text-muted-foreground">{def.label}</p>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-tight">
+          {def.label}
+        </p>
       </CardContent>
     </Card>
   );
@@ -112,40 +134,72 @@ export default function PaginatedScaffold({
     <div className={className}>
       {/* Header */}
       {(title || rightAction) && (
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-left">
-          <div>
+        <div className="flex flex-col gap-4 sm:gap-3 lg:flex-row lg:justify-between lg:items-start">
+          <div className="min-w-0 flex-1 space-y-1 sm:space-y-2">
             {!!title && (
-              <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
                 {title}
               </h1>
             )}
-            {!!subtitle && <p className="text-muted-foreground">{subtitle}</p>}
+            {!!subtitle && (
+              <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl">
+                {subtitle}
+              </p>
+            )}
           </div>
 
           {!!rightAction && (
-            <Button className={`gap-2 ${rightAction.className || ""}`} onClick={rightAction.onClick}>
-              {rightAction.icon}
-              {rightAction.label}
-            </Button>
+            <div className="flex justify-start sm:justify-end lg:justify-start">
+              <Button 
+                className={`gap-2 text-sm font-medium shadow-sm transition-all hover:shadow-md ${rightAction.className || ""}`} 
+                onClick={rightAction.onClick}
+                size="sm"
+              >
+                {rightAction.icon && (
+                  <span className="flex-shrink-0">
+                    {rightAction.icon}
+                  </span>
+                )}
+                <span className="hidden xs:inline sm:hidden md:inline">
+                  {rightAction.label}
+                </span>
+                <span className="xs:hidden sm:inline md:hidden">
+                  {rightAction.shortLabel || rightAction.label?.split(' ')[0] || rightAction.label}
+                </span>
+              </Button>
+            </div>
           )}
         </div>
       )}
 
       {/* Search + Filtros */}
       <Card>
-        <CardContent className="pt-6">
-          <div className={`flex flex-col md:flex-row gap-4 ${searchClassName}`}>
-            {renderSearch ? renderSearch(defaultSearch) : defaultSearch}
-
-            <div className={`flex gap-2 flex-wrap ${filtersClassName}`}>
-              {filters.map((opt) => {
-                const isActive = selectedFilter === opt;
-                const onClick = () => onFilterChange?.(opt);
-                return renderFilter
-                  ? renderFilter(opt, isActive, onClick)
-                  : defaultFilter(opt, isActive, onClick);
-              })}
+        <CardContent className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6">
+          <div className={`space-y-4 ${searchClassName}`}>
+            {/* Search */}
+            <div className="w-full">
+              {renderSearch ? renderSearch(defaultSearch) : defaultSearch}
             </div>
+            
+            {/* Filtros */}
+            {filters.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-muted-foreground flex-shrink-0">
+                    Filtrar por frecuencia:
+                  </span>
+                </div>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
+                  {filters.map((opt) => {
+                    const isActive = selectedFilter === opt;
+                    const onClick = () => onFilterChange?.(opt);
+                    return renderFilter
+                      ? renderFilter(opt, isActive, onClick)
+                      : defaultFilter(opt, isActive, onClick);
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -155,22 +209,13 @@ export default function PaginatedScaffold({
         <div
           className={
             countsWrapperClassName ||
-            `grid grid-cols-1 ${mdColsClass} gap-4`
+            `grid grid-cols-1 ${responsiveColsClass} gap-3 md:gap-4`
           }
         >
           {countDefs.map((def) =>
             renderCountCard
               ? renderCountCard(def, counts[def.key])
-              : (
-                <Card key={def.key}>
-                  <CardContent className="pt-6 text-center">
-                    <div className={`text-2xl font-bold ${def.className || ""}`}>
-                      {counts[def.key] ?? 0}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{def.label}</p>
-                  </CardContent>
-                </Card>
-              )
+              : defaultCountCard(def, counts[def.key])
           )}
         </div>
       )}
@@ -179,8 +224,14 @@ export default function PaginatedScaffold({
       <div className={contentClassName}>
         {loading ? (
           loadingNode || (
-            <Card>
-              <CardContent className="text-center py-12">Cargando...</CardContent>
+            <Card className="col-span-full">
+              <CardContent className="text-center py-8 md:py-12">
+                <div className="animate-pulse">
+                  <div className="text-sm md:text-base text-muted-foreground">
+                    Cargando...
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           )
         ) : (
@@ -190,28 +241,59 @@ export default function PaginatedScaffold({
 
       {/* Paginación */}
       {!loading && totalPages > 1 && (
-        <div className={`mt-4 flex items-center justify-between gap-3 ${paginationClassName}`}>
-          <span className="text-sm text-muted-foreground">
-            {total} resultado{total === 1 ? "" : "s"} · Página {page} de {totalPages}
-          </span>
+        <Card>
+          <CardContent className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6">
+            <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${paginationClassName}`}>
+              <span className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
+                <span className="hidden sm:inline">
+                  {total.toLocaleString()} resultado{total === 1 ? "" : "s"} · Página {page} de {totalPages}
+                </span>
+                <span className="sm:hidden">
+                  {page} de {totalPages} ({total.toLocaleString()})
+                </span>
+              </span>
 
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={onPrevPage}>
-              Anterior
-            </Button>
-            <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={onNextPage}>
-              Siguiente
-            </Button>
-          </div>
-        </div>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page <= 1} 
+                  onClick={onPrevPage}
+                  className="text-xs sm:text-sm"
+                >
+                  <span className="hidden sm:inline">Anterior</span>
+                  <span className="sm:hidden">Ant.</span>
+                </Button>
+                <span className="text-xs sm:text-sm text-muted-foreground px-2">
+                  {page}
+                </span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={page >= totalPages} 
+                  onClick={onNextPage}
+                  className="text-xs sm:text-sm"
+                >
+                  <span className="hidden sm:inline">Siguiente</span>
+                  <span className="sm:hidden">Sig.</span>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Vacío */}
-      {!loading && totalPages <= 1 && (!children || (Array.isArray(children) && children.length === 0)) && (
+      {!loading && total === 0 && (
         emptyNode || (
           <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-muted-foreground">{emptyText}</p>
+            <CardContent className="text-center py-8 md:py-12">
+              <div className="max-w-md mx-auto space-y-3">
+                <div className="text-4xl md:text-5xl opacity-20">📭</div>
+                <p className="text-sm md:text-base text-muted-foreground leading-relaxed">
+                  {emptyText}
+                </p>
+              </div>
             </CardContent>
           </Card>
         )

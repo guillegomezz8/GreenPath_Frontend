@@ -190,48 +190,63 @@ export default function ClientDetail() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/clients")}>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left section: Back button + Title */}
+        <div className="flex items-start gap-3 sm:items-center sm:gap-4 min-w-0 flex-1">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => navigate("/clients")}
+            className="flex-shrink-0 mt-1 sm:mt-0"
+          >
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-foreground text-left">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground text-left leading-tight">
               {loading ? "Cargando..." : name}
             </h1>
-            <p className="text-muted-foreground text-left">Información detallada del cliente</p>
+            <p className="text-sm sm:text-base text-muted-foreground text-left mt-1 leading-relaxed">
+              Información detallada del cliente
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
+
+        {/* Right section: Action buttons */}
+        <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+          {/* Edit button */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => navigate(`/clients/${id}/edit`)}
             disabled={loading || !client || deleting}
+            className="flex-1 sm:flex-none min-w-0"
           >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
+            <Edit className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+            <span className="hidden xs:inline sm:hidden md:inline">Editar</span>
           </Button>
+
+          {/* Delete button */}
           <Button
             variant="destructive"
             size="sm"
             disabled={loading || !client || deleting}
             onClick={() => setDeleteOpen(true)}
+            className="flex-1 sm:flex-none min-w-0"
           >
             {deleting ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Eliminando…
+                <Loader2 className="w-4 h-4 sm:mr-2 animate-spin flex-shrink-0" />
+                <span className="hidden xs:inline sm:hidden md:inline">Eliminando…</span>
               </>
             ) : (
               <>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Eliminar
+                <Trash2 className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                <span className="hidden xs:inline sm:hidden md:inline">Eliminar</span>
               </>
             )}
           </Button>
         </div>
       </div>
-
       {error && (
         <Card>
           <CardContent className="text-destructive py-4">{error}</CardContent>

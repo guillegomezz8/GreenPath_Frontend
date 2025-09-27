@@ -157,7 +157,7 @@ export default function ClientsList() {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="gap-2 text-destructive"
-                      onClick={() => askDelete(client)} // >>> abrir modal
+                      onClick={() => askDelete(client)}
                     >
                       <Trash2 className="w-4 h-4" /> Eliminar
                     </DropdownMenuItem>
