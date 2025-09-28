@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,26 +11,49 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { ArrowLeft, Save, UserCheck, UserPen, IdCard } from "lucide-react";
+import { ArrowLeft, Save, UserPen, UserCog, IdCard } from "lucide-react";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
 import { useAuth } from "@/context/AuthProvider";
-import { Checkbox } from "@/components/ui/checkbox";
 
-export default function WorkerCreate() {
+function toDateInputValue(value) {
+  if (!value) return "";
+  try {
+    if (typeof value === "string") {
+      if (value.length >= 10) return value.slice(0, 10);
+    } else if (value instanceof Date) {
+      const y = value.getFullYear();
+      const m = String(value.getMonth() + 1).padStart(2, "0");
+      const d = String(value.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+  } catch {}
+  return "";
+}
+
+const toRoleValue = (r) => {
+  if (!r) return "worker";
+  const s = String(r).trim().toLowerCase();
+  if (["worker", "trabajador"].includes(s)) return "worker";
+  if (["owner", "dueño", "dueno"].includes(s)) return "owner";
+  if (["trabajador"].includes(s)) return "worker";
+  return "worker";
+};
+
+export default function WorkerEdit() {
   const navigate = useNavigate();
+  const { id } = useParams();
   const showSnackbar = useSnackbar();
   const { api } = useAuth();
 
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [photoFile, setPhotoFile] = useState(null);
 
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    get_access: false,
-
-    role: "WORKER",
+    role: "worker",
     name: "",
     surname: "",
     address: "",
@@ -39,9 +62,43 @@ export default function WorkerCreate() {
     birth_date: "",
   });
 
-  const update = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const update = (field, value) =>
+    setFormData((prev) => ({ ...prev, [field]: value }));
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setFetching(true);
+        const { data } = await api().get(`/workers/${id}/`);
+        if (cancelled) return;
+
+        const username = data?.username ?? data?.user?.username ?? "";
+        const email = data?.email ?? data?.user?.email ?? "";
+
+        setFormData({
+          username,
+          email,
+          role: toRoleValue(data?.role),
+          name: data?.name || "",
+          surname: data?.surname || "",
+          address: data?.address || "",
+          phone: data?.phone || "",
+          dni: data?.dni || "",
+          birth_date: toDateInputValue(data?.birth_date),
+        });
+      } catch (err) {
+        const message = handleApiError(err, "Error inesperado obteniendo trabajador.");
+        showSnackbar(message, "error");
+        navigate("/workers");
+      } finally {
+        if (!cancelled) setFetching(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, api, navigate, showSnackbar]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -49,7 +106,6 @@ export default function WorkerCreate() {
 
     try {
       const jsonPayload = {
-        get_access: formData.get_access,
         user: {
           username: formData.username,
           email: formData.email,
@@ -65,38 +121,24 @@ export default function WorkerCreate() {
 
       if (photoFile) {
         const fd = new FormData();
-        fd.append("get_access", formData.get_access ? "true" : "false");
-
-        fd.append("user", JSON.stringify({
-          username: formData.username,
-          email: formData.email,
-        }));
-        fd.append("role", formData.role || "WORKER");
-        fd.append("name", formData.name || "");
-        fd.append("surname", formData.surname || "");
-        fd.append("address", formData.address || "");
-        fd.append("phone", formData.phone || "");
-        fd.append("dni", formData.dni || "");
-        if (formData.birth_date) fd.append("birth_date", formData.birth_date);
+        fd.append("user", JSON.stringify(jsonPayload.user));
+        fd.append("role", jsonPayload.role);
+        fd.append("name", jsonPayload.name || "");
+        fd.append("surname", jsonPayload.surname || "");
+        fd.append("address", jsonPayload.address || "");
+        fd.append("phone", jsonPayload.phone || "");
+        fd.append("dni", jsonPayload.dni || "");
+        if (jsonPayload.birth_date) fd.append("birth_date", jsonPayload.birth_date);
         fd.append("photo", photoFile);
 
-        await api().post("/workers/", fd);
+        await api().put(`/workers/${id}/`, fd);
       } else {
-        await api().post("/workers/", {
-          get_access: formData.get_access,
-          user: { username: formData.username, email: formData.email },
-          role: formData.role,
-          name: formData.name,
-          surname: formData.surname,
-          address: formData.address,
-          phone: formData.phone,
-          dni: formData.dni,
-          birth_date: formData.birth_date || null,
-        });
+        await api().put(`/workers/${id}/`, jsonPayload);
       }
+
       navigate("/workers");
     } catch (error) {
-      const message = handleApiError(error, "Error inesperado creando trabajador.");
+      const message = handleApiError(error, "Error inesperado actualizando trabajador.");
       showSnackbar(message, "error");
     } finally {
       setLoading(false);
@@ -107,9 +149,9 @@ export default function WorkerCreate() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => navigate("/workers")}
           className="flex-shrink-0 mt-1 sm:mt-0"
         >
@@ -117,11 +159,11 @@ export default function WorkerCreate() {
         </Button>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
-            <UserCheck className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
-            <span>Crear Trabajador</span>
+            <UserCog className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+            <span>Editar Trabajador</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Rellena la información para registrar un nuevo trabajador
+            Modifica la información del trabajador
           </p>
         </div>
       </div>
@@ -143,6 +185,7 @@ export default function WorkerCreate() {
                 value={formData.username}
                 onChange={(e) => update("username", e.target.value)}
                 required
+                disabled
               />
             </div>
             <div className="space-y-2">
@@ -153,19 +196,9 @@ export default function WorkerCreate() {
                 value={formData.email}
                 onChange={(e) => update("email", e.target.value)}
                 required
+                disabled={fetching}
               />
             </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="get_access"
-              checked={formData.get_access}
-              onCheckedChange={(v) => update("get_access", !!v)}
-            />
-            <Label htmlFor="get_access">
-              Dar acceso a la plataforma (enviar contraseña temporal por email)
-            </Label>
           </div>
         </CardContent>
       </Card>
@@ -183,12 +216,15 @@ export default function WorkerCreate() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="role">Rol</Label>
-                <Select value={formData.role} onValueChange={(value) => update("role", value)}>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value) => update("role", value)}
+                  disabled={fetching}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona el rol" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Ajusta a tus Role.choices de apps.base.enums */}
                     <SelectItem value="owner">Dueño</SelectItem>
                     <SelectItem value="worker">Trabajador</SelectItem>
                   </SelectContent>
@@ -202,6 +238,7 @@ export default function WorkerCreate() {
                   value={formData.name}
                   onChange={(e) => update("name", e.target.value)}
                   required
+                  disabled={fetching}
                 />
               </div>
 
@@ -212,6 +249,7 @@ export default function WorkerCreate() {
                   value={formData.surname}
                   onChange={(e) => update("surname", e.target.value)}
                   required
+                  disabled={fetching}
                 />
               </div>
             </div>
@@ -224,6 +262,7 @@ export default function WorkerCreate() {
                   value={formData.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   placeholder="+34 666 000 000"
+                  disabled={fetching}
                 />
               </div>
               <div className="space-y-2">
@@ -233,6 +272,7 @@ export default function WorkerCreate() {
                   value={formData.dni}
                   onChange={(e) => update("dni", e.target.value)}
                   placeholder="12345678Z"
+                  disabled={fetching}
                 />
               </div>
               <div className="space-y-2">
@@ -242,16 +282,14 @@ export default function WorkerCreate() {
                   type="date"
                   value={formData.birth_date}
                   onChange={(e) => update("birth_date", e.target.value)}
+                  disabled={fetching}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2 col-span-full md:col-span-2">
-                <Label 
-                  htmlFor="address"
-                  className="text-sm font-medium text-foreground"
-                >
+                <Label className="text-sm font-medium text-foreground" htmlFor="address">
                   Dirección
                 </Label>
                 <Input
@@ -260,16 +298,18 @@ export default function WorkerCreate() {
                   onChange={(e) => update("address", e.target.value)}
                   placeholder="C/ Ejemplo 123, Sevilla"
                   className="w-full text-sm sm:text-base"
+                  disabled={fetching}
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="photo">Foto</Label>
+                <Label htmlFor="photo">Foto (opcional)</Label>
                 <Input
                   id="photo"
                   type="file"
                   accept="image/*"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                  disabled={fetching}
                 />
               </div>
             </div>
@@ -285,12 +325,12 @@ export default function WorkerCreate() {
               </Button>
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || fetching}
                 className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9"
               >
                 <Save className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm sm:text-base">
-                  {loading ? "Guardando..." : "Crear Trabajador"}
+                  {loading ? "Guardando..." : "Actualizar Trabajador"}
                 </span>
               </Button>
             </div>

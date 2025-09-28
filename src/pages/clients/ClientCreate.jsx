@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Users, UserCog, IdCard } from "lucide-react"; // ⬅️ añadido UserCog y IdCard
+import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react"; // ⬅️ añadido UserCog y IdCard
 import { useSnackbar } from '@/context/SnackbarProvider';
 import { handleApiError } from '@/components/Utils';
 import { useAuth } from "@/context/AuthProvider";
@@ -92,7 +92,7 @@ export default function ClientCreate() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <UserCog className="w-5 h-5 text-primary" />
+            <UserPen className="w-5 h-5 text-primary" />
             Usuario asociado
           </CardTitle>
         </CardHeader>

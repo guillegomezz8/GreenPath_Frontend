@@ -16,6 +16,7 @@ import ClientEdit from './pages/clients/ClientEdit';
 import WorkersList from '@/pages/workers/WorkersList';
 import WorkerDetail from '@/pages/workers/WorkerDetail';
 import WorkerCreate from '@/pages/workers/WorkerCreate';
+import WorkerEdit from '@/pages/workers/WorkerEdit';
 import CollectionZonesList from '@/pages/collectionZones/CollectionZonesList';
 import RoutesList from '@/pages/routes/RoutesList';
 import CollectionsList from '@/pages/collections/CollectionsList';
@@ -51,6 +52,7 @@ function AppContent() {
         <Route path="/workers" element={<WorkersList />} />
         <Route path="/workers/:id" element={<WorkerDetail />} />
         <Route path="/workers/new" element={<WorkerCreate />} />
+        <Route path="/workers/:id/edit" element={<WorkerEdit />} />
         <Route path="/collection-zones" element={<CollectionZonesList />} />
         <Route path="/routes" element={<RoutesList />} />
         <Route path="/collections" element={<CollectionsList />} />
