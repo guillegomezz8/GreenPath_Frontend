@@ -4,12 +4,29 @@ import axios from "axios";
 
 export function handleApiError(error, defaultErrorMessage) {
   let errorMessage = defaultErrorMessage;
-  console.log(error)
-  if (error.response) {
-    errorMessage = error.response.data.message;
-    console.log(errorMessage);
-  }
-
+  console.log('Error recibido:', error);
+  if (error.response?.data) {
+    const data = error.response.data;
+    
+    if (typeof data === 'string') {
+      errorMessage = data;
+    }
+    else if (data.detail) {
+      errorMessage = data.detail;
+    }
+    else if (data.message) {
+      errorMessage = data.message;
+    }
+    else if (typeof data === 'object') {
+      const errors = Object.entries(data)
+        .map(([field, msgs]) => {
+          const messages = Array.isArray(msgs) ? msgs : [msgs];
+          return `${field}: ${messages.join(', ')}`;
+        })
+        .join(' | ');
+      errorMessage = errors || defaultErrorMessage;
+    }
+  }  
   return errorMessage;
 }
 
