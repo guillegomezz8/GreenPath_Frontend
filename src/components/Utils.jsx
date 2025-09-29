@@ -7,7 +7,6 @@ export function handleApiError(error, defaultErrorMessage) {
   console.log('Error recibido:', error);
   if (error.response?.data) {
     const data = error.response.data;
-
     if (typeof data === 'string') {
       errorMessage = data;
     }
