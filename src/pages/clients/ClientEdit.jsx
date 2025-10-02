@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useSnackbar } from '@/context/SnackbarProvider';
 import { handleApiError } from '@/components/Utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Users } from "lucide-react";
+import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 
 const displayToCode = (label) => {
@@ -132,7 +132,10 @@ export default function EditarCliente() {
       {/* Usuario asociado */}
       <Card>
         <CardHeader>
-          <CardTitle>Usuario asociado</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <UserPen className="w-5 h-5 text-primary" />
+            Usuario asociado
+          </CardTitle>        
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -165,7 +168,10 @@ export default function EditarCliente() {
       {/* Información del Cliente */}
       <Card>
         <CardHeader>
-          <CardTitle>Información del Cliente</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <IdCard className="w-5 h-5 text-primary" />
+            Información del Trabajador
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -25,6 +25,7 @@ import {
   Droplet,
   BarChart3,
   Coins,
+  UserCheck,
 } from "lucide-react";
 
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
@@ -115,16 +116,29 @@ export default function WorkerDetail() {
     fetchCollections(id);
   }, [id, collPage]);
 
-  const handleDelete = async () => {
-    if (!id) return;
+  const isDisabled = worker?.disabled;
+  const toggleButtonText = isDisabled ? "Habilitar" : "Deshabilitar";
+  const toggleButtonIcon = isDisabled ? UserCheck : Trash2;
+  const toggleButtonVariant = isDisabled ? "default" : "destructive";
+  const loadingText = isDisabled ? "Habilitando…" : "Deshabilitando…";
+
+  const handleToggleStatus = async () => {
+    if (!id || !worker) return;
+    
+    const isDisabled = worker.disabled;
+    const actionUrl = isDisabled ? `workers/${encodeURIComponent(id)}/activate/` : `workers/${encodeURIComponent(id)}/`;
+    const method = isDisabled ? 'put' : 'delete';
+    const successMessage = isDisabled ? 'Trabajador habilitado correctamente.' : 'Trabajador deshabilitado correctamente.';
+    const errorMessage = isDisabled ? 'No se pudo habilitar el trabajador.' : 'No se pudo deshabilitar el trabajador.';
+    
     try {
       setDeleting(true);
-      await api().delete(`workers/${encodeURIComponent(id)}/`);
-      showSnackbar("Trabajador eliminado correctamente.", "success");
+      await api()[method](actionUrl);
+      showSnackbar(successMessage, "success");
       setDeleteOpen(false);
-      navigate("/workers");
+      await fetchWorker(id);
     } catch (e) {
-      const message = handleApiError(e, "No se pudo eliminar el trabajador.");
+      const message = handleApiError(e, errorMessage);
       showSnackbar(message, "error");
     } finally {
       setDeleting(false);
@@ -225,7 +239,7 @@ export default function WorkerDetail() {
 
           {/* Delete button */}
           <Button
-            variant="destructive"
+            variant={toggleButtonVariant}
             size="sm"
             disabled={loading || !worker || deleting}
             onClick={() => setDeleteOpen(true)}
@@ -234,12 +248,12 @@ export default function WorkerDetail() {
             {deleting ? (
               <>
                 <Loader2 className="w-4 h-4 sm:mr-2 animate-spin flex-shrink-0" />
-                <span className="hidden xs:inline sm:hidden md:inline">Eliminando…</span>
+                <span className="hidden xs:inline sm:hidden md:inline">{loadingText}</span>
               </>
             ) : (
               <>
-                <Trash2 className="w-4 h-4 sm:mr-2 flex-shrink-0" />
-                <span className="hidden xs:inline sm:hidden md:inline">Eliminar</span>
+                {React.createElement(toggleButtonIcon, { className: "w-4 h-4 sm:mr-2 flex-shrink-0" })}
+                <span className="hidden xs:inline sm:hidden md:inline">{toggleButtonText}</span>
               </>
             )}
           </Button>
@@ -531,10 +545,14 @@ export default function WorkerDetail() {
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        title="Eliminar trabajador"
-        description={`Se va a eliminar el trabajador "${worker?.name ?? ""} ${worker?.surname ?? ""}". Esta acción no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        onConfirm={handleDelete}
+        title={isDisabled ? "Habilitar trabajador" : "Deshabilitar trabajador"}
+        description={
+          isDisabled 
+            ? `Se habilitará el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Podrá acceder al sistema nuevamente.`
+            : `Se deshabilitará el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Esta acción no se puede deshacer.`
+        }
+        confirmLabel={isDisabled ? "Habilitar" : "Deshabilitar"}
+        onConfirm={handleToggleStatus}
         loading={deleting}
       />
     </div>

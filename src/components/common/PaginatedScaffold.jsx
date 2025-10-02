@@ -1,7 +1,8 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search as SearchIcon } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
+import { useState } from "react";
 
 const COLS_MAP = {
   1: "sm:grid-cols-1",
@@ -16,7 +17,7 @@ const COLS_MAP = {
  * Headless layout para:
  * - Header (title, subtitle, acción derecha)
  * - Search + filtros (chips por defecto, o render personalizada)
- * - Contadores (opcional)
+ * - Contadores (opcional, con dropdown en móvil)
  * - Zona de contenido (children)
  * - Paginación
  *
@@ -26,7 +27,7 @@ export default function PaginatedScaffold({
   // Header
   title,
   subtitle,
-  rightAction, // { label, onClick, icon, className }
+  rightAction, // { label, onClick, icon, className, shortLabel }
 
   // Search
   searchPlaceholder = "Buscar...",
@@ -83,15 +84,17 @@ export default function PaginatedScaffold({
     if (numCounts <= 3) return 3;
     if (numCounts <= 4) return 4;
     if (numCounts <= 6) return Math.min(numCounts, 6);
-    return 4; // Por defecto para muchos elementos
+    return 4;
   };
 
   const colsNumber = getResponsiveColumns();
   const responsiveColsClass = COLS_MAP[colsNumber] || "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
 
+  const [isCountsOpen, setIsCountsOpen] = useState(false);
+
   const defaultSearch = (
     <div className="flex-1 relative min-w-0">
-      <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
       <Input
         placeholder={searchPlaceholder}
         value={searchValue}
@@ -201,18 +204,64 @@ export default function PaginatedScaffold({
 
       {/* Contadores */}
       {counts && countDefs.length > 0 && (
-        <div
-          className={
-            countsWrapperClassName ||
-            `grid grid-cols-1 ${responsiveColsClass} gap-3 md:gap-4`
-          }
-        >
-          {countDefs.map((def) =>
-            renderCountCard
-              ? renderCountCard(def, counts[def.key])
-              : defaultCountCard(def, counts[def.key])
-          )}
-        </div>
+        <>
+          {/* Versión móvil: Dropdown */}
+          <div className="md:hidden">
+            <Card>
+              <CardContent className="p-0">
+                <button
+                  onClick={() => setIsCountsOpen(!isCountsOpen)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-medium">Ver contadores</span>
+                  </div>
+                  <ChevronDown 
+                    className={`w-5 h-5 text-muted-foreground transition-transform ${
+                      isCountsOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+
+                {isCountsOpen && (
+                  <div className="border-t p-4 space-y-3">
+                    {countDefs.map((def) => (
+                      <div 
+                        key={def.key} 
+                        className="flex items-center justify-between py-2 border-b last:border-b-0"
+                      >
+                        <span className="text-sm text-muted-foreground">
+                          {def.label}
+                        </span>
+                        <span className={`text-lg font-bold ${def.className || "text-primary"}`}>
+                          {typeof counts[def.key] === 'number' 
+                            ? counts[def.key].toLocaleString() 
+                            : (counts[def.key] ?? 0)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Versión escritorio: Grid */}
+          <div
+            className={
+              `hidden md:grid ${
+                countsWrapperClassName ||
+                `grid-cols-1 ${responsiveColsClass} gap-3 md:gap-4`
+              }`
+            }
+          >
+            {countDefs.map((def) =>
+              renderCountCard
+                ? renderCountCard(def, counts[def.key])
+                : defaultCountCard(def, counts[def.key])
+            )}
+          </div>
+        </>
       )}
 
       {/* Contenido */}
