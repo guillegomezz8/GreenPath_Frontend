@@ -20,6 +20,7 @@ import CollectionZonesList from '@/pages/collectionZones/CollectionZonesList';
 import RoutesList from '@/pages/routes/RoutesList';
 import CollectionsList from '@/pages/collections/CollectionsList';
 import CollectionCreate from '@/pages/collections/CollectionCreate';
+import AssignTruck from '@/pages/trucks/AssignTruck';
 import Stats from '@/pages/stats/Stats';
 
 function AppContent() {
@@ -56,6 +57,7 @@ function AppContent() {
         <Route path="/collections" element={<CollectionsList />} />
         <Route path="/collections/new" element={<CollectionCreate />} />
         <Route path="/collections/:id/new" element={<CollectionCreate />} />
+        <Route path="/assign-truck/:id" element={<AssignTruck />} />
         <Route path="/stats" element={<Stats />} />
       </Route>
 

@@ -125,6 +125,56 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Nueva función para login con Google
+  const googleLogin = (data) => {
+    try {
+      setIsLoading(true);
+
+      // Extraer los tokens y datos del usuario de la respuesta
+      const accessToken = data.t || data.token;
+      const refreshToken = data["refresh-token"];
+      const userData = data.user;
+
+      if (!accessToken || !userData) {
+        throw new Error("Datos de autenticación de Google incompletos");
+      }
+
+      // Decodificar el token para obtener información adicional
+      const decoded = jwtDecode(accessToken);
+
+      // Crear objeto de usuario con roles
+      const userWithRoles = {
+        ...userData,
+        roles: [userData.role_type],
+        ...decoded,
+      };
+
+      // Guardar en localStorage
+      localStorage.setItem("AccessToken", accessToken);
+      localStorage.setItem("UserData", JSON.stringify(userWithRoles));
+      if (refreshToken) {
+        localStorage.setItem("RefreshToken", refreshToken);
+      }
+
+      // Actualizar estado
+      setUser(userWithRoles);
+      setAuthenticated(true);
+      
+      // Iniciar temporizador de token
+      startTokenTimer(accessToken);
+
+      // Navegar a la página principal
+      navigate("/clients", { replace: true });
+
+    } catch (error) {
+      console.error('Error al iniciar sesión con Google:', error);
+      handleLogout();
+      throw error; // Re-lanzar para que el componente que llama pueda manejarlo
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleModalClose = () => {
     setModalOpen(false);
     setTimeLeft(null);
@@ -194,7 +244,6 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // Cargar datos del usuario desde localStorage
         const savedUser = localStorage.getItem("UserData");
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);
@@ -202,20 +251,16 @@ export const AuthProvider = ({ children }) => {
           setAuthenticated(true);
         }
 
-        // Verificar que el token sigue siendo válido
         const decoded = jwtDecode(token);
         const now = Date.now();
         const expiration = decoded.exp * 1000;
         
         if (now >= expiration) {
-          // Token expirado
           handleLogout();
           return;
         }
 
-        // Si llegamos aquí, el token es válido
         if (!savedUser) {
-          // Si no tenemos datos del usuario guardados, hacer logout
           handleLogout();
           return;
         }
@@ -231,7 +276,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     loadUser();
-  }, [handleLogout]); // Removido api de las dependencias para evitar loops
+  }, [handleLogout]);
 
   useEffect(() => {
     return () => clearExistingInterval();
@@ -245,6 +290,7 @@ export const AuthProvider = ({ children }) => {
         userRole: user?.role,
         userName: user?.username,
         login,
+        googleLogin, // ✅ Exportar la nueva función
         logout: handleLogout,
         api,
         isLoading,

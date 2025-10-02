@@ -11,20 +11,22 @@ const signature = import.meta.env.VITE_GOOGLE_SIGNATURE;
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function SocialLogin() {
-  const { login } = useAuth();
+  const { googleLogin } = useAuth();
   const googleBtnRef = useRef(null);
   const initialized = useRef(false);
   const navigate = useNavigate();
-  const [gisReady, setGisReady] = useState(!!window.google);
+  const [gisReady, setGisReady] = useState(false);
 
   const handleCredentialResponse = useCallback(async (response) => {
     if (!response?.credential) {
+      console.error("No se recibió credential de Google");
       alert("Error al iniciar sesión con Google. Intenta de nuevo.");
       return;
     }
 
     try {
       const decoded = jwtDecode(response.credential);
+      console.log("Usuario Google:", decoded.email);
 
       const { data } = await axios.post(`${apiUrl}/authenticate/login`, {
         email: decoded.email,
@@ -34,57 +36,85 @@ export default function SocialLogin() {
       });
 
       if (data?.t) {
-        login(data);
+        googleLogin(data);
+        navigate("/dashboard");
       } else {
         throw new Error("Token no recibido del backend");
       }
     } catch (err) {
       console.error("Error durante login social:", err.response?.data || err.message);
-      alert("Error al iniciar sesión. Intenta de nuevo.");
+      alert("Error al iniciar sesión. Verifica tus credenciales.");
     }
-  }, [login]);
+  }, [googleLogin, navigate, apiUrl, signature]);
 
   useEffect(() => {
-    if (window.google) setGisReady(true);
+    if (window.google) {
+      setGisReady(true);
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setGisReady(true);
+    script.onerror = () => console.error("Error cargando Google Sign-In");
+    document.body.appendChild(script);
+
+    return () => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script);
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (!gisReady || !googleClientId || !googleBtnRef.current) return;
+    if (!gisReady || !googleClientId || !googleBtnRef.current || initialized.current) {
+      return;
+    }
 
-    if (!initialized.current) {
+    try {
+      // Inicializar Google Sign-In
       window.google.accounts.id.initialize({
         client_id: googleClientId,
         callback: handleCredentialResponse,
+        auto_select: false,
+        cancel_on_tap_outside: true,
       });
+
       initialized.current = true;
+
+      const renderResponsiveButton = () => {
+        if (!googleBtnRef.current) return;
+
+        const containerWidth = googleBtnRef.current.offsetWidth || 300;
+        const width = Math.round(Math.min(Math.max(containerWidth, 200), 400));
+        const size = width < 280 ? "medium" : "large";
+
+        googleBtnRef.current.innerHTML = "";
+        
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          type: "standard",
+          theme: "outline",
+          size,
+          text: "signin_with",
+          shape: "rectangular",
+          width,
+          locale: "es",
+        });
+      };
+
+      // Renderizar botón inicialmente
+      renderResponsiveButton();
+
+      // Observer para cambios de tamaño
+      const ro = new ResizeObserver(() => renderResponsiveButton());
+      ro.observe(googleBtnRef.current);
+
+      return () => ro.disconnect();
+    } catch (error) {
+      console.error("Error inicializando Google Sign-In:", error);
     }
-
-    const renderResponsiveButton = () => {
-      if (!googleBtnRef.current) return;
-
-      const width = Math.round(
-        Math.min(Math.max(googleBtnRef.current.offsetWidth || 300, 200), 400)
-      );
-
-      const size = width < 280 ? "medium" : "large";
-
-      googleBtnRef.current.innerHTML = "";
-      window.google.accounts.id.renderButton(googleBtnRef.current, {
-        type: "standard",
-        theme: "outline",
-        size,
-        text: "signin_with",
-        shape: "rectangular",
-        width,
-      });
-    };
-
-    renderResponsiveButton();
-
-    const ro = new ResizeObserver(() => renderResponsiveButton());
-    ro.observe(googleBtnRef.current);
-
-    return () => ro.disconnect();
   }, [gisReady, googleClientId, handleCredentialResponse]);
 
   return (
@@ -104,6 +134,13 @@ export default function SocialLogin() {
                 Inicia sesión para acceder a la plataforma
               </p>
             </div>
+
+            {!gisReady && (
+              <div className="text-sm text-gray-500">
+                Cargando opciones de inicio de sesión...
+              </div>
+            )}
+
             <div className="flex justify-center">
               <div
                 ref={googleBtnRef}
