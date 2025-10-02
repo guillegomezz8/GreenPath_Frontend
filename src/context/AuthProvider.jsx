@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
 
       const userWithRoles = {
         ...userData,
-        roles: [userData.role_type],
+        roles: userData.role_type,
         ...decoded,
       };
 
@@ -125,12 +125,10 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  // Nueva función para login con Google
   const googleLogin = (data) => {
     try {
       setIsLoading(true);
 
-      // Extraer los tokens y datos del usuario de la respuesta
       const accessToken = data.t || data.token;
       const refreshToken = data["refresh-token"];
       const userData = data.user;
@@ -139,37 +137,29 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Datos de autenticación de Google incompletos");
       }
 
-      // Decodificar el token para obtener información adicional
       const decoded = jwtDecode(accessToken);
 
-      // Crear objeto de usuario con roles
       const userWithRoles = {
         ...userData,
-        roles: [userData.role_type],
         ...decoded,
       };
 
-      // Guardar en localStorage
+      console.log("Datos del usuario de Google:", userWithRoles);
+
       localStorage.setItem("AccessToken", accessToken);
       localStorage.setItem("UserData", JSON.stringify(userWithRoles));
       if (refreshToken) {
         localStorage.setItem("RefreshToken", refreshToken);
       }
 
-      // Actualizar estado
       setUser(userWithRoles);
       setAuthenticated(true);
       
-      // Iniciar temporizador de token
       startTokenTimer(accessToken);
-
-      // Navegar a la página principal
-      navigate("/clients", { replace: true });
-
     } catch (error) {
       console.error('Error al iniciar sesión con Google:', error);
       handleLogout();
-      throw error; // Re-lanzar para que el componente que llama pueda manejarlo
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -287,10 +277,9 @@ export const AuthProvider = ({ children }) => {
       value={{
         authenticated,
         user,
-        userRole: user?.role,
         userName: user?.username,
         login,
-        googleLogin, // ✅ Exportar la nueva función
+        googleLogin,
         logout: handleLogout,
         api,
         isLoading,

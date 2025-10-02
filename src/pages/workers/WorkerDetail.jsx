@@ -193,7 +193,7 @@ export default function WorkerDetail() {
           
           {/* Avatar + Info container */}
           <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0">
+            <Avatar className="w-12 h-12 sm:w-14 sm:h-14 flex-shrink-0" size="lg">
               {worker && getAvatarSrc(worker) && (
                 <AvatarImage
                   src={getAvatarSrc(worker)}

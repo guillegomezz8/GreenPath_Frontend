@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
 
 export const MainLayout = ({ children }) => {
-  const { user, userRole } = useAuth();
+  const { user } = useAuth();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -60,10 +60,10 @@ export const MainLayout = ({ children }) => {
         <div className="flex items-center gap-4 px-2">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-green-800 hidden sm:inline">
-              GreenPath - {userRole ? userRole : 'Rol Desconocido'}
+              GreenPath - {user?.role_type ? user.role_type : 'Rol Desconocido'}
             </span>
             <span className="font-semibold text-green-800 sm:hidden">
-              GreenPath
+              GreenPath - {user?.role_type ? user.role_type : 'Rol Desconocido'}
             </span>
           </div>
         </div>
