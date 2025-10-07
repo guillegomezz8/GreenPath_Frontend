@@ -297,7 +297,11 @@ export default function WorkersList() {
                 >
                   Ver Detalle
                 </ActionButton>
-                <ActionButton size="sm" className="flex-1">
+                <ActionButton
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => navigate(`/assign-truck/${worker.id}`)}
+                >
                   Asignar Camión
                 </ActionButton>
               </div>
