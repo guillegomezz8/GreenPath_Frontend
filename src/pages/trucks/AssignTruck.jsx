@@ -197,14 +197,14 @@ export default function AssignTruck() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 lg:p-6">
+    <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/workers")}
-          className="flex-shrink-0"
+          className="flex-shrink-0 mt-1 sm:mt-0"
         >
           <ArrowLeft className="w-4 h-4" />
         </Button>

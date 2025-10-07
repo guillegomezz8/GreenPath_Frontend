@@ -14,51 +14,47 @@ const COLS_MAP = {
 };
 
 /**
- * Headless layout para:
- * - Header (title, subtitle, acción derecha)
- * - Search + filtros (chips por defecto, o render personalizada)
- * - Contadores (opcional, con dropdown en móvil)
- * - Zona de contenido (children)
- * - Paginación
- *
- * Todo es controlado por props. Sin lógica interna de datos.
+ * Layout flexible para listados con header, búsqueda, filtros, contadores, contenido y paginación.
+ * Si se pasa `layout="list"`, no usará el grid por defecto, permitiendo tablas o listados personalizados.
  */
 export default function PaginatedScaffold({
   // Header
   title,
   subtitle,
-  rightAction, // { label, onClick, icon, className, shortLabel }
+  rightAction,
 
   // Search
   searchPlaceholder = "Buscar...",
   searchValue,
   onSearchChange,
-  renderSearch, // (defaultInput) => ReactNode
+  renderSearch,
   searchClassName = "",
 
   // Filtros
-  filters = [],          // ["Todos", "Cada semana", ...]
+  filters = [],
   selectedFilter,
   onFilterChange,
-  renderFilter,          // (opt, isActive, onClick) => ReactNode
+  renderFilter,
   filtersClassName = "",
 
   // Contadores
-  counts,                // { key: number, ... }
-  countDefs = [],        // [{ key, label, className }]
+  counts,
+  countDefs = [],
   countsWrapperClassName = "",
-  renderCountCard,       // (def, value) => ReactNode (si quieres custom total)
-  countsCols,            // número de columnas (1-6) o undefined para auto
+  renderCountCard,
+  countsCols,
 
   // Contenido
   children,
   contentClassName = "grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6",
+  layout = "grid",
 
   // Loading & Empty
   loading = false,
-  loadingNode,           // ReactNode
-  emptyNode,             // ReactNode
+  loadingNode,
+  emptyNode,
   emptyText = "No hay resultados con los criterios seleccionados",
+  showDefaultEmpty = true,
 
   // Paginación
   total = 0,
@@ -71,15 +67,12 @@ export default function PaginatedScaffold({
   // Wrapper general
   className = "space-y-4 md:space-y-6",
 }) {
+  const [isCountsOpen, setIsCountsOpen] = useState(false);
 
-  // Calcular columnas de forma más inteligente para responsive
+  // --- Distribución de contadores ---
   const getResponsiveColumns = () => {
     const numCounts = countDefs.length;
-    if (countsCols) {
-      return Math.max(1, Math.min(countsCols, 6));
-    }
-    
-    // Auto-detectar mejor distribución según cantidad
+    if (countsCols) return Math.max(1, Math.min(countsCols, 6));
     if (numCounts <= 2) return 2;
     if (numCounts <= 3) return 3;
     if (numCounts <= 4) return 4;
@@ -88,9 +81,8 @@ export default function PaginatedScaffold({
   };
 
   const colsNumber = getResponsiveColumns();
-  const responsiveColsClass = COLS_MAP[colsNumber] || "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
-
-  const [isCountsOpen, setIsCountsOpen] = useState(false);
+  const responsiveColsClass =
+    COLS_MAP[colsNumber] || "sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4";
 
   const defaultSearch = (
     <div className="flex-1 relative min-w-0">
@@ -110,9 +102,9 @@ export default function PaginatedScaffold({
       variant={isActive ? "default" : "outline"}
       size="sm"
       onClick={onClick}
-      className={`text-xs sm:text-sm h-8 px-3 justify-center min-w-0 ${
-        isActive 
-          ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+      className={`text-xs sm:text-sm h-8 px-3 justify-center ${
+        isActive
+          ? "bg-primary text-primary-foreground hover:bg-primary/90"
           : "hover:bg-muted"
       }`}
     >
@@ -123,8 +115,14 @@ export default function PaginatedScaffold({
   const defaultCountCard = (def, value) => (
     <Card key={def.key} className="hover:shadow-md transition-shadow">
       <CardContent className="pt-4 pb-4 px-4 text-center">
-        <div className={`text-xl sm:text-2xl font-bold leading-tight ${def.className || "text-primary"}`}>
-          {typeof value === 'number' ? value.toLocaleString() : (value ?? 0)}
+        <div
+          className={`text-xl sm:text-2xl font-bold leading-tight ${
+            def.className || "text-primary"
+          }`}
+        >
+          {typeof value === "number"
+            ? value.toLocaleString()
+            : value ?? 0}
         </div>
         <p className="text-xs sm:text-sm text-muted-foreground mt-1 leading-tight">
           {def.label}
@@ -133,6 +131,7 @@ export default function PaginatedScaffold({
     </Card>
   );
 
+  // --- Render principal ---
   return (
     <div className={className}>
       {/* Header */}
@@ -153,21 +152,21 @@ export default function PaginatedScaffold({
 
           {!!rightAction && (
             <div className="flex justify-start sm:justify-end lg:justify-start">
-              <Button 
-                className={`gap-2 text-sm font-medium shadow-sm transition-all hover:shadow-md ${rightAction.className || ""}`} 
+              <Button
+                className={`gap-2 text-sm font-medium shadow-sm transition-all hover:shadow-md ${rightAction.className || ""}`}
                 onClick={rightAction.onClick}
                 size="sm"
               >
                 {rightAction.icon && (
-                  <span className="flex-shrink-0">
-                    {rightAction.icon}
-                  </span>
+                  <span className="flex-shrink-0">{rightAction.icon}</span>
                 )}
                 <span className="hidden xs:inline sm:hidden md:inline">
                   {rightAction.label}
                 </span>
                 <span className="xs:hidden sm:inline md:hidden">
-                  {rightAction.shortLabel || rightAction.label?.split(' ')[0] || rightAction.label}
+                  {rightAction.shortLabel ||
+                    rightAction.label?.split(" ")[0] ||
+                    rightAction.label}
                 </span>
               </Button>
             </div>
@@ -179,15 +178,15 @@ export default function PaginatedScaffold({
       <Card>
         <CardContent className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6">
           <div className={`space-y-4 ${searchClassName}`}>
-            {/* Search */}
             <div className="w-full">
               {renderSearch ? renderSearch(defaultSearch) : defaultSearch}
             </div>
-            
-            {/* Filtros */}
+
             {filters.length > 0 && (
               <div className="space-y-2">
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
+                <div
+                  className={`grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 ${filtersClassName}`}
+                >
                   {filters.map((opt) => {
                     const isActive = selectedFilter === opt;
                     const onClick = () => onFilterChange?.(opt);
@@ -205,7 +204,7 @@ export default function PaginatedScaffold({
       {/* Contadores */}
       {counts && countDefs.length > 0 && (
         <>
-          {/* Versión móvil: Dropdown */}
+          {/* móvil */}
           <div className="md:hidden">
             <Card>
               <CardContent className="p-0">
@@ -213,12 +212,10 @@ export default function PaginatedScaffold({
                   onClick={() => setIsCountsOpen(!isCountsOpen)}
                   className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-medium">Ver contadores</span>
-                  </div>
-                  <ChevronDown 
+                  <span className="text-sm font-medium">Ver contadores</span>
+                  <ChevronDown
                     className={`w-5 h-5 text-muted-foreground transition-transform ${
-                      isCountsOpen ? 'rotate-180' : ''
+                      isCountsOpen ? "rotate-180" : ""
                     }`}
                   />
                 </button>
@@ -226,17 +223,21 @@ export default function PaginatedScaffold({
                 {isCountsOpen && (
                   <div className="border-t p-4 space-y-3">
                     {countDefs.map((def) => (
-                      <div 
-                        key={def.key} 
+                      <div
+                        key={def.key}
                         className="flex items-center justify-between py-2 border-b last:border-b-0"
                       >
                         <span className="text-sm text-muted-foreground">
                           {def.label}
                         </span>
-                        <span className={`text-lg font-bold ${def.className || "text-primary"}`}>
-                          {typeof counts[def.key] === 'number' 
-                            ? counts[def.key].toLocaleString() 
-                            : (counts[def.key] ?? 0)}
+                        <span
+                          className={`text-lg font-bold ${
+                            def.className || "text-primary"
+                          }`}
+                        >
+                          {typeof counts[def.key] === "number"
+                            ? counts[def.key].toLocaleString()
+                            : counts[def.key] ?? 0}
                         </span>
                       </div>
                     ))}
@@ -246,14 +247,12 @@ export default function PaginatedScaffold({
             </Card>
           </div>
 
-          {/* Versión escritorio: Grid */}
+          {/* escritorio */}
           <div
-            className={
-              `hidden md:grid ${
-                countsWrapperClassName ||
-                `grid-cols-1 ${responsiveColsClass} gap-3 md:gap-4`
-              }`
-            }
+            className={`hidden md:grid ${
+              countsWrapperClassName ||
+              `grid-cols-1 ${responsiveColsClass} gap-3 md:gap-4`
+            }`}
           >
             {countDefs.map((def) =>
               renderCountCard
@@ -265,7 +264,11 @@ export default function PaginatedScaffold({
       )}
 
       {/* Contenido */}
-      <div className={contentClassName}>
+      <div
+        className={
+          layout === "list" ? "w-full space-y-4" : contentClassName
+        }
+      >
         {loading ? (
           loadingNode || (
             <Card className="col-span-full">
@@ -287,10 +290,13 @@ export default function PaginatedScaffold({
       {!loading && totalPages > 1 && (
         <Card>
           <CardContent className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6">
-            <div className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${paginationClassName}`}>
+            <div
+              className={`flex flex-col sm:flex-row items-center justify-between gap-3 ${paginationClassName}`}
+            >
               <span className="text-xs sm:text-sm text-muted-foreground order-2 sm:order-1">
                 <span className="hidden sm:inline">
-                  {total.toLocaleString()} resultado{total === 1 ? "" : "s"} · Página {page} de {totalPages}
+                  {total.toLocaleString()} resultado
+                  {total === 1 ? "" : "s"} · Página {page} de {totalPages}
                 </span>
                 <span className="sm:hidden">
                   {page} de {totalPages} ({total.toLocaleString()})
@@ -298,10 +304,10 @@ export default function PaginatedScaffold({
               </span>
 
               <div className="flex items-center gap-2 order-1 sm:order-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={page <= 1} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page <= 1}
                   onClick={onPrevPage}
                   className="text-xs sm:text-sm"
                 >
@@ -311,10 +317,10 @@ export default function PaginatedScaffold({
                 <span className="text-xs sm:text-sm text-muted-foreground px-2">
                   {page}
                 </span>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  disabled={page >= totalPages} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
                   onClick={onNextPage}
                   className="text-xs sm:text-sm"
                 >
@@ -328,7 +334,7 @@ export default function PaginatedScaffold({
       )}
 
       {/* Vacío */}
-      {!loading && total === 0 && (
+      {!loading && total === 0 && showDefaultEmpty && (
         emptyNode || (
           <Card>
             <CardContent className="text-center py-8 md:py-12">

@@ -15,7 +15,7 @@ const menuItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { id: 'clientes', label: 'Clientes', icon: Users, path: '/clients' },
   { id: 'trabajadores', label: 'Trabajadores', icon: UserCog, path: '/workers' },
-  // { id: 'camiones', label: 'Camiones', icon: Truck, path: '/trucks' },
+  { id: 'camiones', label: 'Camiones', icon: Truck, path: '/trucks' },
   // { id: 'zonas', label: 'Zonas de Recogida', icon: Map, path: '/collection-zones' },
   // { id: 'rutas', label: 'Rutas', icon: Route, path: '/routes' },
   // { id: 'recogidas', label: 'Recogidas', icon: Package, path: '/collections' },
