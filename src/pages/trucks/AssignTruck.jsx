@@ -209,12 +209,12 @@ export default function AssignTruck() {
           <ArrowLeft className="w-4 h-4" />
         </Button>
 
-        <div className="w-full sm:w-auto">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex items-center gap-2 sm:gap-3">
-            <Truck className="w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 text-primary" />
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
+            <Truck className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
             Asignar Camión
           </h1>
-          <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
             {loading.worker ? (
               "Cargando información..."
             ) : (
