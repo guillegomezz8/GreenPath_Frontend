@@ -23,6 +23,7 @@ import CollectionsList from '@/pages/collections/CollectionsList';
 import CollectionCreate from '@/pages/collections/CollectionCreate';
 import TrucksList from '@/pages/trucks/TrucksList';
 import TruckCreate from '@/pages/trucks/TruckCreate';
+import TruckEdit from '@/pages/trucks/TruckEdit';
 import AssignTruck from '@/pages/trucks/AssignTruck';
 import Stats from '@/pages/stats/Stats';
 
@@ -63,6 +64,7 @@ function AppContent() {
         <Route path="/collections/:id/new" element={<CollectionCreate />} />
         <Route path="/trucks" element={<TrucksList />} />
         <Route path="/trucks/new" element={<TruckCreate />} />
+        <Route path="/trucks/:id/edit" element={<TruckEdit />} />
         <Route path="/assign-truck/:id" element={<AssignTruck />} />
         <Route path="/stats" element={<Stats />} />
       </Route>

@@ -226,13 +226,6 @@ export default function TrucksList() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => navigate(`/trucks/${truck.id}`)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
                             onClick={() => navigate(`/trucks/${truck.id}/edit`)}
                           >
                             <Edit className="w-4 h-4" />
