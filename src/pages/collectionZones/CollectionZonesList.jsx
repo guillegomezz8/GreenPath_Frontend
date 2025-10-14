@@ -226,35 +226,25 @@ export default function CollectionZonesList() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex-1 text-left">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Map className="w-6 h-6 text-primary" />
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
+              <Map className="w-8 h-8 text-primary" />
               Zonas de Recogida
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-2xl text-left">
               Visualiza, crea y edita las zonas de recogida de aceite.
             </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => toast({ title: "Usa el botón de dibujo", description: "Haz clic en el ícono de polígono en el mapa." })}
-              className="gap-2"
-            >
-              <Plus className="w-4 h-4" />
-              Nueva Zona
-            </Button>
           </div>
         </div>
 
         {/* Mapa */}
-        <Card>
-          <CardHeader>
+        <Card className="sm:mx-0 -mx-4 sm:rounded-lg rounded-none">
+          <CardHeader className="pb-3">
             <CardTitle>Mapa de Zonas</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-2 sm:p-6">
             <div
               id="map"
-              className="w-full h-[60vh] sm:h-[70vh] rounded-lg border relative z-0"
+              className="w-full h-[65vh] sm:h-[70vh] rounded-lg border relative z-0"
             />
           </CardContent>
         </Card>
