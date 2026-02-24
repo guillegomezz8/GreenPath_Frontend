@@ -57,6 +57,9 @@ export default function RoutesList() {
   const [weekStartDate, setWeekStartDate] = useState("");
   const [dailyCapacityLiters, setDailyCapacityLiters] = useState("0");
   const [regenerate, setRegenerate] = useState(false);
+  const [autoEstimateWithoutContact, setAutoEstimateWithoutContact] = useState(false);
+  const [checkingWeekGenerationContext, setCheckingWeekGenerationContext] = useState(false);
+  const [hasExistingWeekStops, setHasExistingWeekStops] = useState(false);
   const [submittingGenerate, setSubmittingGenerate] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
@@ -116,6 +119,9 @@ export default function RoutesList() {
     setWeekStartDate("");
     setDailyCapacityLiters("0");
     setRegenerate(false);
+    setAutoEstimateWithoutContact(false);
+    setCheckingWeekGenerationContext(false);
+    setHasExistingWeekStops(false);
     setGenerateModalOpen(true);
   };
 
@@ -131,7 +137,8 @@ export default function RoutesList() {
       const payload = {
         week_start_date: weekStartDate,
         daily_capacity_liters: dailyCapacityLiters,
-        regenerate,
+        regenerate: hasExistingWeekStops ? regenerate : false,
+        auto_estimate_without_contact: autoEstimateWithoutContact,
       };
       const res = await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
       const routeDays = Array.isArray(res.data?.route_days) ? res.data.route_days : [];
@@ -149,6 +156,44 @@ export default function RoutesList() {
       setSubmittingGenerate(false);
     }
   };
+
+  useEffect(() => {
+    if (!generateModalOpen || !selectedRoute?.id || !weekStartDate) {
+      setCheckingWeekGenerationContext(false);
+      setHasExistingWeekStops(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchWeekContext = async () => {
+      try {
+        setCheckingWeekGenerationContext(true);
+        const res = await api().get(`routes/${encodeURIComponent(selectedRoute.id)}/operational-overview/`, {
+          params: { week_start_date: weekStartDate },
+        });
+        if (cancelled) return;
+        const routeDays = Array.isArray(res.data?.route_days) ? res.data.route_days : [];
+        const hasStops = routeDays.some((routeDay) => {
+          if (Array.isArray(routeDay?.clients)) return routeDay.clients.length > 0;
+          if (typeof routeDay?.stops === "number") return routeDay.stops > 0;
+          return false;
+        });
+        setHasExistingWeekStops(hasStops);
+        if (!hasStops) setRegenerate(false);
+      } catch {
+        if (cancelled) return;
+        setHasExistingWeekStops(false);
+        setRegenerate(false);
+      } finally {
+        if (!cancelled) setCheckingWeekGenerationContext(false);
+      }
+    };
+
+    fetchWeekContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [generateModalOpen, selectedRoute?.id, weekStartDate, api]);
 
   const askDelete = (route) => {
     setToDelete(route);
@@ -371,10 +416,22 @@ export default function RoutesList() {
               />
             </div>
 
+            {checkingWeekGenerationContext ? (
+              <p className="text-xs text-muted-foreground">Comprobando si hay paradas existentes en la semana...</p>
+            ) : hasExistingWeekStops ? (
+              <div className="flex items-center space-x-2">
+                <Checkbox id="regenerate" checked={regenerate} onCheckedChange={(v) => setRegenerate(Boolean(v))} />
+                <Label htmlFor="regenerate" className="text-sm">
+                  Regenerar paradas existentes
+                </Label>
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">No hay paradas existentes en esa semana. Se generaran directamente.</p>
+            )}
             <div className="flex items-center space-x-2">
-              <Checkbox id="regenerate" checked={regenerate} onCheckedChange={(v) => setRegenerate(Boolean(v))} />
-              <Label htmlFor="regenerate" className="text-sm">
-                Regenerar paradas existentes
+              <Checkbox id="auto_estimate_without_contact" checked={autoEstimateWithoutContact} onCheckedChange={(v) => setAutoEstimateWithoutContact(Boolean(v))} />
+              <Label htmlFor="auto_estimate_without_contact" className="text-sm">
+                Autoestimar sin notificar al cliente
               </Label>
             </div>
           </div>

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +10,6 @@ import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { getInitials, handleApiError } from "@/components/Utils";
 import {
-  ArrowLeft,
   KeyRound,
   Mail,
   Save,
@@ -61,7 +59,6 @@ function buildMediaUrl(url) {
 export default function ProfilePage() {
   const { api, updateAuthUser, user } = useAuth();
   const showSnackbar = useSnackbar();
-  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState("profile");
   const [loading, setLoading] = useState(false);
@@ -298,10 +295,7 @@ export default function ProfilePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")} className="flex-shrink-0 mt-1 sm:mt-0">
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
+      <div className="flex items-start sm:items-center">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
             <UserCircle2 className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />

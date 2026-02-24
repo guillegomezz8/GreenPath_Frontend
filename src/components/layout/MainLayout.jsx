@@ -86,8 +86,8 @@ export const MainLayout = ({ children }) => {
       </AnimatePresence>
 
       <div
-        className={`h-16 w-full flex items-center bg-white px-4 fixed top-0 left-0 z-20 transition-all duration-300 ${
-          !isMobile && isSidebarOpen ? 'ml-64' : ''
+        className={`h-16 flex items-center bg-white fixed top-0 right-0 z-20 transition-all duration-300 ${
+          !isMobile && isSidebarOpen ? 'left-64' : 'left-0'
         }`}
       >
         <Topbar onToggleSidebar={handleToggleSidebar} />

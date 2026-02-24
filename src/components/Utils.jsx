@@ -103,8 +103,26 @@ export function getInitials(name = "", surname = "") {
     .toUpperCase() || "??";
 }
 
+export function buildMediaUrl(url) {
+  if (!url) return null;
+  const parsed = `${url}`.trim();
+  if (!parsed) return null;
+  if (parsed.startsWith("http") || parsed.startsWith("data:") || parsed.startsWith("blob:")) return parsed;
+  return `${import.meta.env.VITE_APP_API_URL}${parsed}`;
+}
+
 export function getAvatarSrc(w) {
-  return w.photo || w.avatar_url || w.photo_url || null;
+  if (!w || typeof w !== "object") return null;
+  const raw = (
+    w.photo ||
+    w.avatar_url ||
+    w.photo_url ||
+    w.profile?.photo ||
+    w.profile?.avatar_url ||
+    w.profile?.photo_url ||
+    null
+  );
+  return buildMediaUrl(raw);
 }
 
 export function formatNumber(n) {
