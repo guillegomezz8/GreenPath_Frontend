@@ -23,8 +23,16 @@ const badgeVariants = cva(
 );
 
 function Badge({ className, variant, ...props }) {
+  const classNameString = typeof className === "string" ? className : "";
+  const hasCustomBg = /\bbg-[^\s]+/.test(classNameString);
+  const hasCustomHoverBg = /\bhover:bg-[^\s]+/.test(classNameString);
+  const resolvedVariant = hasCustomBg ? "outline" : variant;
+  const resolvedClassName = hasCustomBg && !hasCustomHoverBg
+    ? cn(classNameString, "hover:opacity-90")
+    : className;
+
   return (
-    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+    <div className={cn(badgeVariants({ variant: resolvedVariant }), resolvedClassName)} {...props} />
   );
 }
 

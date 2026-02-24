@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, MapPin, Calculator, Package } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
+import { handleApiError } from "@/components/Utils";
 
 export default function CollectionCreate() {
   const navigate = useNavigate();
@@ -19,12 +20,10 @@ export default function CollectionCreate() {
   const [loading, setLoading] = useState(false);
 
   const [clients, setClients] = useState([]);
-  const [routes, setRoutes] = useState([]);
   const [workers, setWorkers] = useState([]);
 
   const [formData, setFormData] = useState({
     client: id ?? "",
-    route: "",
     worker: "",
     collection_date: "",
     container_type: "BIDONES",
@@ -35,30 +34,35 @@ export default function CollectionCreate() {
 
   const containerTypes = [
     { value: "BIDONES", label: "Bidones (60L cada uno)" },
-    { value: "CONTENEDORES", label: "Contenedores (1000L cada uno)" }
+    { value: "IBC", label: "IBC (1000L cada uno)" }
   ];
 
-  // Traer clientes, rutas y trabajadores
+  // Traer clientes y trabajadores
   const fetchClients = useCallback(async () => {
-    const res = await api().get("clients");
+    const res = await api().get("clients", { params: { page: 1, page_size: 300 } });
     setClients(res.data.results || []);
   }, [api]);
 
-  const fetchRoutes = useCallback(async () => {
-    const res = await api().get("routes");
-    setRoutes(res.data.results || []);
-  }, [api]);
-
   const fetchWorkers = useCallback(async () => {
-    const res = await api().get("workers");
+    const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
     setWorkers(res.data.results || []);
   }, [api]);
 
   useEffect(() => {
-    fetchClients();
-    fetchRoutes();
-    fetchWorkers();
-  }, [fetchClients, fetchRoutes, fetchWorkers]);
+    const loadData = async () => {
+      try {
+        await Promise.all([fetchClients(), fetchWorkers()]);
+      } catch (err) {
+        const msg = handleApiError(err, "No se pudieron cargar clientes o trabajadores.");
+        toast({
+          title: "Error",
+          description: msg,
+          variant: "destructive",
+        });
+      }
+    };
+    loadData();
+  }, [fetchClients, fetchWorkers, toast]);
 
   const calculateTotals = () => {
     const containerNumber = parseInt(formData.container_number) || 0;
@@ -76,10 +80,10 @@ export default function CollectionCreate() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.client || !formData.route || !formData.collection_date) {
+    if (!formData.client || !formData.collection_date) {
       toast({
         title: "Error",
-        description: "Los campos Cliente, Ruta y Fecha de Recogida son obligatorios",
+        description: "Los campos Cliente y Fecha de Recogida son obligatorios",
         variant: "destructive",
       });
       return;
@@ -108,7 +112,6 @@ export default function CollectionCreate() {
       await api().post("collections/", {
         client: Number(formData.client),
         worker: formData.worker ? Number(formData.worker) : null,
-        route: Number(formData.route),
         collection_date: formData.collection_date,
         container_type: formData.container_type,
         container_number: Number(formData.container_number),
@@ -123,10 +126,10 @@ export default function CollectionCreate() {
 
       navigate("/collections");
     } catch (err) {
-      console.error("Error creando recogida:", err);
+      const msg = handleApiError(err, "No se pudo crear la recogida.");
       toast({
         title: "Error",
-        description: "No se pudo crear la recogida. Inténtalo de nuevo.",
+        description: msg,
         variant: "destructive",
       });
     } finally {
@@ -196,25 +199,6 @@ export default function CollectionCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="route">Ruta *</Label>
-                <Select
-                  value={formData.route}
-                  onValueChange={(value) => handleChange("route", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar ruta" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {routes.map((route) => (
-                      <SelectItem key={route.id} value={String(route.id)}>
-                        {route.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
                 <Label htmlFor="worker">Trabajador</Label>
                 <Select
                   value={formData.worker}
@@ -226,23 +210,23 @@ export default function CollectionCreate() {
                   <SelectContent>
                     {workers.map((worker) => (
                       <SelectItem key={worker.id} value={String(worker.id)}>
-                        {worker.name}
+                        {`${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="collection_date">Fecha de Recogida *</Label>
-              <Input
-                id="collection_date"
-                type="date"
-                value={formData.collection_date}
-                onChange={(e) => handleChange("collection_date", e.target.value)}
-                required
-              />
+              <div className="space-y-2">
+                <Label htmlFor="collection_date">Fecha de Recogida *</Label>
+                <Input
+                  id="collection_date"
+                  type="date"
+                  value={formData.collection_date}
+                  onChange={(e) => handleChange("collection_date", e.target.value)}
+                  required
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

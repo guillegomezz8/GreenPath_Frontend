@@ -19,13 +19,19 @@ import WorkerCreate from '@/pages/workers/WorkerCreate';
 import WorkerEdit from '@/pages/workers/WorkerEdit';
 import CollectionZonesMap from '@/pages/collectionZones/CollectionZonesList';
 import RoutesList from '@/pages/routes/RoutesList';
+import RouteCreate from '@/pages/routes/RouteCreate';
+import RouteEdit from '@/pages/routes/RouteEdit';
+import RouteDetail from '@/pages/routes/RouteDetail';
 import CollectionsList from '@/pages/collections/CollectionsList';
 import CollectionCreate from '@/pages/collections/CollectionCreate';
+import CollectionDetail from '@/pages/collections/CollectionDetail';
+import CollectionEdit from '@/pages/collections/CollectionEdit';
 import TrucksList from '@/pages/trucks/TrucksList';
 import TruckCreate from '@/pages/trucks/TruckCreate';
 import TruckEdit from '@/pages/trucks/TruckEdit';
 import AssignTruck from '@/pages/trucks/AssignTruck';
 import Stats from '@/pages/stats/Stats';
+import ProfilePage from '@/pages/profile/ProfilePage';
 
 function AppContent() {
   return (
@@ -59,14 +65,21 @@ function AppContent() {
         <Route path="/workers/:id/edit" element={<WorkerEdit />} />
         <Route path="/collection-zones" element={<CollectionZonesMap />} />
         <Route path="/routes" element={<RoutesList />} />
+        <Route path="/routes/new" element={<RouteCreate />} />
+        <Route path="/routes/:id" element={<RouteDetail />} />
+        <Route path="/routes/:id/edit" element={<RouteEdit />} />
         <Route path="/collections" element={<CollectionsList />} />
         <Route path="/collections/new" element={<CollectionCreate />} />
         <Route path="/collections/:id/new" element={<CollectionCreate />} />
+        <Route path="/collections/:id" element={<CollectionDetail />} />
+        <Route path="/collections/:id/edit" element={<CollectionEdit />} />
         <Route path="/trucks" element={<TrucksList />} />
         <Route path="/trucks/new" element={<TruckCreate />} />
         <Route path="/trucks/:id/edit" element={<TruckEdit />} />
         <Route path="/assign-truck/:id" element={<AssignTruck />} />
         <Route path="/stats" element={<Stats />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/perfil" element={<ProfilePage />} />
       </Route>
 
       {/* Fallback general */}

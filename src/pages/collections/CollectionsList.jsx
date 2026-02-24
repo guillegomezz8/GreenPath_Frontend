@@ -1,13 +1,14 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
+import {
   Package,
-  Truck, 
-  Search, 
-  Plus, 
+  Truck,
+  Search,
+  Plus,
   Calendar,
   MapPin,
   Users,
@@ -15,180 +16,215 @@ import {
   Weight,
   CheckCircle,
   AlertTriangle,
-  BarChart3
+  BarChart3,
+  Euro,
+  Eye,
+  Edit,
+  Trash2,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthProvider";
+import { useSnackbar } from "@/context/SnackbarProvider";
+import { handleApiError, getCollectionStatusClass, getCollectionStatusLabel, normalizeCollectionStatus } from "@/components/Utils";
+import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 
-const recogidas = [
-  {
-    id: 1,
-    client: "Restaurante El Sol",
-    address: "Calle Mayor 123",
-    driver: "José García",
-    vehicle: "GRN-001",
-    scheduledTime: "09:00",
-    actualTime: "09:15",
-    status: "Completada",
-    quantity: "45 L",
-    quality: "Excelente",
-    date: "2024-01-12",
-    route: "Centro-01",
-    notes: "Recogida normal, aceite en buen estado"
-  },
-  {
-    id: 2,
-    client: "Hotel Plaza",
-    address: "Plaza España 45",
-    driver: "María López",
-    vehicle: "GRN-002",
-    scheduledTime: "10:30",
-    actualTime: "10:45",
-    status: "Completada",
-    quantity: "78 L",
-    quality: "Buena",
-    date: "2024-01-12",
-    route: "Norte-02",
-    notes: "Ligera demora por tráfico"
-  },
-  {
-    id: 3,
-    client: "Cafetería Central",
-    address: "Avenida Central 67",
-    driver: "Carlos Ruiz",
-    vehicle: "GRN-003",
-    scheduledTime: "14:00",
-    actualTime: null,
-    status: "Programada",
-    quantity: "25 L",
-    quality: null,
-    date: "2024-01-12",
-    route: "Sur-01",
-    notes: "Primera recogida programada"
-  },
-  {
-    id: 4,
-    client: "Industrias García",
-    address: "Polígono Industrial Sur 89",
-    driver: "Ana Martín",
-    vehicle: "GRN-004",
-    scheduledTime: "11:00",
-    actualTime: "11:30",
-    status: "Problema",
-    quantity: "120 L",
-    quality: "Regular",
-    date: "2024-01-12",
-    route: "Centro-02",
-    notes: "Aceite con impurezas, requiere filtrado especial"
-  },
-  {
-    id: 5,
-    client: "Panadería San Juan",
-    address: "Calle San Juan 34",
-    driver: "José García",
-    vehicle: "GRN-001",
-    scheduledTime: "15:30",
-    actualTime: "15:25",
-    status: "En Progreso",
-    quantity: "32 L",
-    quality: null,
-    date: "2024-01-12",
-    route: "Centro-01",
-    notes: "Recogida en curso"
-  }
-];
+const STATUS_OPTIONS = ["Todas", "Pendiente", "Confirmada", "Cancelada"];
+const STATUS_MAP = {
+  Todas: undefined,
+  Pendiente: "PENDING_MEASUREMENT",
+  Confirmada: "CONFIRMED",
+  Cancelada: "CANCELED",
+};
+
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("es-ES");
+}
+
+function normalizeNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 export default function CollectionsList() {
+  const navigate = useNavigate();
+  const { api } = useAuth();
+  const showSnackbar = useSnackbar();
+
+  const [collections, setCollections] = useState([]);
+  const [workersMap, setWorkersMap] = useState({});
+  const [loading, setLoading] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Todas");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-  const filteredRecogidas = recogidas.filter(recogida => {
-    const matchesSearch = recogida.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recogida.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         recogida.driver.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "Todas" || recogida.status === selectedStatus;
-    return matchesSearch && matchesStatus;
+  const [counts, setCounts] = useState({
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    canceled: 0,
   });
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Completada":
-        return "bg-success text-success-foreground";
-      case "En Progreso":
-        return "bg-blue-500 text-white";
-      case "Programada":
-        return "bg-orange-500 text-white";
-      case "Problema":
-        return "bg-destructive text-destructive-foreground";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
-  const getQualityColor = (quality) => {
-    switch (quality) {
-      case "Excelente":
-        return "text-success";
-      case "Buena":
-        return "text-blue-500";
-      case "Regular":
-        return "text-orange-500";
-      case "Mala":
-        return "text-destructive";
-      default:
-        return "text-muted-foreground";
+  const fetchWorkersMap = useCallback(async () => {
+    try {
+      const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
+      const items = Array.isArray(res.data?.results) ? res.data.results : [];
+      const map = {};
+      items.forEach((w) => {
+        map[w.id] = `${w.name || ""} ${w.surname || ""}`.trim() || w.username || `Worker ${w.id}`;
+      });
+      setWorkersMap(map);
+    } catch {
+      setWorkersMap({});
     }
-  };
+  }, [api]);
+
+  const fetchCollections = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = { page, page_size: pageSize, ordering: "-collection_date" };
+      if (searchTerm) params.search = searchTerm;
+      if (selectedStatus !== "Todas") params.status = STATUS_MAP[selectedStatus];
+
+      const res = await api().get("collections", { params });
+      const payload = res.data || {};
+      const items = Array.isArray(payload?.results) ? payload.results : Array.isArray(payload) ? payload : [];
+      setCollections(items);
+      setTotal(Number(payload.count || items.length));
+    } catch (e) {
+      const msg = handleApiError(e, "Error cargando recogidas.");
+      showSnackbar(msg, "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, page, pageSize, searchTerm, selectedStatus, showSnackbar]);
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const base = { page: 1, page_size: 1 };
+      if (searchTerm) base.search = searchTerm;
+
+      const [allRes, pendingRes, confirmedRes, canceledRes] = await Promise.all([
+        api().get("collections", { params: base }),
+        api().get("collections", { params: { ...base, status: "PENDING_MEASUREMENT" } }),
+        api().get("collections", { params: { ...base, status: "CONFIRMED" } }),
+        api().get("collections", { params: { ...base, status: "CANCELED" } }),
+      ]);
+
+      setCounts({
+        total: Number(allRes.data?.count || 0),
+        pending: Number(pendingRes.data?.count || 0),
+        confirmed: Number(confirmedRes.data?.count || 0),
+        canceled: Number(canceledRes.data?.count || 0),
+      });
+    } catch {
+      setCounts((prev) => ({ ...prev }));
+    }
+  }, [api, searchTerm]);
+
+  useEffect(() => {
+    fetchWorkersMap();
+  }, [fetchWorkersMap]);
+
+  useEffect(() => {
+    fetchCollections();
+  }, [fetchCollections]);
+
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, selectedStatus]);
+
+  const totalNetLiters = useMemo(
+    () => collections.reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
+    [collections]
+  );
+
+  const totalPrice = useMemo(
+    () => collections.reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
+    [collections]
+  );
 
   const getStatusIcon = (status) => {
-    switch (status) {
-      case "Completada":
-        return <CheckCircle className="w-4 h-4" />;
-      case "Problema":
-        return <AlertTriangle className="w-4 h-4" />;
-      default:
-        return <Truck className="w-4 h-4" />;
+    const normalized = normalizeCollectionStatus(status);
+    if (normalized === "CONFIRMED") return <CheckCircle className="w-4 h-4" />;
+    if (normalized === "CANCELED") return <AlertTriangle className="w-4 h-4" />;
+    return <Truck className="w-4 h-4" />;
+  };
+
+  const askDelete = (collection) => {
+    setToDelete(collection);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!toDelete?.id) return;
+    try {
+      setDeleting(true);
+      await api().delete(`collections/${encodeURIComponent(toDelete.id)}/`);
+      showSnackbar("Recogida eliminada correctamente.", "success");
+      setDeleteOpen(false);
+      setToDelete(null);
+      await fetchCollections();
+      await fetchCounts();
+    } catch (e) {
+      const msg = handleApiError(e, "No se pudo eliminar la recogida.");
+      showSnackbar(msg, "error");
+    } finally {
+      setDeleting(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Package className="w-8 h-8 text-primary" />
-            Gestión de Recogidas
+            Gestion de Recogidas
           </h1>
-          <p className="text-muted-foreground">Supervisa y registra todas las recogidas de aceite usado</p>
+          <p className="text-muted-foreground">Supervisa y registra las recogidas de aceite usado</p>
         </div>
-        
+
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => navigate("/stats")}>
             <BarChart3 className="w-4 h-4" />
             Reportes
           </Button>
-          <Button className="gap-2">
+          <Button className="gap-2" onClick={() => navigate("/collections/new")}>
             <Plus className="w-4 h-4" />
             Nueva Recogida
           </Button>
         </div>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por cliente, dirección o conductor..."
+                placeholder="Buscar por cliente, ruta, trabajador o notas..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            
+
             <div className="flex gap-2">
-              {["Todas", "Completada", "En Progreso", "Programada", "Problema"].map((status) => (
+              {STATUS_OPTIONS.map((status) => (
                 <Button
                   key={status}
                   variant={selectedStatus === status ? "default" : "outline"}
@@ -203,233 +239,207 @@ export default function CollectionsList() {
         </CardContent>
       </Card>
 
-      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{recogidas.length}</div>
-              <p className="text-sm text-muted-foreground">Total Hoy</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-primary">{counts.total}</div>
+            <p className="text-sm text-muted-foreground">Total</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-success">
-                {recogidas.filter(r => r.status === "Completada").length}
-              </div>
-              <p className="text-sm text-muted-foreground">Completadas</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-blue-500">{counts.pending}</div>
+            <p className="text-sm text-muted-foreground">Pendientes</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">
-                {recogidas.filter(r => r.status === "En Progreso").length}
-              </div>
-              <p className="text-sm text-muted-foreground">En Progreso</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-success">{counts.confirmed}</div>
+            <p className="text-sm text-muted-foreground">Confirmadas</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-destructive">
-                {recogidas.filter(r => r.status === "Problema").length}
-              </div>
-              <p className="text-sm text-muted-foreground">Problemas</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-destructive">{counts.canceled}</div>
+            <p className="text-sm text-muted-foreground">Canceladas</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {recogidas
-                  .filter(r => r.status === "Completada")
-                  .reduce((total, r) => total + parseInt(r.quantity), 0)}L
-              </div>
-              <p className="text-sm text-muted-foreground">Aceite Recogido</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-primary">{Math.round(totalNetLiters)}L</div>
+            <p className="text-sm text-muted-foreground">Litros (pagina)</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Recogidas List */}
-      <div className="space-y-4">
-        {filteredRecogidas.map((recogida) => (
-          <Card key={recogida.id} className="hover:shadow-elegant transition-shadow">
-            <CardContent className="pt-6">
-              <div className="flex flex-col lg:flex-row gap-6">
-                {/* Main Info */}
-                <div className="flex-1 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                        {getStatusIcon(recogida.status)}
-                        {recogida.client}
-                      </h3>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                        <MapPin className="w-4 h-4" />
-                        {recogida.address}
-                      </p>
-                    </div>
-                    
-                    <Badge className={getStatusColor(recogida.status)}>
-                      {recogida.status}
-                    </Badge>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Conductor:</span>
-                      <span className="font-medium">{recogida.driver}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Vehículo:</span>
-                      <span className="font-medium">{recogida.vehicle}</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Ruta:</span>
-                      <span className="font-medium">{recogida.route}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Time and Quantity Info */}
-                <div className="lg:w-80 space-y-3">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-accent/50 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <Clock className="w-4 h-4" />
-                        Programada
-                      </div>
-                      <div className="font-semibold">{recogida.scheduledTime}</div>
-                    </div>
-                    
-                    <div className="p-3 bg-accent/50 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <CheckCircle className="w-4 h-4" />
-                        {recogida.actualTime ? "Realizada" : "Estimada"}
-                      </div>
-                      <div className="font-semibold">
-                        {recogida.actualTime || "Pendiente"}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <Weight className="w-4 h-4" />
-                        Cantidad
-                      </div>
-                      <div className="font-semibold text-primary">{recogida.quantity}</div>
-                    </div>
-                    
-                    <div className="p-3 bg-accent/50 rounded-lg">
-                      <div className="text-sm text-muted-foreground mb-1">Calidad</div>
-                      <div className={`font-semibold ${getQualityColor(recogida.quality)}`}>
-                        {recogida.quality || "Pendiente"}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes and Actions */}
-              <div className="mt-4 pt-4 border-t border-border">
-                <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
-                  <div className="flex-1">
-                    <p className="text-sm text-muted-foreground text-left">
-                      <strong>Notas:</strong> {recogida.notes}
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    {recogida.status === "Programada" && (
-                      <Button size="sm" className="gap-2">
-                        <CheckCircle className="w-4 h-4" />
-                        Iniciar
-                      </Button>
-                    )}
-                    {recogida.status === "En Progreso" && (
-                      <Button size="sm" className="gap-2">
-                        <CheckCircle className="w-4 h-4" />
-                        Completar
-                      </Button>
-                    )}
-                    {recogida.status === "Completada" && (
-                      <Button variant="outline" size="sm" className="gap-2">
-                        <BarChart3 className="w-4 h-4" />
-                        Ver Detalles
-                      </Button>
-                    )}
-                    {recogida.status === "Problema" && (
-                      <Button variant="destructive" size="sm" className="gap-2">
-                        <AlertTriangle className="w-4 h-4" />
-                        Resolver
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {filteredRecogidas.length === 0 && (
+      {loading ? (
+        <Card>
+          <CardContent className="text-center py-12 text-muted-foreground">Cargando recogidas...</CardContent>
+        </Card>
+      ) : collections.length === 0 ? (
         <Card>
           <CardContent className="text-center py-12">
             <Truck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">No se encontraron recogidas con los criterios seleccionados</p>
           </CardContent>
         </Card>
+      ) : (
+        <div className="space-y-4">
+          {collections.map((collection) => (
+            <Card key={collection.id} className="hover:shadow-elegant transition-shadow">
+              <CardContent className="pt-6">
+                <div className="flex flex-col lg:flex-row gap-6">
+                  <div className="flex-1 space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                          {getStatusIcon(collection.status)}
+                          {collection.client_name || "Cliente"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="w-4 h-4" />
+                          {collection.route_name || "Sin ruta planificada"}
+                        </p>
+                      </div>
+
+                      <Badge className={getCollectionStatusClass(collection.status)}>{getCollectionStatusLabel(collection.status)}</Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Trabajador:</span>
+                        <span className="font-medium">{workersMap[collection.worker] || "-"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Fecha:</span>
+                        <span className="font-medium">{formatDate(collection.collection_date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Weight className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Envases:</span>
+                        <span className="font-medium">
+                          {collection.container_number || 0} ({collection.container_type || "-"})
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="lg:w-80 space-y-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-3 bg-accent/50 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <Weight className="w-4 h-4" />
+                          Estimados
+                        </div>
+                        <div className="font-semibold">{normalizeNumber(collection.estimated_liters).toFixed(2)} L</div>
+                      </div>
+
+                      <div className="p-3 bg-accent/50 rounded-lg">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                          <CheckCircle className="w-4 h-4" />
+                          Netos
+                        </div>
+                        <div className="font-semibold">{normalizeNumber(collection.net_liters).toFixed(2)} L</div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                        <Euro className="w-4 h-4" />
+                        Precio total
+                      </div>
+                      <div className="font-semibold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</div>
+                    </div>
+                  </div>
+                </div>
+
+                {collection.notes && (
+                  <div className="mt-4 pt-4 border-t border-border">
+                    <p className="text-sm text-muted-foreground text-left">
+                      <strong>Notas:</strong> {collection.notes}
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-3 pt-3 border-t border-border flex gap-2 justify-end">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
+                    <Eye className="w-4 h-4" />
+                    Ver
+                  </Button>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
+                    <Edit className="w-4 h-4" />
+                    Editar
+                  </Button>
+                  <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
+                    <Trash2 className="w-4 h-4" />
+                    Eliminar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       )}
 
-      {/* Quick Stats Card */}
+      {!loading && totalPages > 1 && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-muted-foreground">
+                {total} resultados • Pagina {page} de {totalPages}
+              </p>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card className="bg-gradient-primary text-primary-foreground">
         <CardContent className="pt-6">
           <div className="text-center">
             <Weight className="w-12 h-12 mx-auto mb-4 opacity-90" />
-            <h3 className="text-xl font-semibold mb-2">Resumen del Día</h3>
+            <h3 className="text-xl font-semibold mb-2">Resumen de pagina</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
               <div>
-                <div className="text-2xl font-bold">
-                  {recogidas.filter(r => r.status === "Completada").length}
-                </div>
-                <p className="opacity-90">Recogidas Completadas</p>
+                <div className="text-2xl font-bold">{collections.length}</div>
+                <p className="opacity-90">Recogidas visibles</p>
               </div>
               <div>
-                <div className="text-2xl font-bold">
-                  {recogidas
-                    .filter(r => r.status === "Completada")
-                    .reduce((total, r) => total + parseInt(r.quantity), 0)}L
-                </div>
-                <p className="opacity-90">Aceite Recogido</p>
+                <div className="text-2xl font-bold">{totalNetLiters.toFixed(2)}L</div>
+                <p className="opacity-90">Litros netos</p>
               </div>
               <div>
-                <div className="text-2xl font-bold">
-                  {Math.round((recogidas.filter(r => r.status === "Completada").length / recogidas.length) * 100)}%
-                </div>
-                <p className="opacity-90">Eficiencia</p>
+                <div className="text-2xl font-bold">{totalPrice.toFixed(2)} EUR</div>
+                <p className="opacity-90">Importe total</p>
               </div>
             </div>
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmDeleteDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Eliminar recogida"
+        description={toDelete ? `Se va a eliminar la recogida #${toDelete.id}. Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+        confirmLabel="Eliminar"
+        onConfirm={handleDelete}
+        loading={deleting}
+      />
     </div>
   );
 }

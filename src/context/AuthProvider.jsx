@@ -203,6 +203,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateAuthUser = useCallback((partialUserData = {}) => {
+    setUser((prev) => {
+      const next = { ...(prev || {}), ...(partialUserData || {}) };
+      localStorage.setItem("UserData", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const api = useCallback(() => {
     const token = localStorage.getItem("AccessToken");
     const instance = axios.create({
@@ -282,6 +290,7 @@ export const AuthProvider = ({ children }) => {
         googleLogin,
         logout: handleLogout,
         api,
+        updateAuthUser,
         isLoading,
       }}
     >

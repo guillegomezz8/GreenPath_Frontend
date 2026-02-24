@@ -116,3 +116,98 @@ export function formatCurrency(n) {
   new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n ?? 0);
   return n?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) || "0 €";
 }
+
+export function normalizeCollectionStatus(status) {
+  const normalized = (status || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (["CONFIRMED", "CONFIRMADA", "CONFIRMADO"].includes(normalized)) return "CONFIRMED";
+  if (["PENDING_MEASUREMENT", "PENDING", "PENDIENTE", "PENDIENTE DE MEDICION"].includes(normalized)) return "PENDING_MEASUREMENT";
+  if (["CANCELED", "CANCELLED", "CANCELADA", "CANCELADO"].includes(normalized)) return "CANCELED";
+  return normalized || "PENDING_MEASUREMENT";
+}
+
+export function getCollectionStatusLabel(status) {
+  const normalized = normalizeCollectionStatus(status);
+  if (normalized === "CONFIRMED") return "Confirmada";
+  if (normalized === "CANCELED") return "Cancelada";
+  return "Pendiente de medicion";
+}
+
+export function getCollectionStatusClass(status) {
+  const normalized = normalizeCollectionStatus(status);
+  if (normalized === "CONFIRMED") return "bg-green-600 text-white";
+  if (normalized === "CANCELED") return "bg-red-600 text-white";
+  return "bg-blue-600 text-white";
+}
+
+export function normalizeRouteStatus(status) {
+  const normalized = (status || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (["PLANNED", "PLANIFICADA", "PLANIFICADO"].includes(normalized)) return "PLANNED";
+  if (["IN_PROGRESS", "EN_PROGRESO", "EN PROGRESO"].includes(normalized)) return "IN_PROGRESS";
+  if (["COMPLETED", "COMPLETADA", "COMPLETADO", "FINALIZADA", "FINALIZADO"].includes(normalized)) return "COMPLETED";
+  if (["PARTIAL", "PARCIAL"].includes(normalized)) return "PARTIAL";
+  if (["CANCELED", "CANCELLED", "CANCELADA", "CANCELADO"].includes(normalized)) return "CANCELED";
+  return normalized || "PLANNED";
+}
+
+export function getRouteStatusLabel(status) {
+  const normalized = normalizeRouteStatus(status);
+  if (normalized === "IN_PROGRESS") return "En progreso";
+  if (normalized === "COMPLETED") return "Completada";
+  if (normalized === "PARTIAL") return "Parcial";
+  if (normalized === "CANCELED") return "Cancelada";
+  return "Planificada";
+}
+
+export function getRouteStatusClass(status) {
+  const normalized = normalizeRouteStatus(status);
+  if (normalized === "PLANNED") return "bg-slate-500 text-white";
+  if (normalized === "IN_PROGRESS") return "bg-blue-600 text-white";
+  if (normalized === "COMPLETED") return "bg-green-600 text-white";
+  if (normalized === "PARTIAL") return "bg-yellow-500 text-black";
+  if (normalized === "CANCELED") return "bg-red-600 text-white";
+  return "bg-slate-500 text-white";
+}
+
+export function normalizeCollectionRequestStatus(status) {
+  const normalized = (status || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (["PENDING", "PENDIENTE"].includes(normalized)) return "PENDING";
+  if (["ANSWERED", "RESPONDIDA", "RESPONDIDO"].includes(normalized)) return "ANSWERED";
+  if (["AUTO_ESTIMATED", "AUTOESTIMADA", "AUTOESTIMADO"].includes(normalized)) return "AUTO_ESTIMATED";
+  if (["MANUAL"].includes(normalized)) return "MANUAL";
+  return normalized || "PENDING";
+}
+
+export function getCollectionRequestStatusLabel(status) {
+  const normalized = normalizeCollectionRequestStatus(status);
+  if (normalized === "ANSWERED") return "Respondida";
+  if (normalized === "AUTO_ESTIMATED") return "Autoestimada";
+  if (normalized === "MANUAL") return "Manual";
+  return "Pendiente";
+}
+
+export function getCollectionRequestStatusClass(status) {
+  const normalized = normalizeCollectionRequestStatus(status);
+  if (normalized === "PENDING") return "bg-orange-500 text-white";
+  if (normalized === "ANSWERED") return "bg-green-600 text-white";
+  if (normalized === "AUTO_ESTIMATED") return "bg-cyan-600 text-white";
+  if (normalized === "MANUAL") return "bg-indigo-600 text-white";
+  return "bg-slate-500 text-white";
+}
