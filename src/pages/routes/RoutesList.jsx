@@ -43,8 +43,11 @@ function formatDate(dateStr) {
 
 export default function RoutesList() {
   const navigate = useNavigate();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
+  const roleType = user?.role_type || "";
+  const isOwner = roleType === "owner";
+  const canManageRoutes = isOwner;
 
   const [routesData, setRoutesData] = useState([]);
   const [workersMap, setWorkersMap] = useState({});
@@ -223,14 +226,18 @@ export default function RoutesList() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Route className="w-8 h-8 text-primary" />
-            Gestion de Rutas
+            {isOwner ? "Gestion de Rutas" : "Rutas Asignadas"}
           </h1>
-          <p className="text-muted-foreground">Planifica y supervisa las rutas operativas</p>
+          <p className="text-muted-foreground">
+            {isOwner ? "Planifica y supervisa las rutas operativas" : "Consulta y ejecuta las rutas que tienes asignadas"}
+          </p>
         </div>
-        <Button className="gap-2" onClick={() => navigate("/routes/new")}>
-          <Plus className="w-4 h-4" />
-          Nueva Ruta
-        </Button>
+        {canManageRoutes && (
+          <Button className="gap-2" onClick={() => navigate("/routes/new")}>
+            <Plus className="w-4 h-4" />
+            Nueva Ruta
+          </Button>
+        )}
       </div>
 
       <Card>
@@ -368,17 +375,23 @@ export default function RoutesList() {
                       <Eye className="w-4 h-4" />
                       Ver
                     </Button>
-                    <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}/edit`)}>
-                      <Edit className="w-4 h-4" />
-                      Editar
-                    </Button>
-                    <Button size="sm" className="flex-1 gap-2" onClick={() => askGenerateWeek(route)}>
-                      <WandSparkles className="w-4 h-4" />
-                      Generar Semana
-                    </Button>
-                    <Button size="sm" variant="destructive" className="gap-2" onClick={() => askDelete(route)}>
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canManageRoutes && (
+                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}/edit`)}>
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </Button>
+                    )}
+                    {canManageRoutes && (
+                      <Button size="sm" className="flex-1 gap-2" onClick={() => askGenerateWeek(route)}>
+                        <WandSparkles className="w-4 h-4" />
+                        Generar Semana
+                      </Button>
+                    )}
+                    {canManageRoutes && (
+                      <Button size="sm" variant="destructive" className="gap-2" onClick={() => askDelete(route)}>
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -387,6 +400,7 @@ export default function RoutesList() {
         )}
       </div>
 
+      {canManageRoutes && (
       <Dialog open={generateModalOpen} onOpenChange={setGenerateModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -447,16 +461,19 @@ export default function RoutesList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Eliminar ruta"
-        description={toDelete ? `Se va a eliminar la ruta "${toDelete.name}". Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
-        confirmLabel="Eliminar"
-        onConfirm={handleDelete}
-        loading={deleting}
-      />
+      {canManageRoutes && (
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminar ruta"
+          description={toDelete ? `Se va a eliminar la ruta "${toDelete.name}". Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   );
 }

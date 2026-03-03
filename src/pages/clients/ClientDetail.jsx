@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, formatNumber, formatCurrency, normalizeCollectionStatus, getCollectionStatusClass, getCollectionStatusLabel } from "@/components/Utils";
+import { handleApiError, formatNumber, formatCurrency, normalizeCollectionStatus, getCollectionStatusClass, getCollectionStatusLabel, getPickupFrequencyClass, getPickupFrequencyLabel } from "@/components/Utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, MapPin, Phone, Mail, Calendar, Truck,
@@ -110,22 +110,6 @@ export default function ClientDetail() {
     fetchClient(id);
     fetchHistorial(id);
   }, [id]);
-
-  const getFrequencyColor = (freq) => {
-    switch (freq) {
-      case "Cada semana":
-        return "bg-success text-success-foreground";
-      case "Cada 2 semanas":
-        return "bg-blue-600 text-white";
-      case "Cada 3 semanas":
-        return "bg-orange-500 text-white";
-      case "Cada 4 semanas":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
   const handleDelete = async () => {
     if (!id) return;
     try {
@@ -279,8 +263,8 @@ export default function ClientDetail() {
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <Badge className={getFrequencyColor(frequency)}>
-              {loading ? "—" : frequency}
+            <Badge className={getPickupFrequencyClass(frequency)}>
+              {loading ? "—" : getPickupFrequencyLabel(frequency)}
             </Badge>
             <p className="text-sm text-muted-foreground mt-2">Frecuencia</p>
           </CardContent>
@@ -561,3 +545,4 @@ export default function ClientDetail() {
     </div>
   );
 }
+

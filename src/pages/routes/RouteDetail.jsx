@@ -78,11 +78,17 @@ function formatLiters(value) {
   return parsed.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+function formatCapacityLiters(value) {
+  if (value === null || value === undefined || value === "") return "Sin definir";
+  return `${formatLiters(value)} L`;
+}
+
 export default function RouteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
+  const isOwner = user?.role_type === "owner";
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -179,6 +185,31 @@ export default function RouteDetail() {
     return toDateInputValue(getOperationalWeekStartDate(weekStart));
   }, [overview.route?.week_start]);
 
+  const suggestedDailyCapacityLiters = useMemo(() => {
+    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
+    const routeDayWithCapacity = routeDays.find(
+      (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
+    );
+    if (routeDayWithCapacity) return String(routeDayWithCapacity.daily_capacity_liters);
+    if (
+      overview.route?.default_daily_capacity_liters !== null &&
+      overview.route?.default_daily_capacity_liters !== undefined &&
+      overview.route?.default_daily_capacity_liters !== ""
+    ) {
+      return String(overview.route.default_daily_capacity_liters);
+    }
+    return "0";
+  }, [overview.route?.default_daily_capacity_liters, overview.route_days]);
+
+  const routeDefaultCapacityLabel = useMemo(() => {
+    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
+    const routeDayWithCapacity = routeDays.find(
+      (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
+    );
+    if (routeDayWithCapacity) return formatCapacityLiters(routeDayWithCapacity.daily_capacity_liters);
+    return formatCapacityLiters(overview.route?.default_daily_capacity_liters);
+  }, [overview.route?.default_daily_capacity_liters, overview.route_days]);
+
   const handleDelete = async () => {
     if (!id) return;
     try {
@@ -196,7 +227,7 @@ export default function RouteDetail() {
 
   const openGenerateModal = (presetWeekStart = suggestedWeekStartDate) => {
     setWeekStartDate(presetWeekStart || "");
-    setDailyCapacityLiters("0");
+    setDailyCapacityLiters(suggestedDailyCapacityLiters);
     setRegenerate(false);
     setAutoEstimateWithoutContact(false);
     setHasExistingWeekStops(false);
@@ -483,18 +514,24 @@ export default function RouteDetail() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/routes/${id}/edit`)} disabled={loading || deleting}>
-            <Edit className="w-4 h-4 sm:mr-2" />
-            Editar
-          </Button>
-          <Button size="sm" onClick={openGenerateModal} disabled={loading || deleting}>
-            <WandSparkles className="w-4 h-4 sm:mr-2" />
-            Generar Semana
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={loading || deleting}>
-            {deleting ? <RefreshCcw className="w-4 h-4 sm:mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 sm:mr-2" />}
-            {deleting ? "Eliminando..." : "Eliminar"}
-          </Button>
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`/routes/${id}/edit`)} disabled={loading || deleting}>
+              <Edit className="w-4 h-4 sm:mr-2" />
+              Editar
+            </Button>
+          )}
+          {isOwner && (
+            <Button size="sm" onClick={openGenerateModal} disabled={loading || deleting}>
+              <WandSparkles className="w-4 h-4 sm:mr-2" />
+              Generar Semana
+            </Button>
+          )}
+          {isOwner && (
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={loading || deleting}>
+              {deleting ? <RefreshCcw className="w-4 h-4 sm:mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 sm:mr-2" />}
+              {deleting ? "Eliminando..." : "Eliminar"}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -512,6 +549,9 @@ export default function RouteDetail() {
             <p>
               <span className="text-muted-foreground">Semana operativa:</span>{" "}
               {WEEKDAY_LABELS[overview.route?.week_start ?? 0]} - {WEEKDAY_LABELS[overview.route?.week_end ?? 6]}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Capacidad diaria:</span> {routeDefaultCapacityLabel}
             </p>
             <div className="pt-2">
               <p className="text-muted-foreground mb-1">Trabajadores:</p>
@@ -579,13 +619,15 @@ export default function RouteDetail() {
               </div>
               <p className="text-sm font-medium text-foreground">Todavia no hay rutas diarias para esta semana operativa.</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Genera la semana actual para poder iniciar la ruta de hoy.
+                {isOwner ? "Genera la semana actual para poder iniciar la ruta de hoy." : "Aun no hay dias operativos generados para esta semana."}
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-                <Button size="sm" className="gap-2" onClick={() => openGenerateModal(suggestedWeekStartDate)}>
-                  <WandSparkles className="h-4 w-4" />
-                  Generar semana actual
-                </Button>
+                {isOwner && (
+                  <Button size="sm" className="gap-2" onClick={() => openGenerateModal(suggestedWeekStartDate)}>
+                    <WandSparkles className="h-4 w-4" />
+                    Generar semana actual
+                  </Button>
+                )}
                 <Button size="sm" variant="outline" onClick={fetchOverview}>
                   Refrescar
                 </Button>
@@ -599,7 +641,7 @@ export default function RouteDetail() {
                     <div className="text-left">
                       <p className="font-medium">{formatDate(routeDay.date)}</p>
                       <p className="text-xs text-muted-foreground">
-                        Capacidad: {routeDay.daily_capacity_liters ?? "-"} L | Paradas: {routeDay.stops}
+                        Capacidad: {formatCapacityLiters(routeDay.daily_capacity_liters)} | Paradas: {routeDay.stops}
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center justify-end gap-2">
@@ -820,6 +862,7 @@ export default function RouteDetail() {
         </CardContent>
       </Card>
 
+      {isOwner && (
       <Dialog open={generateModalOpen} onOpenChange={setGenerateModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -860,6 +903,7 @@ export default function RouteDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
 
       <Dialog
         open={finishDecisionModalOpen}
@@ -1001,17 +1045,17 @@ export default function RouteDetail() {
         </DialogContent>
       </Dialog>
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Eliminar ruta"
-        description={`Se va a eliminar la ruta "${overview.route?.name || id}". Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        onConfirm={handleDelete}
-        loading={deleting}
-      />
+      {isOwner && (
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminar ruta"
+          description={`Se va a eliminar la ruta "${overview.route?.name || id}". Esta accion no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   );
 }
-
-

@@ -5,6 +5,7 @@ import { AnimatedLogo } from "@/components/common/AnimatedLogo";
 import greenPathLogo from "@/assets/greenpath.png";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
+import { normalizeRoleType } from "@/components/Utils";
 
 const apiUrl = import.meta.env.VITE_APP_API_URL;
 const signature = import.meta.env.VITE_GOOGLE_SIGNATURE;
@@ -37,7 +38,11 @@ export default function SocialLogin() {
 
       if (data?.t) {
         googleLogin(data);
-        navigate("/dashboard");
+        const roleType = normalizeRoleType(data?.user?.role_type);
+        let targetPath = "/dashboard";
+        if (roleType === "worker") targetPath = "/routes";
+        if (roleType === "client") targetPath = "/my-requests";
+        navigate(targetPath);
       } else {
         throw new Error("Token no recibido del backend");
       }

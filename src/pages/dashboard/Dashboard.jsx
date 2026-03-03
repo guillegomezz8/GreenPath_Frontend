@@ -22,6 +22,10 @@ import {
   LayoutDashboard,
   Route,
   BarChart3,
+  CalendarClock,
+  ClipboardCheck,
+  UserCircle2,
+  Clock3,
 } from "lucide-react";
 
 function formatDate(dateStr) {
@@ -32,9 +36,10 @@ function formatDate(dateStr) {
 }
 
 export default function Dashboard() {
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
   const navigate = useNavigate();
+  const isClient = user?.role_type === "client";
 
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -43,12 +48,38 @@ export default function Dashboard() {
     operationalTrucks: 0,
     pendingCollections: 0,
     totalRoutes: 0,
+    myRequestsPending: 0,
+    myCollections: 0,
+    myConfirmedCollections: 0,
   });
   const [recentCollections, setRecentCollections] = useState([]);
 
   const fetchDashboard = useCallback(async () => {
     try {
       setLoading(true);
+      if (isClient) {
+        const [collectionsRes, collectionsPendingRes, collectionsConfirmedRes, requestsRes] = await Promise.all([
+          api().get("collections", { params: { page: 1, page_size: 8, ordering: "-collection_date" } }),
+          api().get("collections", { params: { page: 1, page_size: 1, status: "PENDING_MEASUREMENT" } }),
+          api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED" } }),
+          api().get("collections/requests/me/", { params: { page: 1, page_size: 1 } }),
+        ]);
+
+        const collectionsPayload = collectionsRes.data || {};
+        setStats({
+          clients: 0,
+          activeWorkers: 0,
+          operationalTrucks: 0,
+          pendingCollections: Number(collectionsPendingRes.data?.count || 0),
+          totalRoutes: 0,
+          myRequestsPending: Number(requestsRes.data?.count || 0),
+          myCollections: Number(collectionsPayload.count || 0),
+          myConfirmedCollections: Number(collectionsConfirmedRes.data?.count || 0),
+        });
+        setRecentCollections(Array.isArray(collectionsPayload.results) ? collectionsPayload.results : []);
+        return;
+      }
+
       const [
         clientsRes,
         workersRes,
@@ -80,6 +111,9 @@ export default function Dashboard() {
         operationalTrucks,
         pendingCollections: Number(collectionsPendingRes.data?.count || 0),
         totalRoutes: Number(routesPayload.count || 0),
+        myRequestsPending: 0,
+        myCollections: 0,
+        myConfirmedCollections: 0,
       });
       setRecentCollections(Array.isArray(collectionsPayload.results) ? collectionsPayload.results : []);
     } catch (e) {
@@ -88,46 +122,74 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [api, showSnackbar]);
+  }, [api, isClient, showSnackbar]);
 
   useEffect(() => {
     fetchDashboard();
   }, [fetchDashboard]);
 
   const statsData = useMemo(
-    () => [
-      {
-        title: "Total Clientes",
-        value: stats.clients.toLocaleString("es-ES"),
-        icon: Users,
-        color: "text-blue-600",
-      },
-      {
-        title: "Trabajadores Activos",
-        value: stats.activeWorkers.toLocaleString("es-ES"),
-        icon: UserCheck,
-        color: "text-green-600",
-      },
-      {
-        title: "Camiones Operativos",
-        value: stats.operationalTrucks.toLocaleString("es-ES"),
-        icon: Truck,
-        color: "text-orange-600",
-      },
-      {
-        title: "Total Rutas",
-        value: stats.totalRoutes.toLocaleString("es-ES"),
-        icon: Route,
-        color: "text-sky-600",
-      },
-      {
-        title: "Recogidas Pendientes",
-        value: stats.pendingCollections.toLocaleString("es-ES"),
-        icon: Package,
-        color: "text-amber-600",
-      },
-    ],
-    [stats]
+    () =>
+      isClient
+        ? [
+            {
+              title: "Mis Recogidas",
+              value: stats.myCollections.toLocaleString("es-ES"),
+              icon: Package,
+              color: "text-blue-600",
+            },
+            {
+              title: "Solicitudes Abiertas",
+              value: stats.myRequestsPending.toLocaleString("es-ES"),
+              icon: CalendarClock,
+              color: "text-orange-600",
+            },
+            {
+              title: "Confirmadas",
+              value: stats.myConfirmedCollections.toLocaleString("es-ES"),
+              icon: ClipboardCheck,
+              color: "text-green-600",
+            },
+            {
+              title: "Pendientes de medicion",
+              value: stats.pendingCollections.toLocaleString("es-ES"),
+              icon: Clock3,
+              color: "text-amber-600",
+            },
+          ]
+        : [
+            {
+              title: "Total Clientes",
+              value: stats.clients.toLocaleString("es-ES"),
+              icon: Users,
+              color: "text-blue-600",
+            },
+            {
+              title: "Trabajadores Activos",
+              value: stats.activeWorkers.toLocaleString("es-ES"),
+              icon: UserCheck,
+              color: "text-green-600",
+            },
+            {
+              title: "Camiones Operativos",
+              value: stats.operationalTrucks.toLocaleString("es-ES"),
+              icon: Truck,
+              color: "text-orange-600",
+            },
+            {
+              title: "Total Rutas",
+              value: stats.totalRoutes.toLocaleString("es-ES"),
+              icon: Route,
+              color: "text-sky-600",
+            },
+            {
+              title: "Recogidas Pendientes",
+              value: stats.pendingCollections.toLocaleString("es-ES"),
+              icon: Package,
+              color: "text-amber-600",
+            },
+          ],
+    [isClient, stats]
   );
 
   return (
@@ -138,20 +200,28 @@ export default function Dashboard() {
             <LayoutDashboard className="w-8 h-8 text-primary" />
             Dashboard
           </h1>
-          <p className="text-muted-foreground">Resumen general de operaciones GreenPath</p>
+          <p className="text-muted-foreground">
+            {isClient ? "Resumen de tus solicitudes y recogidas" : "Resumen general de operaciones GreenPath"}
+          </p>
         </div>
 
         <div className="flex gap-2">
           <ActionButton variant="outline" icon={Calendar} disabled>
             Hoy
           </ActionButton>
-          <ActionButton icon={BarChart3} onClick={() => navigate("/stats")}>
-            Ver Estadisticas
-          </ActionButton>
+          {isClient ? (
+            <ActionButton icon={CalendarClock} onClick={() => navigate("/my-requests")}>
+              Ver Solicitudes
+            </ActionButton>
+          ) : (
+            <ActionButton icon={BarChart3} onClick={() => navigate("/stats")}>
+              Ver Estadisticas
+            </ActionButton>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${isClient ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
         {statsData.map((stat) => (
           <StatCard key={stat.title} title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} />
         ))}
@@ -203,34 +273,67 @@ export default function Dashboard() {
               <MapPin className="w-5 h-5 text-primary" />
               Acciones Rapidas
             </CardTitle>
-            <CardDescription className="text-left">Accesos directos y resumen operativo</CardDescription>
+            <CardDescription className="text-left">
+              {isClient ? "Accesos directos para gestionar tus solicitudes" : "Accesos directos y resumen operativo"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="p-3 rounded-lg border border-border text-left">
               <p className="text-sm font-medium">Resumen operativo</p>
               <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-muted-foreground">
-                <span>Rutas totales:</span>
-                <span className="text-right font-medium text-foreground">{stats.totalRoutes}</span>
-                <span>Camiones operativos:</span>
-                <span className="text-right font-medium text-foreground">{stats.operationalTrucks}</span>
-                <span>Recogidas pendientes:</span>
-                <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
-                <span>Trabajadores activos:</span>
-                <span className="text-right font-medium text-foreground">{stats.activeWorkers}</span>
+                {isClient ? (
+                  <>
+                    <span>Solicitudes abiertas:</span>
+                    <span className="text-right font-medium text-foreground">{stats.myRequestsPending}</span>
+                    <span>Mis recogidas:</span>
+                    <span className="text-right font-medium text-foreground">{stats.myCollections}</span>
+                    <span>Pend. medicion:</span>
+                    <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
+                    <span>Confirmadas:</span>
+                    <span className="text-right font-medium text-foreground">{stats.myConfirmedCollections}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Rutas totales:</span>
+                    <span className="text-right font-medium text-foreground">{stats.totalRoutes}</span>
+                    <span>Camiones operativos:</span>
+                    <span className="text-right font-medium text-foreground">{stats.operationalTrucks}</span>
+                    <span>Recogidas pendientes:</span>
+                    <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
+                    <span>Trabajadores activos:</span>
+                    <span className="text-right font-medium text-foreground">{stats.activeWorkers}</span>
+                  </>
+                )}
               </div>
             </div>
-            <ActionButton variant="outline" icon={Users} className="w-full justify-start" onClick={() => navigate("/clients/new")}>
-              Nuevo Cliente
-            </ActionButton>
-            <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections/new")}>
-              Registrar Recogida
-            </ActionButton>
-            <ActionButton variant="outline" icon={Route} className="w-full justify-start" onClick={() => navigate("/routes")}>
-              Gestionar Rutas
-            </ActionButton>
-            <ActionButton variant="success" icon={BarChart3} className="w-full justify-start" onClick={() => navigate("/stats")}>
-              Ver Estadisticas
-            </ActionButton>
+            {isClient ? (
+              <>
+                <ActionButton variant="outline" icon={CalendarClock} className="w-full justify-start" onClick={() => navigate("/my-requests")}>
+                  Mis Solicitudes
+                </ActionButton>
+                <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections")}>
+                  Historial de Recogidas
+                </ActionButton>
+                <ActionButton variant="success" icon={UserCircle2} className="w-full justify-start" onClick={() => navigate("/profile")}>
+                  Mi Perfil
+                </ActionButton>
+              </>
+            ) : (
+              <>
+                <ActionButton variant="outline" icon={Users} className="w-full justify-start" onClick={() => navigate("/clients/new")}>
+                  Nuevo Cliente
+                </ActionButton>
+                <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections/new")}>
+                  Registrar Recogida
+                </ActionButton>
+                <ActionButton variant="outline" icon={Route} className="w-full justify-start" onClick={() => navigate("/routes")}>
+                  Gestionar Rutas
+                </ActionButton>
+                <ActionButton variant="success" icon={BarChart3} className="w-full justify-start" onClick={() => navigate("/stats")}>
+                  Ver Estadisticas
+                </ActionButton>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

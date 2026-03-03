@@ -49,8 +49,14 @@ function normalizeNumber(value) {
 
 export default function CollectionsList() {
   const navigate = useNavigate();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
+  const roleType = user?.role_type || "";
+  const isOwner = roleType === "owner";
+  const isWorker = roleType === "worker";
+  const isClient = roleType === "client";
+  const canCreateCollection = isOwner || isWorker;
+  const canManageCollection = isOwner;
 
   const [collections, setCollections] = useState([]);
   const [workersMap, setWorkersMap] = useState({});
@@ -75,6 +81,10 @@ export default function CollectionsList() {
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
   const fetchWorkersMap = useCallback(async () => {
+    if (isClient) {
+      setWorkersMap({});
+      return;
+    }
     try {
       const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
       const items = Array.isArray(res.data?.results) ? res.data.results : [];
@@ -86,7 +96,7 @@ export default function CollectionsList() {
     } catch {
       setWorkersMap({});
     }
-  }, [api]);
+  }, [api, isClient]);
 
   const fetchCollections = useCallback(async () => {
     try {
@@ -193,20 +203,26 @@ export default function CollectionsList() {
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Package className="w-8 h-8 text-primary" />
-            Gestion de Recogidas
+            {isClient ? "Historial de Recogidas" : "Gestion de Recogidas"}
           </h1>
-          <p className="text-muted-foreground">Supervisa y registra las recogidas de aceite usado</p>
+          <p className="text-muted-foreground">
+            {isClient ? "Consulta tus recogidas pasadas y su estado" : "Supervisa y registra las recogidas de aceite usado"}
+          </p>
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" onClick={() => navigate("/stats")}>
-            <BarChart3 className="w-4 h-4" />
-            Reportes
-          </Button>
-          <Button className="gap-2" onClick={() => navigate("/collections/new")}>
-            <Plus className="w-4 h-4" />
-            Nueva Recogida
-          </Button>
+          {isOwner && (
+            <Button variant="outline" className="gap-2" onClick={() => navigate("/stats")}>
+              <BarChart3 className="w-4 h-4" />
+              Reportes
+            </Button>
+          )}
+          {canCreateCollection && (
+            <Button className="gap-2" onClick={() => navigate("/collections/new")}>
+              <Plus className="w-4 h-4" />
+              Nueva Recogida
+            </Button>
+          )}
         </div>
       </div>
 
@@ -368,14 +384,18 @@ export default function CollectionsList() {
                     <Eye className="w-4 h-4" />
                     Ver
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
-                    <Edit className="w-4 h-4" />
-                    Editar
-                  </Button>
-                  <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
-                    <Trash2 className="w-4 h-4" />
-                    Eliminar
-                  </Button>
+                  {canManageCollection && (
+                    <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
+                      <Edit className="w-4 h-4" />
+                      Editar
+                    </Button>
+                  )}
+                  {canManageCollection && (
+                    <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
+                      <Trash2 className="w-4 h-4" />
+                      Eliminar
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -431,15 +451,17 @@ export default function CollectionsList() {
         </CardContent>
       </Card>
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Eliminar recogida"
-        description={toDelete ? `Se va a eliminar la recogida #${toDelete.id}. Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
-        confirmLabel="Eliminar"
-        onConfirm={handleDelete}
-        loading={deleting}
-      />
+      {canManageCollection && (
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminar recogida"
+          description={toDelete ? `Se va a eliminar la recogida #${toDelete.id}. Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   );
 }

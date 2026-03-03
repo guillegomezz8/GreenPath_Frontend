@@ -3,7 +3,7 @@ import { HashRouter , Routes, Route, Outlet } from 'react-router-dom';
 import { SnackbarProvider } from '@/context/SnackbarProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { GuestRoute, UserRoute } from './routes/RolesRoutes';
+import { GuestRoute, RoleRoute, UserRoute } from './routes/RolesRoutes';
 
 import Error404 from '@/pages/error/Error404';
 import SocialLogin from '@/pages/oauth/SocialLogin';
@@ -26,6 +26,7 @@ import CollectionsList from '@/pages/collections/CollectionsList';
 import CollectionCreate from '@/pages/collections/CollectionCreate';
 import CollectionDetail from '@/pages/collections/CollectionDetail';
 import CollectionEdit from '@/pages/collections/CollectionEdit';
+import CollectionRequestsPage from '@/pages/collections/CollectionRequestsPage';
 import TrucksList from '@/pages/trucks/TrucksList';
 import TruckCreate from '@/pages/trucks/TruckCreate';
 import TruckEdit from '@/pages/trucks/TruckEdit';
@@ -54,30 +55,43 @@ function AppContent() {
           </UserRoute>
         }
       >
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/clients" element={<ClientsList />} />
-        <Route path="/clients/:id" element={<ClientDetail />} />
-        <Route path="/clients/new" element={<ClientCreate />} />
-        <Route path="/clients/:id/edit" element={<ClientEdit />} />
-        <Route path="/workers" element={<WorkersList />} />
-        <Route path="/workers/:id" element={<WorkerDetail />} />
-        <Route path="/workers/new" element={<WorkerCreate />} />
-        <Route path="/workers/:id/edit" element={<WorkerEdit />} />
-        <Route path="/collection-zones" element={<CollectionZonesMap />} />
-        <Route path="/routes" element={<RoutesList />} />
-        <Route path="/routes/new" element={<RouteCreate />} />
-        <Route path="/routes/:id" element={<RouteDetail />} />
-        <Route path="/routes/:id/edit" element={<RouteEdit />} />
-        <Route path="/collections" element={<CollectionsList />} />
-        <Route path="/collections/new" element={<CollectionCreate />} />
-        <Route path="/collections/:id/new" element={<CollectionCreate />} />
-        <Route path="/collections/:id" element={<CollectionDetail />} />
-        <Route path="/collections/:id/edit" element={<CollectionEdit />} />
-        <Route path="/trucks" element={<TrucksList />} />
-        <Route path="/trucks/new" element={<TruckCreate />} />
-        <Route path="/trucks/:id/edit" element={<TruckEdit />} />
-        <Route path="/assign-truck/:id" element={<AssignTruck />} />
-        <Route path="/stats" element={<Stats />} />
+        <Route element={<RoleRoute allowedRoles={["owner"]} />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/clients" element={<ClientsList />} />
+          <Route path="/clients/:id" element={<ClientDetail />} />
+          <Route path="/clients/new" element={<ClientCreate />} />
+          <Route path="/clients/:id/edit" element={<ClientEdit />} />
+          <Route path="/workers" element={<WorkersList />} />
+          <Route path="/workers/:id" element={<WorkerDetail />} />
+          <Route path="/workers/new" element={<WorkerCreate />} />
+          <Route path="/workers/:id/edit" element={<WorkerEdit />} />
+          <Route path="/collection-zones" element={<CollectionZonesMap />} />
+          <Route path="/routes/new" element={<RouteCreate />} />
+          <Route path="/routes/:id/edit" element={<RouteEdit />} />
+          <Route path="/collections/:id/edit" element={<CollectionEdit />} />
+          <Route path="/trucks" element={<TrucksList />} />
+          <Route path="/trucks/new" element={<TruckCreate />} />
+          <Route path="/trucks/:id/edit" element={<TruckEdit />} />
+          <Route path="/assign-truck/:id" element={<AssignTruck />} />
+          <Route path="/stats" element={<Stats />} />
+        </Route>
+
+        <Route element={<RoleRoute allowedRoles={["owner", "worker"]} />}>
+          <Route path="/routes" element={<RoutesList />} />
+          <Route path="/routes/:id" element={<RouteDetail />} />
+          <Route path="/collections/new" element={<CollectionCreate />} />
+          <Route path="/collections/:id/new" element={<CollectionCreate />} />
+        </Route>
+
+        <Route element={<RoleRoute allowedRoles={["owner", "worker", "client"]} />}>
+          <Route path="/collections" element={<CollectionsList />} />
+          <Route path="/collections/:id" element={<CollectionDetail />} />
+        </Route>
+
+        <Route element={<RoleRoute allowedRoles={["client"]} />}>
+          <Route path="/my-requests" element={<CollectionRequestsPage />} />
+        </Route>
+
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/perfil" element={<ProfilePage />} />
       </Route>

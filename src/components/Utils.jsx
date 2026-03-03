@@ -229,3 +229,60 @@ export function getCollectionRequestStatusClass(status) {
   if (normalized === "MANUAL") return "bg-indigo-600 text-white";
   return "bg-slate-500 text-white";
 }
+
+export function normalizeRoleType(roleType) {
+  const raw = `${roleType || ""}`.trim().toLowerCase();
+  if (["owner", "propietario", "dueno"].includes(raw)) return "owner";
+  if (["worker", "trabajador"].includes(raw)) return "worker";
+  if (["client", "cliente"].includes(raw)) return "client";
+  return raw || "desconocido";
+}
+
+export function getRoleLabel(roleType) {
+  const normalized = normalizeRoleType(roleType);
+  if (normalized === "owner") return "Propietario";
+  if (normalized === "worker") return "Trabajador";
+  if (normalized === "client") return "Cliente";
+  return "Desconocido";
+}
+
+export function getRoleBadgeClass(roleType) {
+  const normalized = normalizeRoleType(roleType);
+  if (normalized === "owner") return "bg-indigo-600 text-white";
+  if (normalized === "worker") return "bg-blue-600 text-white";
+  if (normalized === "client") return "bg-cyan-600 text-white";
+  return "bg-slate-600 text-white";
+}
+
+export function normalizePickupFrequency(frequency) {
+  const normalized = (frequency || "")
+    .toString()
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_");
+
+  if (["WEEKLY", "CADA_SEMANA"].includes(normalized)) return "WEEKLY";
+  if (["2_WEEKS", "CADA_2_SEMANAS"].includes(normalized)) return "2_WEEKS";
+  if (["3_WEEKS", "CADA_3_SEMANAS"].includes(normalized)) return "3_WEEKS";
+  if (["4_WEEKS", "CADA_4_SEMANAS"].includes(normalized)) return "4_WEEKS";
+  return normalized || "WEEKLY";
+}
+
+export function getPickupFrequencyLabel(frequency) {
+  const normalized = normalizePickupFrequency(frequency);
+  if (normalized === "2_WEEKS") return "Cada 2 semanas";
+  if (normalized === "3_WEEKS") return "Cada 3 semanas";
+  if (normalized === "4_WEEKS") return "Cada 4 semanas";
+  return "Cada semana";
+}
+
+export function getPickupFrequencyClass(frequency) {
+  const normalized = normalizePickupFrequency(frequency);
+  if (normalized === "WEEKLY") return "bg-green-600 text-white";
+  if (normalized === "2_WEEKS") return "bg-blue-600 text-white";
+  if (normalized === "3_WEEKS") return "bg-orange-500 text-white";
+  if (normalized === "4_WEEKS") return "bg-red-600 text-white";
+  return "bg-slate-500 text-white";
+}

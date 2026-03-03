@@ -14,8 +14,9 @@ import { handleApiError } from "@/components/Utils";
 export default function CollectionCreate() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const { toast } = useToast();
+  const isWorker = user?.role_type === "worker";
 
   const [loading, setLoading] = useState(false);
 
@@ -44,9 +45,13 @@ export default function CollectionCreate() {
   }, [api]);
 
   const fetchWorkers = useCallback(async () => {
+    if (isWorker) {
+      setWorkers([]);
+      return;
+    }
     const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
     setWorkers(res.data.results || []);
-  }, [api]);
+  }, [api, isWorker]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -159,7 +164,7 @@ export default function CollectionCreate() {
         <div className="min-w-0 flex-1">
           <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
             <Package className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
-            <span>Crear Recogida</span>
+            <span>{isWorker ? "Registrar Recogida" : "Crear Recogida"}</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
             Rellena la información para registrar una nueva recogida
@@ -198,24 +203,26 @@ export default function CollectionCreate() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="worker">Trabajador</Label>
-                <Select
-                  value={formData.worker}
-                  onValueChange={(value) => handleChange("worker", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar trabajador" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={String(worker.id)}>
-                        {`${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!isWorker && (
+                <div className="space-y-2">
+                  <Label htmlFor="worker">Trabajador</Label>
+                  <Select
+                    value={formData.worker}
+                    onValueChange={(value) => handleChange("worker", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar trabajador" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {workers.map((worker) => (
+                        <SelectItem key={worker.id} value={String(worker.id)}>
+                          {`${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="collection_date">Fecha de Recogida *</Label>

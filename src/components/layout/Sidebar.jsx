@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -8,12 +9,13 @@ import {
   Truck,
   BarChart3,
   Package,
+  CalendarClock,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getAvatarSrc, getInitials } from "@/components/Utils";
+import { getAvatarSrc, getInitials, normalizeRoleType } from "@/components/Utils";
 
-const menuItems = [
+const ownerMenuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { id: "clientes", label: "Clientes", icon: Users, path: "/clients" },
   { id: "trabajadores", label: "Trabajadores", icon: UserCog, path: "/workers" },
@@ -24,6 +26,16 @@ const menuItems = [
   { id: "estadisticas", label: "Estadisticas", icon: BarChart3, path: "/stats" },
 ];
 
+const workerMenuItems = [
+  { id: "rutas", label: "Rutas", icon: Route, path: "/routes" },
+  { id: "recogidas", label: "Recogidas", icon: Package, path: "/collections" },
+];
+
+const clientMenuItems = [
+  { id: "solicitudes", label: "Mis Solicitudes", icon: CalendarClock, path: "/my-requests" },
+  { id: "recogidas", label: "Mis Recogidas", icon: Package, path: "/collections" },
+];
+
 const Sidebar = ({ onItemClick }) => {
   const { user } = useAuth();
   const location = useLocation();
@@ -31,6 +43,12 @@ const Sidebar = ({ onItemClick }) => {
   const userName = user?.username || "Usuario";
   const userAvatar = getAvatarSrc(user);
   const isProfileActive = location.pathname.startsWith("/profile") || location.pathname.startsWith("/perfil");
+  const roleType = normalizeRoleType(user?.role_type || "");
+  const menuItems = useMemo(() => {
+    if (roleType === "client") return clientMenuItems;
+    if (roleType === "worker") return workerMenuItems;
+    return ownerMenuItems;
+  }, [roleType]);
 
   const handleNavigation = (path) => {
     navigate(path);

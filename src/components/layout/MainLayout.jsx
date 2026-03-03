@@ -5,11 +5,13 @@ import Topbar from '@/components/layout/Topbar';
 import Sidebar from '@/components/layout/Sidebar';
 import { Button } from '@/components/ui/button';
 import { Menu, X } from 'lucide-react';
+import { getRoleLabel } from '@/components/Utils';
 
 export const MainLayout = ({ children }) => {
   const { user } = useAuth();
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const roleLabel = getRoleLabel(user?.role_type || user?.role_label);
 
   useEffect(() => {
     const checkIsMobile = () => {
@@ -60,10 +62,10 @@ export const MainLayout = ({ children }) => {
         <div className="flex items-center gap-4 px-2">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-green-800 hidden sm:inline">
-              GreenPath - {user?.role_type ? user.role_type : 'Rol Desconocido'}
+              GreenPath - {roleLabel}
             </span>
             <span className="font-semibold text-green-800 sm:hidden">
-              GreenPath - {user?.role_type ? user.role_type : 'Rol Desconocido'}
+              GreenPath - {roleLabel}
             </span>
           </div>
         </div>

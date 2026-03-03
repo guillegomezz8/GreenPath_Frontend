@@ -24,8 +24,9 @@ function asNumber(value) {
 export default function CollectionDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { api } = useAuth();
+  const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
+  const isOwner = user?.role_type === "owner";
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -83,14 +84,18 @@ export default function CollectionDetail() {
           </div>
         </div>
         <div className="flex gap-2 sm:gap-3 flex-shrink-0">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/collections/${id}/edit`)}>
-            <Edit className="w-4 h-4 sm:mr-2" />
-            Editar
-          </Button>
-          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-            <Trash2 className="w-4 h-4 sm:mr-2" />
-            Eliminar
-          </Button>
+          {isOwner && (
+            <Button variant="outline" size="sm" onClick={() => navigate(`/collections/${id}/edit`)}>
+              <Edit className="w-4 h-4 sm:mr-2" />
+              Editar
+            </Button>
+          )}
+          {isOwner && (
+            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+              <Trash2 className="w-4 h-4 sm:mr-2" />
+              Eliminar
+            </Button>
+          )}
         </div>
       </div>
 
@@ -144,15 +149,17 @@ export default function CollectionDetail() {
         </CardContent>
       </Card>
 
-      <ConfirmDeleteDialog
-        open={deleteOpen}
-        onOpenChange={setDeleteOpen}
-        title="Eliminar recogida"
-        description={`Se va a eliminar la recogida #${collection?.id || id}. Esta accion no se puede deshacer.`}
-        confirmLabel="Eliminar"
-        onConfirm={handleDelete}
-        loading={deleting}
-      />
+      {isOwner && (
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminar recogida"
+          description={`Se va a eliminar la recogida #${collection?.id || id}. Esta accion no se puede deshacer.`}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   );
 }

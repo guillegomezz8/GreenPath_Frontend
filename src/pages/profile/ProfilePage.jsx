@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { getInitials, handleApiError } from "@/components/Utils";
+import { getInitials, handleApiError, getRoleLabel, getRoleBadgeClass, normalizeRoleType } from "@/components/Utils";
 import {
   KeyRound,
   Mail,
@@ -24,13 +24,6 @@ import {
   Camera,
   Loader2,
 } from "lucide-react";
-
-function getRoleLabel(roleType) {
-  if (roleType === "owner") return "Propietario";
-  if (roleType === "worker") return "Trabajador";
-  if (roleType === "client") return "Cliente";
-  return "Usuario";
-}
 
 function normalizeValue(value) {
   if (value === null || value === undefined) return "-";
@@ -250,18 +243,14 @@ export default function ProfilePage() {
     }
   };
 
-  const roleLabel = useMemo(() => getRoleLabel(profileMeta.role_type || user?.role_type), [profileMeta.role_type, user?.role_type]);
+  const effectiveRoleType = useMemo(() => normalizeRoleType(profileMeta.role_type || user?.role_type || ""), [profileMeta.role_type, user?.role_type]);
+  const roleLabel = useMemo(() => getRoleLabel(effectiveRoleType), [effectiveRoleType]);
   const avatarSrc = useMemo(() => buildMediaUrl(profileExtra?.photo), [profileExtra?.photo]);
   const canEditPhoto = useMemo(
     () => Boolean(profileExtra && typeof profileExtra === "object" && Object.prototype.hasOwnProperty.call(profileExtra, "photo")),
     [profileExtra]
   );
-  const roleBadgeClass = useMemo(() => {
-    if (profileMeta.role_type === "owner") return "bg-indigo-600 text-white";
-    if (profileMeta.role_type === "worker") return "bg-blue-600 text-white";
-    if (profileMeta.role_type === "client") return "bg-cyan-600 text-white";
-    return "bg-slate-600 text-white";
-  }, [profileMeta.role_type]);
+  const roleBadgeClass = useMemo(() => getRoleBadgeClass(effectiveRoleType), [effectiveRoleType]);
   const statusBadgeClass = useMemo(
     () =>
       profileMeta.is_active
@@ -274,24 +263,34 @@ export default function ProfilePage() {
     return composed || profileForm.username || "Usuario";
   }, [profileExtra?.surname, profileForm.name, profileForm.username]);
 
-  const detailItems = useMemo(
-    () => [
+  const detailItems = useMemo(() => {
+    const commonItems = [
       { key: "username", label: "Usuario", icon: User, value: profileForm.username },
       { key: "email", label: "Email", icon: Mail, value: profileForm.email },
       { key: "phone", label: "Telefono", icon: Phone, value: profileForm.phone || profileExtra?.phone },
+      { key: "company", label: "Empresa", icon: Building2, value: profileExtra?.company || profileExtra?.companies },
+    ];
+
+    if (effectiveRoleType === "client") {
+      return [
+        ...commonItems,
+        { key: "cif", label: "CIF", icon: IdCard, value: profileExtra?.cif },
+        { key: "address", label: "Direccion", icon: MapPin, value: profileExtra?.address },
+        { key: "city", label: "Ciudad", icon: Building2, value: profileExtra?.city },
+        { key: "postal_code", label: "Codigo postal", icon: Building2, value: profileExtra?.postal_code },
+        { key: "country", label: "Pais", icon: Building2, value: profileExtra?.country },
+        { key: "frequency", label: "Frecuencia", icon: Calendar, value: profileExtra?.frequency },
+      ];
+    }
+
+    return [
+      ...commonItems,
       { key: "surname", label: "Apellidos", icon: User, value: profileExtra?.surname },
       { key: "dni", label: "DNI", icon: IdCard, value: profileExtra?.dni },
-      { key: "cif", label: "CIF", icon: IdCard, value: profileExtra?.cif },
       { key: "birth_date", label: "Fecha nacimiento", icon: Calendar, value: profileExtra?.birth_date },
       { key: "address", label: "Direccion", icon: MapPin, value: profileExtra?.address },
-      { key: "city", label: "Ciudad", icon: Building2, value: profileExtra?.city },
-      { key: "postal_code", label: "Codigo postal", icon: Building2, value: profileExtra?.postal_code },
-      { key: "country", label: "Pais", icon: Building2, value: profileExtra?.country },
-      { key: "company", label: "Empresa", icon: Building2, value: profileExtra?.company || profileExtra?.companies },
-      { key: "frequency", label: "Frecuencia", icon: Calendar, value: profileExtra?.frequency },
-    ],
-    [profileExtra, profileForm.email, profileForm.phone, profileForm.username]
-  );
+    ];
+  }, [effectiveRoleType, profileExtra, profileForm.email, profileForm.phone, profileForm.username]);
 
   return (
     <div className="space-y-6">
