@@ -130,7 +130,8 @@ export default function RoutesList() {
 
   const handleGenerateWeek = async () => {
     if (!selectedRoute?.id) return;
-    if (!weekStartDate) {
+    const normalizedWeekStartDate = typeof weekStartDate === "string" ? weekStartDate : "";
+    if (!normalizedWeekStartDate) {
       showSnackbar("Debes indicar la fecha de inicio de semana.", "error");
       return;
     }
@@ -138,7 +139,7 @@ export default function RoutesList() {
     try {
       setSubmittingGenerate(true);
       const payload = {
-        week_start_date: weekStartDate,
+        week_start_date: normalizedWeekStartDate,
         daily_capacity_liters: dailyCapacityLiters,
         regenerate: hasExistingWeekStops ? regenerate : false,
         auto_estimate_without_contact: autoEstimateWithoutContact,
@@ -161,7 +162,7 @@ export default function RoutesList() {
   };
 
   useEffect(() => {
-    if (!generateModalOpen || !selectedRoute?.id || !weekStartDate) {
+    if (!generateModalOpen || !selectedRoute?.id || typeof weekStartDate !== "string" || !weekStartDate) {
       setCheckingWeekGenerationContext(false);
       setHasExistingWeekStops(false);
       return;

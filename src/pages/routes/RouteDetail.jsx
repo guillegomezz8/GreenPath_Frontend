@@ -226,7 +226,8 @@ export default function RouteDetail() {
   };
 
   const openGenerateModal = (presetWeekStart = suggestedWeekStartDate) => {
-    setWeekStartDate(presetWeekStart || "");
+    const normalizedPresetWeekStart = typeof presetWeekStart === "string" ? presetWeekStart : suggestedWeekStartDate;
+    setWeekStartDate(normalizedPresetWeekStart || "");
     setDailyCapacityLiters(suggestedDailyCapacityLiters);
     setRegenerate(false);
     setAutoEstimateWithoutContact(false);
@@ -237,7 +238,8 @@ export default function RouteDetail() {
 
   const handleGenerateWeek = async () => {
     if (!id) return;
-    if (!weekStartDate) {
+    const normalizedWeekStartDate = typeof weekStartDate === "string" ? weekStartDate : "";
+    if (!normalizedWeekStartDate) {
       showSnackbar("Debes indicar la fecha de inicio de semana.", "error");
       return;
     }
@@ -245,14 +247,14 @@ export default function RouteDetail() {
     try {
       setSubmittingGenerate(true);
       await api().post(`routes/${encodeURIComponent(id)}/generate-week/`, {
-        week_start_date: weekStartDate,
+        week_start_date: normalizedWeekStartDate,
         daily_capacity_liters: dailyCapacityLiters,
         regenerate: hasExistingWeekStops ? regenerate : false,
         auto_estimate_without_contact: autoEstimateWithoutContact,
       });
       showSnackbar("Semana operativa generada correctamente.", "success");
       setGenerateModalOpen(false);
-      setWeekFilter(weekStartDate);
+      setWeekFilter(normalizedWeekStartDate);
       await fetchOverview();
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la semana operativa.");
@@ -263,7 +265,7 @@ export default function RouteDetail() {
   };
 
   useEffect(() => {
-    if (!generateModalOpen || !id || !weekStartDate) {
+    if (!generateModalOpen || !id || typeof weekStartDate !== "string" || !weekStartDate) {
       setHasExistingWeekStops(false);
       setCheckingWeekGenerationContext(false);
       return;
@@ -521,7 +523,7 @@ export default function RouteDetail() {
             </Button>
           )}
           {isOwner && (
-            <Button size="sm" onClick={openGenerateModal} disabled={loading || deleting}>
+            <Button size="sm" onClick={() => openGenerateModal()} disabled={loading || deleting}>
               <WandSparkles className="w-4 h-4 sm:mr-2" />
               Generar Semana
             </Button>
