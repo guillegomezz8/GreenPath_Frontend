@@ -53,6 +53,7 @@ export default function RoutesList() {
   const [workersMap, setWorkersMap] = useState({});
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [routeFilter, setRouteFilter] = useState("ALL");
   const [generatedByRoute, setGeneratedByRoute] = useState({});
 
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
@@ -107,12 +108,20 @@ export default function RoutesList() {
     fetchRoutes();
   }, [fetchRoutes]);
 
-  const filteredRoutes = useMemo(() => routesData, [routesData]);
+  const filteredRoutes = useMemo(() => {
+    if (routeFilter === "WITH_WORKERS") {
+      return routesData.filter((route) => Boolean(route.worker));
+    }
+    if (routeFilter === "WITHOUT_WORKERS") {
+      return routesData.filter((route) => !route.worker);
+    }
+    return routesData;
+  }, [routeFilter, routesData]);
 
   const stats = useMemo(() => {
     const total = routesData.length;
-    const withWorkers = routesData.filter((r) => Array.isArray(r.workers) && r.workers.length > 0).length;
-    const withoutWorkers = routesData.filter((r) => !Array.isArray(r.workers) || r.workers.length === 0).length;
+    const withWorkers = routesData.filter((r) => Boolean(r.worker)).length;
+    const withoutWorkers = routesData.filter((r) => !r.worker).length;
     const noEndDate = routesData.filter((r) => !r.end_date).length;
     return { total, withWorkers, withoutWorkers, noEndDate };
   }, [routesData]);
@@ -243,7 +252,7 @@ export default function RoutesList() {
 
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4 md:items-end">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
@@ -253,7 +262,29 @@ export default function RoutesList() {
                 className="pl-10"
               />
             </div>
-
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={routeFilter === "ALL" ? "default" : "outline"}
+                onClick={() => setRouteFilter("ALL")}
+              >
+                Todas
+              </Button>
+              <Button
+                size="sm"
+                variant={routeFilter === "WITH_WORKERS" ? "default" : "outline"}
+                onClick={() => setRouteFilter("WITH_WORKERS")}
+              >
+                Con trabajador
+              </Button>
+              <Button
+                size="sm"
+                variant={routeFilter === "WITHOUT_WORKERS" ? "default" : "outline"}
+                onClick={() => setRouteFilter("WITHOUT_WORKERS")}
+              >
+                Sin trabajador
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -268,13 +299,13 @@ export default function RoutesList() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-blue-500">{stats.withWorkers}</div>
-            <p className="text-sm text-muted-foreground">Con trabajadores</p>
+            <p className="text-sm text-muted-foreground">Con trabajador</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-orange-500">{stats.withoutWorkers}</div>
-            <p className="text-sm text-muted-foreground">Sin trabajadores</p>
+            <p className="text-sm text-muted-foreground">Sin trabajador</p>
           </CardContent>
         </Card>
         <Card>
@@ -292,11 +323,14 @@ export default function RoutesList() {
           </Card>
         ) : filteredRoutes.length === 0 ? (
           <Card className="lg:col-span-2">
-            <CardContent className="py-12 text-center text-muted-foreground">No hay rutas para los filtros aplicados.</CardContent>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No hay rutas para la combinacion de busqueda y filtro seleccionada.
+            </CardContent>
           </Card>
         ) : (
           filteredRoutes.map((route) => {
-            const assignedWorkers = Array.isArray(route.workers) ? route.workers : [];
+            const assignedWorkerId = route.worker || null;
+            const assignedWorkerLabel = assignedWorkerId ? (workersMap[assignedWorkerId] || `Trabajador ${assignedWorkerId}`) : null;
             const generatedDays = generatedByRoute[route.id] || [];
 
             return (
@@ -340,18 +374,14 @@ export default function RoutesList() {
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Trabajadores:</span>
-                        <span className="font-medium">{assignedWorkers.length}</span>
+                        <span className="text-muted-foreground">Trabajador:</span>
+                        <span className="font-medium">{assignedWorkerId ? 1 : 0}</span>
                       </div>
                       <div className="flex flex-wrap gap-1">
-                        {assignedWorkers.length === 0 ? (
+                        {!assignedWorkerLabel ? (
                           <Badge variant="outline">Sin asignar</Badge>
                         ) : (
-                          assignedWorkers.map((id) => (
-                            <Badge key={id} variant="outline">
-                              {workersMap[id] || `Trabajador ${id}`}
-                            </Badge>
-                          ))
+                          <Badge variant="outline">{assignedWorkerLabel}</Badge>
                         )}
                       </div>
                     </div>
@@ -372,9 +402,9 @@ export default function RoutesList() {
                   )}
 
                   <div className="flex gap-2 pt-2">
-                    <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}`)}>
+                    <Button size="sm" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}`)}>
                       <Eye className="w-4 h-4" />
-                      Ver
+                      Ver detalle
                     </Button>
                     {canManageRoutes && (
                       <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}/edit`)}>

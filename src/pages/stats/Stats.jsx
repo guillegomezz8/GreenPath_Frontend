@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,8 +34,15 @@ function monthKey(dateStr) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-function buildLastMonths(count = 6) {
-  const now = new Date();
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function buildLastMonths(count = 6, referenceDate = new Date()) {
+  const now = new Date(referenceDate);
   now.setHours(0, 0, 0, 0);
   const months = [];
   for (let i = count - 1; i >= 0; i -= 1) {
@@ -43,6 +51,13 @@ function buildLastMonths(count = 6) {
     months.push({ key, label: MONTH_FORMATTER.format(d).replace(".", "") });
   }
   return months;
+}
+
+function getBarHeightPercent(value, maxValue, minVisiblePercent = 8) {
+  const parsed = toNumber(value);
+  if (parsed <= 0 || maxValue <= 0) return 0;
+  const rawPercent = (parsed / maxValue) * 100;
+  return Math.max(minVisiblePercent, Math.min(100, rawPercent));
 }
 
 export default function Stats() {
@@ -102,7 +117,14 @@ export default function Stats() {
   }, [fetchStatsData]);
 
   const { monthlyData, routeStats, kpiData } = useMemo(() => {
-    const months = buildLastMonths(6);
+    const latestCollectionDate = collections.reduce((acc, item) => {
+      const d = parseDate(item.collection_date);
+      if (!d) return acc;
+      if (!acc) return d;
+      return d > acc ? d : acc;
+    }, null);
+
+    const months = buildLastMonths(6, latestCollectionDate || new Date());
     const monthMap = {};
     months.forEach((m) => {
       monthMap[m.key] = { month: m.label, collections: 0, volume: 0, revenue: 0, efficiency: 0, confirmed: 0 };
@@ -289,13 +311,23 @@ export default function Stats() {
               </CardHeader>
               <CardContent>
                 <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data) => (
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.volume, maxVolume);
+                    return (
                     <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
                       <div className="text-xs text-muted-foreground">{Math.round(data.volume)}L</div>
-                      <div className="w-full bg-primary rounded-t-sm transition-all hover:bg-primary-glow" style={{ height: `${(data.volume / maxVolume) * 100}%`, minHeight: "20px" }}></div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-primary rounded-t-sm hover:bg-primary-glow"
+                        />
+                      </div>
                       <div className="text-xs font-medium text-foreground">{data.month}</div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -310,13 +342,23 @@ export default function Stats() {
               </CardHeader>
               <CardContent>
                 <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data) => (
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.revenue, maxRevenue);
+                    return (
                     <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
                       <div className="text-xs text-muted-foreground">{data.revenue.toFixed(0)} EUR</div>
-                      <div className="w-full bg-success rounded-t-sm transition-all hover:bg-success/80" style={{ height: `${(data.revenue / maxRevenue) * 100}%`, minHeight: "20px" }}></div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-success rounded-t-sm hover:bg-success/80"
+                        />
+                      </div>
                       <div className="text-xs font-medium text-foreground">{data.month}</div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -377,18 +419,25 @@ export default function Stats() {
               </CardHeader>
               <CardContent>
                 <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data) => (
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.efficiency, 100, 6);
+                    const barClass =
+                      data.efficiency >= 95 ? "bg-success" : data.efficiency >= 80 ? "bg-orange-500" : "bg-destructive";
+                    return (
                     <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
                       <div className="text-xs text-muted-foreground">{data.efficiency}%</div>
-                      <div
-                        className={`w-full rounded-t-sm transition-all ${
-                          data.efficiency >= 95 ? "bg-success" : data.efficiency >= 80 ? "bg-orange-500" : "bg-destructive"
-                        }`}
-                        style={{ height: `${Math.max(5, data.efficiency)}%`, minHeight: "20px" }}
-                      ></div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className={`w-full rounded-t-sm ${barClass}`}
+                        />
+                      </div>
                       <div className="text-xs font-medium text-foreground">{data.month}</div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -403,13 +452,23 @@ export default function Stats() {
               </CardHeader>
               <CardContent>
                 <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data) => (
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.collections, maxCollections);
+                    return (
                     <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
                       <div className="text-xs text-muted-foreground">{data.collections}</div>
-                      <div className="w-full bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600" style={{ height: `${(data.collections / maxCollections) * 100}%`, minHeight: "20px" }}></div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-blue-500 rounded-t-sm hover:bg-blue-600"
+                        />
+                      </div>
                       <div className="text-xs font-medium text-foreground">{data.month}</div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

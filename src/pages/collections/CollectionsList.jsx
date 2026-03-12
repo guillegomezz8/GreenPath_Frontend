@@ -59,7 +59,6 @@ export default function CollectionsList() {
   const canManageCollection = isOwner;
 
   const [collections, setCollections] = useState([]);
-  const [workersMap, setWorkersMap] = useState({});
   const [loading, setLoading] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -79,24 +78,6 @@ export default function CollectionsList() {
   const [deleting, setDeleting] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
-
-  const fetchWorkersMap = useCallback(async () => {
-    if (isClient) {
-      setWorkersMap({});
-      return;
-    }
-    try {
-      const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
-      const items = Array.isArray(res.data?.results) ? res.data.results : [];
-      const map = {};
-      items.forEach((w) => {
-        map[w.id] = `${w.name || ""} ${w.surname || ""}`.trim() || w.username || `Worker ${w.id}`;
-      });
-      setWorkersMap(map);
-    } catch {
-      setWorkersMap({});
-    }
-  }, [api, isClient]);
 
   const fetchCollections = useCallback(async () => {
     try {
@@ -142,10 +123,6 @@ export default function CollectionsList() {
   }, [api, searchTerm]);
 
   useEffect(() => {
-    fetchWorkersMap();
-  }, [fetchWorkersMap]);
-
-  useEffect(() => {
     fetchCollections();
   }, [fetchCollections]);
 
@@ -158,12 +135,18 @@ export default function CollectionsList() {
   }, [searchTerm, selectedStatus]);
 
   const totalNetLiters = useMemo(
-    () => collections.reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
+    () =>
+      collections
+        .filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED")
+        .reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
     [collections]
   );
 
   const totalPrice = useMemo(
-    () => collections.reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
+    () =>
+      collections
+        .filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED")
+        .reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
     [collections]
   );
 
@@ -325,7 +308,7 @@ export default function CollectionsList() {
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Trabajador:</span>
-                        <span className="font-medium">{workersMap[collection.worker] || "-"}</span>
+                        <span className="font-medium">{collection.worker_name || "-"}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-muted-foreground" />

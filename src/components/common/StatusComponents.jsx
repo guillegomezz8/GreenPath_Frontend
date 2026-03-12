@@ -7,35 +7,30 @@ const normalize = (v) =>
     .toLowerCase();
 
 export function StatusBadge({ status, variant }) {
-  const getStatusColor = (status) => {
-    const s = normalize(status);
+  const getStatusColor = (value) => {
+    const s = normalize(value);
 
-    switch (s) {
-      case "activo":
-      case "completada":
-      case "excelente":
-        return "bg-success text-success-foreground";
-      case "en progreso":
-      case "en ruta":
-      case "buena":
-        return "bg-blue-500 text-white";
-      case "pendiente":
-      case "planificada":
-      case "programada":
-      case "regular":
-        return "bg-orange-500 text-white";
-      case "problema":
-      case "retrasada":
-      case "inactivo":
-      case "mala":
-        return "bg-destructive text-destructive-foreground";
-      case "descanso":
-        return "bg-orange-500 text-white";
-      case "en desarrollo":
-        return "bg-orange-500 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
+    if (
+      ["activa", "activo", "completada", "confirmada", "excelente", "completado"].includes(s)
+    ) {
+      return "border-transparent bg-success text-success-foreground";
     }
+
+    if (
+      ["en ruta", "en progreso", "asignada", "buena", "autoestimada", "estimada"].includes(s)
+    ) {
+      return "border-transparent bg-sky-500 text-white";
+    }
+
+    if (["planificada", "programada", "pendiente", "regular", "parcial", "en desarrollo"].includes(s)) {
+      return "border-transparent bg-amber-500 text-white";
+    }
+
+    if (["cancelada", "cancelado", "inactiva", "inactivo", "mala", "retrasada", "problema"].includes(s)) {
+      return "border-transparent bg-destructive text-destructive-foreground";
+    }
+
+    return "border-border bg-secondary text-secondary-foreground";
   };
 
   return (

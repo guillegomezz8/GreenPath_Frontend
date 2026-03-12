@@ -305,7 +305,7 @@ export default function ProfilePage() {
       </div>
 
       <Card className="overflow-hidden border-primary/20">
-        <div className="h-24 bg-gradient-to-r from-emerald-600/15 via-green-500/10 to-teal-500/10" />
+        <div className="h-24 bg-gradient-to-r from-emerald-700/30 via-emerald-500/20 to-cyan-500/25" />
         <CardContent className="pt-0 -mt-12">
           <div className="flex flex-col items-center text-center gap-4">
             <Avatar size="xl" className="border-4 border-white shadow-sm">
@@ -352,9 +352,19 @@ export default function ProfilePage() {
       </Card>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="profile">Datos</TabsTrigger>
-          <TabsTrigger value="password">Seguridad</TabsTrigger>
+        <TabsList className="grid h-11 w-full max-w-md grid-cols-2 rounded-lg border border-border/80 bg-white/90 p-1 shadow-sm">
+          <TabsTrigger
+            value="profile"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground"
+          >
+            Datos
+          </TabsTrigger>
+          <TabsTrigger
+            value="password"
+            className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-none data-[state=inactive]:text-muted-foreground"
+          >
+            Seguridad
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4 space-y-4">

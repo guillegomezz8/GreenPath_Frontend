@@ -29,6 +29,14 @@ const CONTAINER_TYPES = [
   { value: "BIDONES", label: "Bidones (60L)" },
   { value: "IBC", label: "IBC (1000L)" },
 ];
+const ROUTE_DAY_STATUS_FILTERS = [
+  { value: "ALL", label: "Todos" },
+  { value: "PLANNED", label: "Planificadas" },
+  { value: "IN_PROGRESS", label: "En curso" },
+  { value: "PARTIAL", label: "Parciales" },
+  { value: "COMPLETED", label: "Completadas" },
+  { value: "CANCELED", label: "Canceladas" },
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -118,6 +126,7 @@ export default function RouteDetail() {
   const [submittingStop, setSubmittingStop] = useState(false);
   const [selectedStopByRouteDay, setSelectedStopByRouteDay] = useState({});
   const [expandedRouteDays, setExpandedRouteDays] = useState({});
+  const [routeDayStatusFilter, setRouteDayStatusFilter] = useState("ALL");
   const [completePayload, setCompletePayload] = useState({
     container_type: "BIDONES",
     container_number: "1",
@@ -169,9 +178,11 @@ export default function RouteDetail() {
   }, [fetchOverview]);
 
   const assignedWorkers = useMemo(() => {
-    const workerIds = Array.isArray(overview.route?.workers) ? overview.route.workers : [];
-    return workerIds.map((workerId) => workersMap[workerId] || `Trabajador ${workerId}`);
-  }, [overview.route?.workers, workersMap]);
+    const workerId = overview.route?.worker;
+    if (!workerId) return [];
+    return [workersMap[workerId] || `Trabajador ${workerId}`];
+  }, [overview.route?.worker, workersMap]);
+  const routeDays = useMemo(() => (Array.isArray(overview.route_days) ? overview.route_days : []), [overview.route_days]);
 
   const configuredZoneDays = useMemo(() => {
     const zoneDays = Array.isArray(overview.zone_days) ? overview.zone_days : [];
@@ -202,13 +213,55 @@ export default function RouteDetail() {
   }, [overview.route?.default_daily_capacity_liters, overview.route_days]);
 
   const routeDefaultCapacityLabel = useMemo(() => {
-    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
     const routeDayWithCapacity = routeDays.find(
       (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
     );
     if (routeDayWithCapacity) return formatCapacityLiters(routeDayWithCapacity.daily_capacity_liters);
     return formatCapacityLiters(overview.route?.default_daily_capacity_liters);
-  }, [overview.route?.default_daily_capacity_liters, overview.route_days]);
+  }, [overview.route?.default_daily_capacity_liters, routeDays]);
+
+  const routeDayOverview = useMemo(() => {
+    const statusCounts = {
+      PLANNED: 0,
+      IN_PROGRESS: 0,
+      PARTIAL: 0,
+      COMPLETED: 0,
+      CANCELED: 0,
+    };
+    let totalStops = 0;
+    let completedStops = 0;
+    let canceledStops = 0;
+    let pendingStops = 0;
+
+    routeDays.forEach((routeDay) => {
+      if (statusCounts[routeDay.status] !== undefined) statusCounts[routeDay.status] += 1;
+      const clients = Array.isArray(routeDay?.clients) ? routeDay.clients : [];
+      const plannedStops = Number.isFinite(Number(routeDay?.stops)) ? Number(routeDay.stops) : clients.length;
+      totalStops += plannedStops;
+
+      let dayCompleted = 0;
+      let dayCanceled = 0;
+      clients.forEach((row) => {
+        const normalizedStatus = normalizeCollectionStatus(row?.collection?.status);
+        if (row?.collection?.id && normalizedStatus !== "CANCELED") {
+          dayCompleted += 1;
+        } else if (normalizedStatus === "CANCELED") {
+          dayCanceled += 1;
+        }
+      });
+
+      completedStops += dayCompleted;
+      canceledStops += dayCanceled;
+      pendingStops += Math.max(plannedStops - dayCompleted - dayCanceled, 0);
+    });
+
+    return { statusCounts, totalStops, completedStops, canceledStops, pendingStops };
+  }, [routeDays]);
+
+  const filteredRouteDays = useMemo(() => {
+    if (routeDayStatusFilter === "ALL") return routeDays;
+    return routeDays.filter((routeDay) => routeDay?.status === routeDayStatusFilter);
+  }, [routeDayStatusFilter, routeDays]);
 
   const handleDelete = async () => {
     if (!id) return;
@@ -318,7 +371,6 @@ export default function RouteDetail() {
   }, []);
 
   useEffect(() => {
-    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
     if (routeDays.length === 0) {
       setSelectedStopByRouteDay({});
       return;
@@ -344,10 +396,9 @@ export default function RouteDetail() {
 
       return changed ? next : prev;
     });
-  }, [overview.route_days, getCollectableStops]);
+  }, [routeDays, getCollectableStops]);
 
   useEffect(() => {
-    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
     if (routeDays.length === 0) {
       setExpandedRouteDays({});
       return;
@@ -357,14 +408,30 @@ export default function RouteDetail() {
       const next = {};
       routeDays.forEach((routeDay) => {
         const previousValue = prev[routeDay.id];
-        next[routeDay.id] = previousValue === undefined ? false : previousValue;
+        next[routeDay.id] = previousValue === undefined ? routeDay.status === "IN_PROGRESS" : previousValue;
       });
       return next;
     });
-  }, [overview.route_days]);
+  }, [routeDays]);
 
   const toggleRouteDayExpanded = (routeDayId) => {
     setExpandedRouteDays((prev) => ({ ...prev, [routeDayId]: !prev[routeDayId] }));
+  };
+
+  const allFilteredRouteDaysExpanded = useMemo(() => {
+    if (filteredRouteDays.length === 0) return false;
+    return filteredRouteDays.every((routeDay) => expandedRouteDays[routeDay.id] === true);
+  }, [expandedRouteDays, filteredRouteDays]);
+
+  const toggleAllRouteDaysExpanded = () => {
+    const shouldExpand = !allFilteredRouteDaysExpanded;
+    setExpandedRouteDays((prev) => {
+      const next = { ...prev };
+      filteredRouteDays.forEach((routeDay) => {
+        next[routeDay.id] = shouldExpand;
+      });
+      return next;
+    });
   };
 
   const handleStartRouteDay = async (routeDayId) => {
@@ -556,7 +623,7 @@ export default function RouteDetail() {
               <span className="text-muted-foreground">Capacidad diaria:</span> {routeDefaultCapacityLabel}
             </p>
             <div className="pt-2">
-              <p className="text-muted-foreground mb-1">Trabajadores:</p>
+              <p className="text-muted-foreground mb-1">Trabajador:</p>
               <div className="flex flex-wrap gap-2">
                 {assignedWorkers.length === 0 ? <Badge variant="outline">Sin asignar</Badge> : assignedWorkers.map((label) => <Badge key={label} variant="outline">{label}</Badge>)}
               </div>
@@ -596,7 +663,7 @@ export default function RouteDetail() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-3 md:items-end">
+          <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
             <div className="space-y-2">
               <Label htmlFor="weekFilter">Filtrar por inicio de semana</Label>
               <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
@@ -609,12 +676,55 @@ export default function RouteDetail() {
               <Button variant="outline" onClick={() => setWeekFilter("")}>
                 Quitar Filtro
               </Button>
+              <Button variant="outline" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
+                {allFilteredRouteDaysExpanded ? "Ocultar todos" : "Expandir todos"}
+              </Button>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Dias operativos</p>
+              <p className="mt-1 text-xl font-semibold">{routeDays.length}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Paradas previstas</p>
+              <p className="mt-1 text-xl font-semibold">{routeDayOverview.totalStops}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Paradas registradas</p>
+              <p className="mt-1 text-xl font-semibold text-success">{routeDayOverview.completedStops}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pendientes</p>
+              <p className="mt-1 text-xl font-semibold text-amber-600">{routeDayOverview.pendingStops}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {ROUTE_DAY_STATUS_FILTERS.map((statusOption) => {
+              const count = statusOption.value === "ALL"
+                ? routeDays.length
+                : routeDayOverview.statusCounts[statusOption.value] || 0;
+              const selected = routeDayStatusFilter === statusOption.value;
+              return (
+                <Button
+                  key={statusOption.value}
+                  size="sm"
+                  variant={selected ? "default" : "outline"}
+                  className="h-8 gap-1"
+                  onClick={() => setRouteDayStatusFilter(statusOption.value)}
+                >
+                  {statusOption.label}
+                  <span className="text-xs opacity-80">({count})</span>
+                </Button>
+              );
+            })}
           </div>
 
           {loading ? (
             <p className="text-sm text-muted-foreground text-left">Cargando detalle operativo...</p>
-          ) : overview.route_days.length === 0 ? (
+          ) : routeDays.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
               <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                 <Calendar className="h-5 w-5 text-primary" />
@@ -635,23 +745,50 @@ export default function RouteDetail() {
                 </Button>
               </div>
             </div>
+          ) : filteredRouteDays.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
+              <p className="text-sm font-medium text-foreground">No hay rutas diarias para el estado seleccionado.</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Cambia el filtro de estado para ver otros dias operativos.
+              </p>
+            </div>
           ) : (
             <div className="space-y-4">
-              {overview.route_days.map((routeDay) => (
-                <div key={routeDay.id} className="border rounded-lg p-3">
+              {filteredRouteDays.map((routeDay) => {
+                const clients = Array.isArray(routeDay?.clients) ? routeDay.clients : [];
+                const plannedStops = Number.isFinite(Number(routeDay?.stops)) ? Number(routeDay.stops) : clients.length;
+                const completedStops = clients.filter(
+                  (row) => row?.collection?.id && normalizeCollectionStatus(row.collection.status) !== "CANCELED"
+                ).length;
+                const canceledStops = clients.filter(
+                  (row) => normalizeCollectionStatus(row?.collection?.status) === "CANCELED"
+                ).length;
+                const pendingStops = Math.max(plannedStops - completedStops - canceledStops, 0);
+                const progress = plannedStops > 0 ? Math.round((completedStops / plannedStops) * 100) : 0;
+                const progressBarClass = routeDay.status === "CANCELED"
+                  ? "bg-destructive"
+                  : routeDay.status === "COMPLETED"
+                    ? "bg-success"
+                    : "bg-primary";
+
+                return (
+                <div
+                  key={routeDay.id}
+                  className={`border rounded-lg p-3 ${routeDay.status === "IN_PROGRESS" ? "border-primary/40 bg-primary/5" : ""}`}
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="text-left">
                       <p className="font-medium">{formatDate(routeDay.date)}</p>
                       <p className="text-xs text-muted-foreground">
-                        Capacidad: {formatCapacityLiters(routeDay.daily_capacity_liters)} | Paradas: {routeDay.stops}
+                        Capacidad: {formatCapacityLiters(routeDay.daily_capacity_liters)} | Paradas: {plannedStops}
                       </p>
                     </div>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                       <Badge className={getRouteStatusClass(routeDay.status)}>{getRouteStatusLabel(routeDay.status)}</Badge>
                       <Button
                         size="sm"
                         variant="secondary"
-                        className="gap-1"
+                        className="gap-1 w-full sm:w-auto"
                         disabled={workingRouteDayId === routeDay.id}
                         onClick={() => handleGoogleNavigation(routeDay.id)}
                       >
@@ -662,7 +799,7 @@ export default function RouteDetail() {
                         <Button
                           size="sm"
                           variant="success"
-                          className="gap-1"
+                          className="gap-1 w-full sm:w-auto"
                           disabled={workingRouteDayId === routeDay.id}
                           onClick={() => handleStartRouteDay(routeDay.id)}
                         >
@@ -674,7 +811,7 @@ export default function RouteDetail() {
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="gap-1"
+                          className="gap-1 w-full sm:w-auto"
                           disabled={workingRouteDayId === routeDay.id}
                           onClick={() => handleFinishRouteDay(routeDay.id)}
                         >
@@ -682,6 +819,19 @@ export default function RouteDetail() {
                           Finalizar
                         </Button>
                       )}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{completedStops} registradas</span>
+                      <span>{pendingStops} pendientes</span>
+                    </div>
+                    <div className="h-2 w-full rounded-full bg-secondary">
+                      <div
+                        className={`h-2 rounded-full transition-all ${progressBarClass}`}
+                        style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
+                      />
                     </div>
                   </div>
 
@@ -699,13 +849,13 @@ export default function RouteDetail() {
                                 ? `${collectableStops.length} paradas pendientes para registrar.`
                                 : "No hay paradas pendientes en este dia."}
                             </div>
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
                               <Select
                                 value={selectedId}
                                 onValueChange={(value) => setSelectedStopByRouteDay((prev) => ({ ...prev, [routeDay.id]: value }))}
                                 disabled={routeDay.status !== "IN_PROGRESS" || collectableStops.length === 0}
                               >
-                                <SelectTrigger className="min-w-[280px]">
+                                <SelectTrigger className="w-full sm:min-w-[280px]">
                                   <SelectValue placeholder="Selecciona parada pendiente" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -718,7 +868,7 @@ export default function RouteDetail() {
                               </Select>
                               <Button
                                 size="sm"
-                                className="gap-1"
+                                className="gap-1 w-full sm:w-auto"
                                 disabled={routeDay.status !== "IN_PROGRESS" || collectableStops.length === 0 || !selectedStop}
                                 onClick={() => openSelectedStopFromDropdown(routeDay)}
                               >
@@ -755,96 +905,150 @@ export default function RouteDetail() {
                           routeDay.clients.length === 0 ? (
                             <p className="mt-2 text-xs text-muted-foreground text-left">No hay clientes asignados en este dia.</p>
                           ) : (
-                            <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-                              <table className="min-w-[980px] w-full table-fixed text-left">
-                                <colgroup>
-                                  <col className="w-[72px]" />
-                                  <col className="w-[30%]" />
-                                  <col className="w-[14%]" />
-                                  <col className="w-[14%]" />
-                                  <col className="w-[20%]" />
-                                  <col className="w-[10%]" />
-                                  <col className="w-[12%]" />
-                                </colgroup>
-                                <thead className="bg-muted/30 border-b">
-                                  <tr>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Orden</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Solicitud</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recogida</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Limite respuesta</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan base</th>
-                                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Acciones</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {routeDay.clients.map((clientRow) => (
-                                    <tr key={clientRow.route_day_client_id} className="border-b border-border last:border-0">
-                                      <td className="px-3 py-2 text-sm align-middle">{clientRow.order}</td>
-                                      <td className="px-3 py-2 align-middle">
-                                        <p className="font-medium truncate">{clientRow.client_name}</p>
-                                        <p className="text-xs text-muted-foreground truncate">{clientRow.client_address || "-"}</p>
-                                      </td>
-                                      <td className="px-3 py-2 align-middle">
-                                        {clientRow.collection_request?.status ? (
-                                          <Badge className={getCollectionRequestStatusClass(clientRow.collection_request.status)}>
-                                            {getCollectionRequestStatusLabel(clientRow.collection_request.status)}
-                                          </Badge>
-                                        ) : (
-                                          <span className="text-muted-foreground">-</span>
-                                        )}
-                                      </td>
-                                      <td className="px-3 py-2 align-middle">
+                            <>
+                              <div className="mt-3 space-y-2 md:hidden">
+                                {routeDay.clients.map((clientRow) => {
+                                  const requestObj = clientRow.collection_request || {};
+                                  const containerType = requestObj.container_type || "BIDONES";
+                                  const containerNumber = getContainerNumber(requestObj.container_number);
+                                  const basePlanLiters = containerNumber * getContainerCapacity(containerType);
+                                  const autoPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
+                                  const autoDiffers = autoPlanLiters !== null && Number(autoPlanLiters) !== Number(basePlanLiters);
+                                  const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
+                                  return (
+                                    <div key={clientRow.route_day_client_id} className="rounded-lg border border-border bg-background p-3 text-left">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <p className="text-xs text-muted-foreground">#{clientRow.order}</p>
+                                          <p className="font-medium truncate">{clientRow.client_name}</p>
+                                          <p className="text-xs text-muted-foreground truncate">{clientRow.client_address || "-"}</p>
+                                        </div>
                                         {clientRow.collection?.status ? (
                                           <Badge className={getCollectionStatusClass(clientRow.collection.status)}>
                                             {getCollectionStatusLabel(clientRow.collection.status)}
                                           </Badge>
                                         ) : (
-                                          <span className="text-muted-foreground">-</span>
+                                          <Badge variant="outline">Sin recoger</Badge>
                                         )}
-                                      </td>
-                                      <td className="px-3 py-2 text-xs whitespace-nowrap align-middle">
-                                        {formatDateTime(clientRow.collection_request?.expires_at)}
-                                      </td>
-                                      <td className="px-3 py-2 text-xs align-middle">
-                                        {(() => {
-                                          const requestObj = clientRow.collection_request || {};
-                                          const containerType = requestObj.container_type || "BIDONES";
-                                          const containerNumber = getContainerNumber(requestObj.container_number);
-                                          const basePlanLiters = containerNumber * getContainerCapacity(containerType);
-                                          const autoPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
-                                          const autoDiffers = autoPlanLiters !== null && Number(autoPlanLiters) !== Number(basePlanLiters);
-                                          const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
-                                          return (
-                                            <div className="space-y-0.5">
-                                              <p className="font-medium">{formatLiters(basePlanLiters)} L</p>
-                                              <p className="text-muted-foreground">{containerNumber} x {containerLabel}</p>
-                                              {autoDiffers && <p className="text-muted-foreground">Auto: {formatLiters(autoPlanLiters)} L</p>}
-                                            </div>
-                                          );
-                                        })()}
-                                      </td>
-                                      <td className="px-3 py-2 text-right align-middle">
+                                      </div>
+                                      <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                                        <p><span className="text-muted-foreground">Solicitud:</span> {clientRow.collection_request?.status ? getCollectionRequestStatusLabel(clientRow.collection_request.status) : "-"}</p>
+                                        <p><span className="text-muted-foreground">Limite:</span> {formatDateTime(clientRow.collection_request?.expires_at)}</p>
+                                        <p><span className="text-muted-foreground">Plan:</span> {formatLiters(basePlanLiters)} L ({containerNumber} x {containerLabel})</p>
+                                        {autoDiffers && <p><span className="text-muted-foreground">Auto:</span> {formatLiters(autoPlanLiters)} L</p>}
+                                      </div>
+                                      <div className="mt-3">
                                         {clientRow.collection?.id && normalizeCollectionStatus(clientRow.collection.status) !== "CANCELED" ? (
                                           <Badge variant="outline">Registrada</Badge>
                                         ) : (
                                           <Button
                                             size="sm"
                                             variant={routeDay.status === "IN_PROGRESS" ? "default" : "outline"}
-                                            className="gap-1"
+                                            className="w-full gap-1"
                                             disabled={routeDay.status !== "IN_PROGRESS"}
                                             onClick={() => openCompleteStopModal(routeDay, clientRow)}
                                           >
                                             <ClipboardCheck className="w-4 h-4" />
-                                            Registrar
+                                            Registrar parada
                                           </Button>
                                         )}
-                                      </td>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="mt-3 overflow-x-auto rounded-lg border border-border hidden md:block">
+                                <table className="min-w-[980px] w-full table-fixed text-left">
+                                  <colgroup>
+                                    <col className="w-[72px]" />
+                                    <col className="w-[30%]" />
+                                    <col className="w-[14%]" />
+                                    <col className="w-[14%]" />
+                                    <col className="w-[20%]" />
+                                    <col className="w-[10%]" />
+                                    <col className="w-[12%]" />
+                                  </colgroup>
+                                  <thead className="bg-muted/30 border-b">
+                                    <tr>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Orden</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cliente</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Solicitud</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recogida</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Limite respuesta</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan base</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Acciones</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
+                                  </thead>
+                                  <tbody>
+                                    {routeDay.clients.map((clientRow) => (
+                                      <tr key={clientRow.route_day_client_id} className="border-b border-border last:border-0">
+                                        <td className="px-3 py-2 text-sm align-middle">{clientRow.order}</td>
+                                        <td className="px-3 py-2 align-middle">
+                                          <p className="font-medium truncate">{clientRow.client_name}</p>
+                                          <p className="text-xs text-muted-foreground truncate">{clientRow.client_address || "-"}</p>
+                                        </td>
+                                        <td className="px-3 py-2 align-middle">
+                                          {clientRow.collection_request?.status ? (
+                                            <Badge className={getCollectionRequestStatusClass(clientRow.collection_request.status)}>
+                                              {getCollectionRequestStatusLabel(clientRow.collection_request.status)}
+                                            </Badge>
+                                          ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2 align-middle">
+                                          {clientRow.collection?.status ? (
+                                            <Badge className={getCollectionStatusClass(clientRow.collection.status)}>
+                                              {getCollectionStatusLabel(clientRow.collection.status)}
+                                            </Badge>
+                                          ) : (
+                                            <span className="text-muted-foreground">-</span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2 text-xs whitespace-nowrap align-middle">
+                                          {formatDateTime(clientRow.collection_request?.expires_at)}
+                                        </td>
+                                        <td className="px-3 py-2 text-xs align-middle">
+                                          {(() => {
+                                            const requestObj = clientRow.collection_request || {};
+                                            const containerType = requestObj.container_type || "BIDONES";
+                                            const containerNumber = getContainerNumber(requestObj.container_number);
+                                            const basePlanLiters = containerNumber * getContainerCapacity(containerType);
+                                            const autoPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
+                                            const autoDiffers = autoPlanLiters !== null && Number(autoPlanLiters) !== Number(basePlanLiters);
+                                            const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
+                                            return (
+                                              <div className="space-y-0.5">
+                                                <p className="font-medium">{formatLiters(basePlanLiters)} L</p>
+                                                <p className="text-muted-foreground">{containerNumber} x {containerLabel}</p>
+                                                {autoDiffers && <p className="text-muted-foreground">Auto: {formatLiters(autoPlanLiters)} L</p>}
+                                              </div>
+                                            );
+                                          })()}
+                                        </td>
+                                        <td className="px-3 py-2 text-right align-middle">
+                                          {clientRow.collection?.id && normalizeCollectionStatus(clientRow.collection.status) !== "CANCELED" ? (
+                                            <Badge variant="outline">Registrada</Badge>
+                                          ) : (
+                                            <Button
+                                              size="sm"
+                                              variant={routeDay.status === "IN_PROGRESS" ? "default" : "outline"}
+                                              className="gap-1"
+                                              disabled={routeDay.status !== "IN_PROGRESS"}
+                                              onClick={() => openCompleteStopModal(routeDay, clientRow)}
+                                            >
+                                              <ClipboardCheck className="w-4 h-4" />
+                                              Registrar
+                                            </Button>
+                                          )}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </>
                           )
                         ) : null}
 
@@ -858,7 +1062,8 @@ export default function RouteDetail() {
                     );
                   })()}
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

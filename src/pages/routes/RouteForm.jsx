@@ -21,6 +21,26 @@ const WEEKDAYS = [
   { value: 6, label: "Domingo" },
 ];
 
+function getOperationalWeekdays(weekStart, weekEnd) {
+  const start = Number(weekStart);
+  const end = Number(weekEnd);
+  if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > 6 || end < 0 || end > 6) {
+    return WEEKDAYS;
+  }
+
+  const values = [];
+  let current = start;
+  values.push(current);
+  while (current !== end) {
+    current = (current + 1) % 7;
+    values.push(current);
+  }
+
+  return values
+    .map((value) => WEEKDAYS.find((day) => day.value === value))
+    .filter(Boolean);
+}
+
 function buildEmptyZoneConfig() {
   return { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
 }
@@ -60,7 +80,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
     end_date: "",
     week_start: "0",
     week_end: "6",
-    workers: [],
+    worker: "",
   });
   const [zoneConfig, setZoneConfig] = useState(buildEmptyZoneConfig());
 
@@ -99,7 +119,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
         end_date: route.end_date || "",
         week_start: String(route.week_start ?? 0),
         week_end: String(route.week_end ?? 6),
-        workers: Array.isArray(route.workers) ? route.workers : [],
+        worker: route.worker ? String(route.worker) : "",
       });
       setZoneConfig(normalizeZoneConfig(zoneDays));
     } catch (e) {
@@ -119,17 +139,10 @@ export default function RouteForm({ mode = "create", routeId = null }) {
     fetchRouteData();
   }, [fetchRouteData]);
 
-  const selectedWorkersCount = useMemo(() => formData.workers.length, [formData.workers]);
-
-  const toggleWorker = (workerId) => {
-    setFormData((prev) => {
-      const exists = prev.workers.includes(workerId);
-      return {
-        ...prev,
-        workers: exists ? prev.workers.filter((id) => id !== workerId) : [...prev.workers, workerId],
-      };
-    });
-  };
+  const operationalWeekdays = useMemo(
+    () => getOperationalWeekdays(formData.week_start, formData.week_end),
+    [formData.week_start, formData.week_end]
+  );
 
   const toggleZoneForWeekday = (weekday, zoneId) => {
     setZoneConfig((prev) => {
@@ -144,12 +157,12 @@ export default function RouteForm({ mode = "create", routeId = null }) {
 
   const buildZoneDaysPayload = () => {
     const payload = [];
-    for (let weekday = 0; weekday <= 6; weekday += 1) {
-      const zoneIds = Array.isArray(zoneConfig[weekday]) ? zoneConfig[weekday] : [];
+    operationalWeekdays.forEach((day) => {
+      const zoneIds = Array.isArray(zoneConfig[day.value]) ? zoneConfig[day.value] : [];
       if (zoneIds.length > 0) {
-        payload.push({ weekday, zones: zoneIds });
+        payload.push({ weekday: day.value, zones: zoneIds });
       }
-    }
+    });
     return payload;
   };
 
@@ -163,12 +176,16 @@ export default function RouteForm({ mode = "create", routeId = null }) {
       showSnackbar("La fecha de inicio es obligatoria.", "error");
       return;
     }
+    if (!formData.worker) {
+      showSnackbar("Debes seleccionar un trabajador para la ruta.", "error");
+      return;
+    }
 
     try {
       setSubmitting(true);
       const payload = {
         name: formData.name.trim(),
-        workers: formData.workers,
+        worker: Number(formData.worker),
         start_date: formData.start_date,
         end_date: formData.end_date || null,
         week_start: Number(formData.week_start),
@@ -213,7 +230,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
             <span>{isEdit ? "Editar Ruta" : "Crear Ruta"}</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 text-left">
-            {isEdit ? "Actualiza la configuracion de la ruta y sus zonas por dia." : "Configura una nueva ruta con trabajadores y zonas por dia."}
+            {isEdit ? "Actualiza la configuracion de la ruta y sus zonas por dia." : "Configura una nueva ruta con un trabajador y zonas por dia."}
           </p>
         </div>
       </div>
@@ -227,7 +244,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 max-w-xl mx-auto w-full">
               <div className="space-y-2">
                 <Label htmlFor="route_name">Nombre *</Label>
                 <Input
@@ -237,12 +254,6 @@ export default function RouteForm({ mode = "create", routeId = null }) {
                   placeholder="Ej: Ruta Centro"
                   disabled={loading || submitting}
                 />
-              </div>
-              <div className="space-y-2">
-                <Label>Trabajadores</Label>
-                <div className="text-sm text-muted-foreground text-left">
-                  {selectedWorkersCount} seleccionados
-                </div>
               </div>
             </div>
 
@@ -316,28 +327,34 @@ export default function RouteForm({ mode = "create", routeId = null }) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              Trabajadores Asignados
+              Trabajador Asignado
             </CardTitle>
           </CardHeader>
           <CardContent>
             {workers.length === 0 ? (
               <p className="text-sm text-muted-foreground text-left">No hay trabajadores disponibles.</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {workers.map((worker) => {
-                  const workerLabel = `${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username || `Trabajador ${worker.id}`;
-                  const selected = formData.workers.includes(worker.id);
-                  return (
-                    <Badge
-                      key={worker.id}
-                      variant={selected ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleWorker(worker.id)}
-                    >
-                      {workerLabel}
-                    </Badge>
-                  );
-                })}
+              <div className="space-y-2">
+                <Label htmlFor="route_worker">Trabajador</Label>
+                <Select
+                  value={formData.worker}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, worker: value }))}
+                  disabled={loading || submitting}
+                >
+                  <SelectTrigger id="route_worker">
+                    <SelectValue placeholder="Selecciona trabajador" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {workers.map((worker) => {
+                      const workerLabel = `${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username || `Trabajador ${worker.id}`;
+                      return (
+                        <SelectItem key={worker.id} value={String(worker.id)}>
+                          {workerLabel}
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
             )}
           </CardContent>
@@ -354,7 +371,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
             {zones.length === 0 ? (
               <p className="text-sm text-muted-foreground text-left">No hay zonas disponibles para asignar.</p>
             ) : (
-              WEEKDAYS.map((day) => (
+              operationalWeekdays.map((day) => (
                 <div key={day.value} className="border rounded-lg p-3">
                   <p className="font-medium text-left mb-2">{day.label}</p>
                   <div className="flex flex-wrap gap-2">

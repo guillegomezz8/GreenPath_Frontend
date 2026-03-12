@@ -111,7 +111,7 @@ export default function CollectionDetail() {
           <p><span className="text-muted-foreground">Ruta:</span> {collection?.route_name || "Sin ruta"}</p>
           <p><span className="text-muted-foreground">Fecha:</span> {formatDate(collection?.collection_date)}</p>
           <p><span className="text-muted-foreground">Estado:</span> <Badge className={getCollectionStatusClass(collection?.status)}>{getCollectionStatusLabel(collection?.status)}</Badge></p>
-          <p><span className="text-muted-foreground">Trabajador (id):</span> {collection?.worker || "-"}</p>
+          <p><span className="text-muted-foreground">Trabajador:</span> {collection?.worker_name || "-"}</p>
           <p><span className="text-muted-foreground">Parada planificada:</span> {collection?.route_day_client || "-"}</p>
         </CardContent>
       </Card>

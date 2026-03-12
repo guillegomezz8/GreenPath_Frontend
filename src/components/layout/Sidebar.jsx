@@ -58,7 +58,7 @@ const Sidebar = ({ onItemClick }) => {
   };
 
   return (
-    <div className="p-4 bg-white h-full">
+    <div className="p-4 bg-sidebar h-full">
       <button
         type="button"
         onClick={() => handleNavigation("/profile")}
@@ -67,15 +67,15 @@ const Sidebar = ({ onItemClick }) => {
         }`}
       >
         <div className="flex items-center gap-3">
-        <Avatar size="sm" className="h-10 w-10 border border-green-200">
+        <Avatar size="sm" className="h-10 w-10 border border-primary/25 shadow-sm">
           {userAvatar && <AvatarImage src={userAvatar} alt={userName} className="object-cover" />}
-          <AvatarFallback size="sm" className="bg-green-500 text-white font-bold text-sm">
+          <AvatarFallback size="sm" className="bg-gradient-hero text-white font-bold text-sm">
             {getInitials(userName, "")}
           </AvatarFallback>
         </Avatar>
           <div className="min-w-0">
-            <div className="font-semibold text-green-900 truncate">{userName}</div>
-            <div className="text-sm text-green-800 truncate">{user?.email || "Sin email"}</div>
+            <div className="font-semibold text-sidebar-foreground truncate">{userName}</div>
+            <div className="text-sm text-muted-foreground truncate">{user?.email || "Sin email"}</div>
           </div>
         </div>
       </button>
@@ -85,13 +85,16 @@ const Sidebar = ({ onItemClick }) => {
           <div
             key={id}
             onClick={() => handleNavigation(path)}
-            className={`cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg mb-1 transition-colors text-green-700 hover:bg-green-200 hover:text-green-900 ${
+            className={`group cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg mb-1 transition-all text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
               location.pathname.startsWith(path)
-                ? "bg-green-200 text-green-900 font-semibold border-l-4 border-green-500 shadow-inner"
+                ? "bg-gradient-hero text-white font-semibold shadow-green"
                 : ""
             }`}
           >
-            <Icon size={18} className="flex-shrink-0" />
+            <Icon
+              size={18}
+              className={`flex-shrink-0 transition-transform ${location.pathname.startsWith(path) ? "" : "group-hover:-translate-y-0.5"}`}
+            />
             <span className="text-sm truncate">{label}</span>
           </div>
         ))}
