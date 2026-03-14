@@ -1,292 +1,480 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  BarChart3, 
-  TrendingUp, 
+import {
+  BarChart3,
+  TrendingUp,
   TrendingDown,
   Calendar,
-  Download,
   Users,
+  UserCheck,
   Truck,
   MapPin,
   Droplets,
   Euro,
-  Clock
+  Package,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthProvider";
+import { useSnackbar } from "@/context/SnackbarProvider";
+import { handleApiError, normalizeCollectionStatus } from "@/components/Utils";
 
-const monthlyData = [
-  { month: "Ene", collections: 245, volume: 3420, revenue: 15600, efficiency: 94 },
-  { month: "Feb", collections: 298, volume: 4180, revenue: 18900, efficiency: 96 },
-  { month: "Mar", collections: 312, volume: 4390, revenue: 19850, efficiency: 92 },
-  { month: "Abr", collections: 285, volume: 3980, revenue: 18200, efficiency: 89 },
-  { month: "May", collections: 356, volume: 5020, revenue: 22300, efficiency: 97 },
-  { month: "Jun", collections: 378, volume: 5340, revenue: 24100, efficiency: 95 }
-];
+const MONTH_FORMATTER = new Intl.DateTimeFormat("es-ES", { month: "short" });
 
-const zoneStats = [
-  { zone: "Centro", collections: 156, volume: 2890, efficiency: 96, growth: "+12%" },
-  { zone: "Norte", collections: 89, volume: 1670, efficiency: 94, growth: "+8%" },
-  { zone: "Sur", collections: 67, volume: 1290, efficiency: 88, growth: "+15%" },
-  { zone: "Este", collections: 66, volume: 1490, efficiency: 91, growth: "+5%" }
-];
+function toNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+}
 
-const kpiData = [
-  { title: "Total Recogidas", value: "1,245", change: "+12.5%", trend: "up", icon: Truck, description: "Este mes" },
-  { title: "Volumen Total", value: "18,430 L", change: "+8.2%", trend: "up", icon: Droplets, description: "Aceite recogido" },
-  { title: "Ingresos", value: "€82,540", change: "+15.7%", trend: "up", icon: Euro, description: "Este mes" },
-  { title: "Eficiencia Media", value: "94.2%", change: "-2.1%", trend: "down", icon: BarChart3, description: "Rutas completadas" },
-  { title: "Clientes Activos", value: "248", change: "+6.8%", trend: "up", icon: Users, description: "Total activos" },
-  { title: "Tiempo Promedio", value: "2.8h", change: "-5.3%", trend: "up", icon: Clock, description: "Por ruta" }
-];
+function monthKey(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
-export default function Estadisticas() {
-  const getTrendColor = (trend) => {
-    return trend === "up" ? "text-success" : "text-destructive";
-  };
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
 
-  const getTrendIcon = (trend) => {
-    return trend === "up" ? TrendingUp : TrendingDown;
-  };
+function buildLastMonths(count = 6, referenceDate = new Date()) {
+  const now = new Date(referenceDate);
+  now.setHours(0, 0, 0, 0);
+  const months = [];
+  for (let i = count - 1; i >= 0; i -= 1) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    months.push({ key, label: MONTH_FORMATTER.format(d).replace(".", "") });
+  }
+  return months;
+}
+
+function getBarHeightPercent(value, maxValue, minVisiblePercent = 8) {
+  const parsed = toNumber(value);
+  if (parsed <= 0 || maxValue <= 0) return 0;
+  const rawPercent = (parsed / maxValue) * 100;
+  return Math.max(minVisiblePercent, Math.min(100, rawPercent));
+}
+
+export default function Stats() {
+  const { api } = useAuth();
+  const showSnackbar = useSnackbar();
+
+  const [loading, setLoading] = useState(false);
+  const [collections, setCollections] = useState([]);
+  const [clientsTotal, setClientsTotal] = useState(0);
+  const [workersActive, setWorkersActive] = useState(0);
+
+  const fetchAllCollections = useCallback(async () => {
+    let page = 1;
+    const pageSize = 300;
+    const maxPages = 30;
+    const rows = [];
+    let totalCount = 0;
+
+    while (page <= maxPages) {
+      const res = await api().get("collections", { params: { page, page_size: pageSize, ordering: "-collection_date" } });
+      const payload = res.data || {};
+      const items = Array.isArray(payload?.results) ? payload.results : [];
+      rows.push(...items);
+      totalCount = Number(payload?.count || rows.length);
+
+      if (!payload?.next || items.length === 0 || rows.length >= totalCount) {
+        break;
+      }
+      page += 1;
+    }
+
+    return rows;
+  }, [api]);
+
+  const fetchStatsData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [collectionsRows, clientsRes, workersRes] = await Promise.all([
+        fetchAllCollections(),
+        api().get("clients", { params: { page: 1, page_size: 1 } }),
+        api().get("workers", { params: { page: 1, page_size: 1 } }),
+      ]);
+
+      setCollections(collectionsRows);
+      setClientsTotal(Number(clientsRes.data?.count || 0));
+      setWorkersActive(Number(workersRes.data?.counts?.active || 0));
+    } catch (e) {
+      const msg = handleApiError(e, "Error cargando estadisticas.");
+      showSnackbar(msg, "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, fetchAllCollections, showSnackbar]);
+
+  useEffect(() => {
+    fetchStatsData();
+  }, [fetchStatsData]);
+
+  const { monthlyData, routeStats, kpiData } = useMemo(() => {
+    const latestCollectionDate = collections.reduce((acc, item) => {
+      const d = parseDate(item.collection_date);
+      if (!d) return acc;
+      if (!acc) return d;
+      return d > acc ? d : acc;
+    }, null);
+
+    const months = buildLastMonths(6, latestCollectionDate || new Date());
+    const monthMap = {};
+    months.forEach((m) => {
+      monthMap[m.key] = { month: m.label, collections: 0, volume: 0, revenue: 0, efficiency: 0, confirmed: 0 };
+    });
+
+    const routeMap = {};
+    let confirmedTotal = 0;
+    let canceledTotal = 0;
+    let totalVolume = 0;
+    let totalRevenue = 0;
+
+    collections.forEach((item) => {
+      const mKey = monthKey(item.collection_date);
+      const volume = toNumber(item.net_liters);
+      const revenue = toNumber(item.total_price);
+      const normalizedStatus = normalizeCollectionStatus(item.status);
+      const isConfirmed = normalizedStatus === "CONFIRMED";
+      const isCanceled = normalizedStatus === "CANCELED";
+
+      if (mKey && monthMap[mKey]) {
+        monthMap[mKey].collections += 1;
+        monthMap[mKey].volume += volume;
+        monthMap[mKey].revenue += revenue;
+        if (isConfirmed) monthMap[mKey].confirmed += 1;
+      }
+
+      const routeName = item.route_name || "Sin ruta";
+      if (!routeMap[routeName]) {
+        routeMap[routeName] = { route: routeName, collections: 0, volume: 0, confirmed: 0 };
+      }
+      routeMap[routeName].collections += 1;
+      routeMap[routeName].volume += volume;
+      if (isConfirmed) routeMap[routeName].confirmed += 1;
+
+      if (isConfirmed) confirmedTotal += 1;
+      if (isCanceled) canceledTotal += 1;
+      totalVolume += volume;
+      totalRevenue += revenue;
+    });
+
+    const monthly = months.map((m) => {
+      const raw = monthMap[m.key] || { collections: 0, volume: 0, revenue: 0, confirmed: 0 };
+      const efficiency = raw.collections > 0 ? Math.round((raw.confirmed / raw.collections) * 100) : 0;
+      return { ...raw, efficiency };
+    });
+
+    const routes = Object.values(routeMap)
+      .map((row) => {
+        const efficiency = row.collections > 0 ? Math.round((row.confirmed / row.collections) * 100) : 0;
+        return { ...row, efficiency };
+      })
+      .sort((a, b) => b.collections - a.collections)
+      .slice(0, 4);
+
+    const lastMonth = monthly[monthly.length - 1] || { collections: 0, volume: 0, revenue: 0, efficiency: 0 };
+    const prevMonth = monthly[monthly.length - 2] || { collections: 0, volume: 0, revenue: 0, efficiency: 0 };
+    const growthCollections = prevMonth.collections > 0 ? ((lastMonth.collections - prevMonth.collections) / prevMonth.collections) * 100 : 0;
+    const growthRevenue = prevMonth.revenue > 0 ? ((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
+    const kpi = [
+      {
+        title: "Total Recogidas",
+        value: collections.length.toLocaleString("es-ES"),
+        change: `${growthCollections >= 0 ? "+" : ""}${growthCollections.toFixed(1)}%`,
+        trend: growthCollections >= 0 ? "up" : "down",
+        icon: Truck,
+        description: "Ultimos registros",
+      },
+      {
+        title: "Volumen Total",
+        value: `${Math.round(totalVolume).toLocaleString("es-ES")} L`,
+        change: `${totalVolume > 0 ? "+" : ""}${lastMonth.volume.toFixed(0)}L`,
+        trend: "up",
+        icon: Droplets,
+        description: "Litros netos",
+      },
+      {
+        title: "Ingresos",
+        value: `${totalRevenue.toFixed(2)} EUR`,
+        change: `${growthRevenue >= 0 ? "+" : ""}${growthRevenue.toFixed(1)}%`,
+        trend: growthRevenue >= 0 ? "up" : "down",
+        icon: Euro,
+        description: "Ultimos registros",
+      },
+      {
+        title: "Eficiencia Media",
+        value: `${collections.length > 0 ? Math.round((confirmedTotal / collections.length) * 100) : 0}%`,
+        change: `${lastMonth.efficiency >= prevMonth.efficiency ? "+" : ""}${(lastMonth.efficiency - prevMonth.efficiency).toFixed(1)}%`,
+        trend: lastMonth.efficiency >= prevMonth.efficiency ? "up" : "down",
+        icon: BarChart3,
+        description: "Confirmadas / Total",
+      },
+      {
+        title: "Clientes Activos",
+        value: clientsTotal.toLocaleString("es-ES"),
+        change: null,
+        trend: null,
+        icon: Users,
+        description: "Clientes registrados",
+      },
+      {
+        title: "Trabajadores Activos",
+        value: workersActive.toLocaleString("es-ES"),
+        change: null,
+        trend: null,
+        icon: UserCheck,
+        description: "Con perfil habilitado",
+      },
+    ];
+
+    return {
+      monthlyData: monthly,
+      routeStats: routes,
+      kpiData: kpi,
+      confirmedTotal,
+      canceledTotal,
+    };
+  }, [clientsTotal, collections, workersActive]);
+
+  const getTrendColor = (trend) => (trend === "up" ? "text-success" : "text-destructive");
+  const getTrendIcon = (trend) => (trend === "up" ? TrendingUp : TrendingDown);
+  const maxVolume = Math.max(1, ...monthlyData.map((m) => m.volume));
+  const maxRevenue = Math.max(1, ...monthlyData.map((m) => m.revenue));
+  const maxCollections = Math.max(1, ...monthlyData.map((m) => m.collections));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <BarChart3 className="w-8 h-8 text-primary" />
-            Estadísticas y Reportes
+            Estadisticas y Reportes
           </h1>
-          <p className="text-muted-foreground text-left">Análisis detallado del rendimiento operativo</p>
+          <p className="text-muted-foreground text-left">Analisis del rendimiento operativo real</p>
         </div>
-        
+
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" disabled>
             <Calendar className="w-4 h-4" />
-            Seleccionar Período
-          </Button>
-          <Button className="gap-2">
-            <Download className="w-4 h-4" />
-            Exportar Reporte
+            Ultimos 6 meses
           </Button>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {kpiData.map((kpi, index) => {
-          const TrendIcon = getTrendIcon(kpi.trend);
-          return (
-            <Card key={index} className="hover:shadow-elegant transition-shadow">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between mb-2">
-                  <kpi.icon className="w-5 h-5 text-primary" />
-                  <div className={`flex items-center gap-1 text-sm ${getTrendColor(kpi.trend)}`}>
-                    <TrendIcon className="w-3 h-3" />
-                    {kpi.change}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-foreground text-left">{kpi.value}</div>
-                  <p className="text-xs text-muted-foreground text-left">{kpi.title}</p>
-                  <p className="text-xs text-muted-foreground mt-1 text-left">{kpi.description}</p>
+      {loading ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">Cargando estadisticas...</CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            {kpiData.map((kpi) => {
+              const TrendIcon = kpi.trend ? getTrendIcon(kpi.trend) : null;
+              return (
+                <Card key={kpi.title} className="hover:shadow-elegant transition-shadow">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between mb-2">
+                      <kpi.icon className="w-5 h-5 text-primary" />
+                      {kpi.change && TrendIcon ? (
+                        <div className={`flex items-center gap-1 text-sm ${getTrendColor(kpi.trend)}`}>
+                          <TrendIcon className="w-3 h-3" />
+                          {kpi.change}
+                        </div>
+                      ) : null}
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold text-foreground text-left">{kpi.value}</div>
+                      <p className="text-xs text-muted-foreground text-left">{kpi.title}</p>
+                      <p className="text-xs text-muted-foreground mt-1 text-left">{kpi.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Droplets className="w-5 h-5 text-primary" />
+                  Volumen de Recogida Mensual
+                </CardTitle>
+                <CardDescription className="text-left">Evolucion de litros netos por mes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-end justify-between gap-2 p-4">
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.volume, maxVolume);
+                    return (
+                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
+                      <div className="text-xs text-muted-foreground">{Math.round(data.volume)}L</div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-primary rounded-t-sm hover:bg-primary-glow"
+                        />
+                      </div>
+                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+                    </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
 
-      {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Volume Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Droplets className="w-5 h-5 text-primary" />
-              Volumen de Recogida Mensual
-            </CardTitle>
-            <CardDescription className="text-left">
-              Evolución del volumen de aceite recogido por mes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-end justify-between gap-2 p-4">
-              {monthlyData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center gap-2 flex-1">
-                  <div className="text-xs text-muted-foreground">{data.volume}L</div>
-                  <div 
-                    className="w-full bg-primary rounded-t-sm transition-all hover:bg-primary-glow"
-                    style={{ height: `${(data.volume / 5500) * 100}%`, minHeight: '20px' }}
-                  ></div>
-                  <div className="text-xs font-medium text-foreground">{data.month}</div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Euro className="w-5 h-5 text-primary" />
+                  Ingresos Mensuales
+                </CardTitle>
+                <CardDescription className="text-left">Evolucion de ingresos por mes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-end justify-between gap-2 p-4">
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.revenue, maxRevenue);
+                    return (
+                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
+                      <div className="text-xs text-muted-foreground">{data.revenue.toFixed(0)} EUR</div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-success rounded-t-sm hover:bg-success/80"
+                        />
+                      </div>
+                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+                    </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Revenue Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Euro className="w-5 h-5 text-primary" />
-              Ingresos Mensuales
-            </CardTitle>
-            <CardDescription className="text-left">
-              Evolución de los ingresos generados por mes
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-end justify-between gap-2 p-4">
-              {monthlyData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center gap-2 flex-1">
-                  <div className="text-xs text-muted-foreground">€{(data.revenue / 1000).toFixed(1)}k</div>
-                  <div 
-                    className="w-full bg-success rounded-t-sm transition-all hover:bg-success/80"
-                    style={{ height: `${(data.revenue / 25000) * 100}%`, minHeight: '20px' }}
-                  ></div>
-                  <div className="text-xs font-medium text-foreground">{data.month}</div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Zone Performance */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-primary" />
-            Rendimiento por Zonas
-          </CardTitle>
-          <CardDescription className="text-left">
-            Comparación del desempeño entre las diferentes zonas de operación
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {zoneStats.map((zone) => (
-              <div key={zone.zone} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <MapPin className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground text-left">Zona {zone.zone}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {zone.collections} recogidas • {zone.volume}L
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-6">
-                  <div className="text-center">
-                    <div className="text-lg font-semibold text-foreground">{zone.efficiency}%</div>
-                    <div className="text-xs text-muted-foreground">Eficiencia</div>
-                  </div>
-                  
-                  <Badge variant="outline" className="text-success">
-                    {zone.growth}
-                  </Badge>
-                </div>
-              </div>
-            ))}
+              </CardContent>
+            </Card>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Efficiency Trends */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              Tendencia de Eficiencia
-            </CardTitle>
-            <CardDescription className="text-left">
-              Porcentaje de rutas completadas exitosamente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-end justify-between gap-2 p-4">
-              {monthlyData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center gap-2 flex-1">
-                  <div className="text-xs text-muted-foreground">{data.efficiency}%</div>
-                  <div 
-                    className={`w-full rounded-t-sm transition-all ${
-                      data.efficiency >= 95 ? 'bg-success' :
-                      data.efficiency >= 90 ? 'bg-orange-500' :
-                      'bg-destructive'
-                    }`}
-                    style={{ height: `${data.efficiency}%`, minHeight: '20px' }}
-                  ></div>
-                  <div className="text-xs font-medium text-foreground">{data.month}</div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MapPin className="w-5 h-5 text-primary" />
+                Rendimiento por Rutas
+              </CardTitle>
+              <CardDescription className="text-left">Comparacion de rendimiento entre rutas activas</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {routeStats.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hay datos suficientes para calcular rendimiento por rutas.</p>
+                ) : (
+                  routeStats.map((route) => (
+                    <div key={route.route} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                          <MapPin className="w-6 h-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-left">{route.route}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {route.collections} recogidas | {Math.round(route.volume)}L
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-6">
+                        <div className="text-center">
+                          <div className="text-lg font-semibold text-foreground">{route.efficiency}%</div>
+                          <div className="text-xs text-muted-foreground">Eficiencia</div>
+                        </div>
+                        <Badge variant="outline" className="text-success">
+                          <Package className="w-3 h-3 mr-1" />
+                          Top
+                        </Badge>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-primary" />
+                  Tendencia de Eficiencia
+                </CardTitle>
+                <CardDescription className="text-left">Porcentaje de recogidas confirmadas por mes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-end justify-between gap-2 p-4">
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.efficiency, 100, 6);
+                    const barClass =
+                      data.efficiency >= 95 ? "bg-success" : data.efficiency >= 80 ? "bg-orange-500" : "bg-destructive";
+                    return (
+                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
+                      <div className="text-xs text-muted-foreground">{data.efficiency}%</div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className={`w-full rounded-t-sm ${barClass}`}
+                        />
+                      </div>
+                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+                    </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Truck className="w-5 h-5 text-primary" />
-              Recogidas por Mes
-            </CardTitle>
-            <CardDescription className="text-left">
-              Número total de recogidas realizadas mensualmente
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64 flex items-end justify-between gap-2 p-4">
-              {monthlyData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center gap-2 flex-1">
-                  <div className="text-xs text-muted-foreground">{data.collections}</div>
-                  <div 
-                    className="w-full bg-blue-500 rounded-t-sm transition-all hover:bg-blue-600"
-                    style={{ height: `${(data.collections / 400) * 100}%`, minHeight: '20px' }}
-                  ></div>
-                  <div className="text-xs font-medium text-foreground">{data.month}</div>
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5 text-primary" />
+                  Recogidas por Mes
+                </CardTitle>
+                <CardDescription className="text-left">Numero total de recogidas realizadas</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64 flex items-end justify-between gap-2 p-4">
+                  {monthlyData.map((data, index) => {
+                    const barHeight = getBarHeightPercent(data.collections, maxCollections);
+                    return (
+                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
+                      <div className="text-xs text-muted-foreground">{data.collections}</div>
+                      <div className="h-40 w-full flex items-end">
+                        <motion.div
+                          initial={{ height: 0 }}
+                          animate={{ height: `${barHeight}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.04 }}
+                          className="w-full bg-blue-500 rounded-t-sm hover:bg-blue-600"
+                        />
+                      </div>
+                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+                    </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-gradient-primary text-primary-foreground">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-90" />
-              <h3 className="text-xl font-semibold mb-2">Crecimiento Sostenido</h3>
-              <p className="opacity-90 mb-4">
-                Las operaciones han mostrado un crecimiento constante del 12% en los últimos 6 meses
-              </p>
-              <div className="text-3xl font-bold mb-1">+12%</div>
-              <p className="text-sm opacity-80">Crecimiento promedio mensual</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-subtle border-success/20">
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <BarChart3 className="w-12 h-12 mx-auto mb-4 text-success" />
-              <h3 className="text-xl font-semibold mb-2 text-foreground">Meta Alcanzada</h3>
-              <p className="text-muted-foreground mb-4">
-                Se ha superado la meta mensual de recogidas establecida para este período
-              </p>
-              <div className="text-3xl font-bold mb-1 text-success">105%</div>
-              <p className="text-sm text-muted-foreground">De la meta mensual</p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   );
 }
