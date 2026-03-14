@@ -22,6 +22,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
+import RouteActionButton from "@/components/routes/RouteActionButton";
+import GenerateWeekDialog from "@/components/routes/GenerateWeekDialog";
 import { ArrowLeft, Calendar, CheckCircle, Edit, Route, Trash2, WandSparkles, RefreshCcw, MapPin, Play, Square, Navigation2, ClipboardCheck, ChevronDown, ChevronUp } from "lucide-react";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
@@ -134,6 +136,7 @@ export default function RouteDetail() {
     mark_as_canceled: false,
     force: false,
   });
+  const routeFilterButtonClass = "h-9 rounded-full px-4";
 
   const fetchWorkers = useCallback(async () => {
     try {
@@ -582,24 +585,25 @@ export default function RouteDetail() {
             </p>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 sm:gap-3 flex-shrink-0">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:gap-3 flex-shrink-0">
+          <RouteActionButton tone="primary" size="sm" icon={Navigation2} className="w-full sm:w-auto" onClick={() => navigate(`/routes/${id}/execute`)} disabled={loading || deleting}>
+            Realizar ruta
+          </RouteActionButton>
           {isOwner && (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/routes/${id}/edit`)} disabled={loading || deleting}>
-              <Edit className="w-4 h-4 sm:mr-2" />
+            <RouteActionButton tone="secondary" size="sm" icon={Edit} className="w-full sm:w-auto" onClick={() => navigate(`/routes/${id}/edit`)} disabled={loading || deleting}>
               Editar
-            </Button>
+            </RouteActionButton>
           )}
           {isOwner && (
-            <Button size="sm" onClick={() => openGenerateModal()} disabled={loading || deleting}>
-              <WandSparkles className="w-4 h-4 sm:mr-2" />
+            <RouteActionButton tone="accent" size="sm" icon={WandSparkles} className="w-full sm:w-auto" onClick={() => openGenerateModal()} disabled={loading || deleting}>
               Generar Semana
-            </Button>
+            </RouteActionButton>
           )}
           {isOwner && (
-            <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)} disabled={loading || deleting}>
+            <RouteActionButton tone="danger" size="sm" className="w-full sm:w-auto" onClick={() => setDeleteOpen(true)} disabled={loading || deleting}>
               {deleting ? <RefreshCcw className="w-4 h-4 sm:mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 sm:mr-2" />}
               {deleting ? "Eliminando..." : "Eliminar"}
-            </Button>
+            </RouteActionButton>
           )}
         </div>
       </div>
@@ -668,17 +672,17 @@ export default function RouteDetail() {
               <Label htmlFor="weekFilter">Filtrar por inicio de semana</Label>
               <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={fetchOverview} disabled={loading}>
+            <div className="grid grid-cols-1 gap-2 sm:flex">
+              <RouteActionButton tone="secondary" className={loading ? "opacity-70" : ""} onClick={fetchOverview} disabled={loading}>
                 <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refrescar
-              </Button>
-              <Button variant="outline" onClick={() => setWeekFilter("")}>
-                Quitar Filtro
-              </Button>
-              <Button variant="outline" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
+              </RouteActionButton>
+              <RouteActionButton tone="secondary" onClick={() => setWeekFilter("")}>
+                Semana actual
+              </RouteActionButton>
+              <RouteActionButton tone="secondary" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
                 {allFilteredRouteDaysExpanded ? "Ocultar todos" : "Expandir todos"}
-              </Button>
+              </RouteActionButton>
             </div>
           </div>
 
@@ -712,7 +716,7 @@ export default function RouteDetail() {
                   key={statusOption.value}
                   size="sm"
                   variant={selected ? "default" : "outline"}
-                  className="h-8 gap-1"
+                  className={`${routeFilterButtonClass} gap-1`}
                   onClick={() => setRouteDayStatusFilter(statusOption.value)}
                 >
                   {statusOption.label}
@@ -785,40 +789,6 @@ export default function RouteDetail() {
                     </div>
                     <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
                       <Badge className={getRouteStatusClass(routeDay.status)}>{getRouteStatusLabel(routeDay.status)}</Badge>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        className="gap-1 w-full sm:w-auto"
-                        disabled={workingRouteDayId === routeDay.id}
-                        onClick={() => handleGoogleNavigation(routeDay.id)}
-                      >
-                        {workingRouteDayId === routeDay.id ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Navigation2 className="w-4 h-4" />}
-                        Google
-                      </Button>
-                      {(routeDay.status === "PLANNED" || routeDay.status === "PARTIAL") && (
-                        <Button
-                          size="sm"
-                          variant="success"
-                          className="gap-1 w-full sm:w-auto"
-                          disabled={workingRouteDayId === routeDay.id}
-                          onClick={() => handleStartRouteDay(routeDay.id)}
-                        >
-                          {workingRouteDayId === routeDay.id ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                          Iniciar
-                        </Button>
-                      )}
-                      {routeDay.status === "IN_PROGRESS" && (
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          className="gap-1 w-full sm:w-auto"
-                          disabled={workingRouteDayId === routeDay.id}
-                          onClick={() => handleFinishRouteDay(routeDay.id)}
-                        >
-                          {workingRouteDayId === routeDay.id ? <RefreshCcw className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
-                          Finalizar
-                        </Button>
-                      )}
                     </div>
                   </div>
 
@@ -836,69 +806,17 @@ export default function RouteDetail() {
                   </div>
 
                   {(() => {
-                    const collectableStops = getCollectableStops(routeDay);
-                    const selectedId = selectedStopByRouteDay[routeDay.id] || "";
-                    const selectedStop = collectableStops.find((row) => String(row.route_day_client_id) === String(selectedId)) || null;
                     const tableExpanded = expandedRouteDays[routeDay.id] === true;
                     return (
                       <>
                         <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-                          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                            <div className="text-xs text-muted-foreground text-left">
-                              {collectableStops.length > 0
-                                ? `${collectableStops.length} paradas pendientes para registrar.`
-                                : "No hay paradas pendientes en este dia."}
-                            </div>
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-                              <Select
-                                value={selectedId}
-                                onValueChange={(value) => setSelectedStopByRouteDay((prev) => ({ ...prev, [routeDay.id]: value }))}
-                                disabled={routeDay.status !== "IN_PROGRESS" || collectableStops.length === 0}
-                              >
-                                <SelectTrigger className="w-full sm:min-w-[280px]">
-                                  <SelectValue placeholder="Selecciona parada pendiente" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {collectableStops.map((row) => (
-                                    <SelectItem key={row.route_day_client_id} value={String(row.route_day_client_id)}>
-                                      #{row.order} - {row.client_name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                size="sm"
-                                className="gap-1 w-full sm:w-auto"
-                                disabled={routeDay.status !== "IN_PROGRESS" || collectableStops.length === 0 || !selectedStop}
-                                onClick={() => openSelectedStopFromDropdown(routeDay)}
-                              >
-                                <ClipboardCheck className="w-4 h-4" />
-                                Recoger parada
-                              </Button>
+                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div className="grid grid-cols-1 gap-2 text-left text-xs sm:grid-cols-3">
+                              <p><span className="text-muted-foreground">Pendientes:</span> {pendingStops}</p>
+                              <p><span className="text-muted-foreground">Registradas:</span> {completedStops}</p>
+                              <p><span className="text-muted-foreground">Canceladas:</span> {canceledStops}</p>
                             </div>
                           </div>
-
-                          {selectedStop && (
-                            <div className="mt-3 grid grid-cols-1 gap-2 rounded-md border border-border bg-background p-3 text-left text-xs md:grid-cols-2">
-                              <p><span className="text-muted-foreground">Cliente:</span> {selectedStop.client_name}</p>
-                              <p><span className="text-muted-foreground">Orden:</span> #{selectedStop.order}</p>
-                              <p><span className="text-muted-foreground">Direccion:</span> {selectedStop.client_address || "-"}</p>
-                              <p><span className="text-muted-foreground">Limite respuesta:</span> {formatDateTime(selectedStop.collection_request?.expires_at)}</p>
-                              <p>
-                                <span className="text-muted-foreground">Solicitud:</span>{" "}
-                                {selectedStop.collection_request?.status ? getCollectionRequestStatusLabel(selectedStop.collection_request.status) : "-"}
-                              </p>
-                              <p>
-                                <span className="text-muted-foreground">Plan base:</span>{" "}
-                                {(() => {
-                                  const requestObj = selectedStop.collection_request || {};
-                                  const containerType = requestObj.container_type || "BIDONES";
-                                  const containerNumber = getContainerNumber(requestObj.container_number);
-                                  return `${formatLiters(containerNumber * getContainerCapacity(containerType))} L`;
-                                })()}
-                              </p>
-                            </div>
-                          )}
                         </div>
 
                         {tableExpanded ? (
@@ -941,16 +859,7 @@ export default function RouteDetail() {
                                         {clientRow.collection?.id && normalizeCollectionStatus(clientRow.collection.status) !== "CANCELED" ? (
                                           <Badge variant="outline">Registrada</Badge>
                                         ) : (
-                                          <Button
-                                            size="sm"
-                                            variant={routeDay.status === "IN_PROGRESS" ? "default" : "outline"}
-                                            className="w-full gap-1"
-                                            disabled={routeDay.status !== "IN_PROGRESS"}
-                                            onClick={() => openCompleteStopModal(routeDay, clientRow)}
-                                          >
-                                            <ClipboardCheck className="w-4 h-4" />
-                                            Registrar parada
-                                          </Button>
+                                          <Badge variant="outline">Pendiente</Badge>
                                         )}
                                       </div>
                                     </div>
@@ -977,7 +886,7 @@ export default function RouteDetail() {
                                       <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Recogida</th>
                                       <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Limite respuesta</th>
                                       <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan base</th>
-                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Acciones</th>
+                                      <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Estado</th>
                                     </tr>
                                   </thead>
                                   <tbody>
@@ -1031,16 +940,7 @@ export default function RouteDetail() {
                                           {clientRow.collection?.id && normalizeCollectionStatus(clientRow.collection.status) !== "CANCELED" ? (
                                             <Badge variant="outline">Registrada</Badge>
                                           ) : (
-                                            <Button
-                                              size="sm"
-                                              variant={routeDay.status === "IN_PROGRESS" ? "default" : "outline"}
-                                              className="gap-1"
-                                              disabled={routeDay.status !== "IN_PROGRESS"}
-                                              onClick={() => openCompleteStopModal(routeDay, clientRow)}
-                                            >
-                                              <ClipboardCheck className="w-4 h-4" />
-                                              Registrar
-                                            </Button>
+                                            <Badge variant="outline">Pendiente</Badge>
                                           )}
                                         </td>
                                       </tr>
@@ -1070,46 +970,22 @@ export default function RouteDetail() {
       </Card>
 
       {isOwner && (
-      <Dialog open={generateModalOpen} onOpenChange={setGenerateModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Generar semana operativa</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="weekStartDate">Inicio de semana</Label>
-              <Input id="weekStartDate" type="date" value={weekStartDate} onChange={(e) => setWeekStartDate(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="capacity">Capacidad diaria (litros)</Label>
-              <Input id="capacity" type="number" min="0" step="0.01" value={dailyCapacityLiters} onChange={(e) => setDailyCapacityLiters(e.target.value)} />
-            </div>
-            {checkingWeekGenerationContext ? (
-              <p className="text-xs text-muted-foreground">Comprobando si hay paradas existentes en la semana...</p>
-            ) : hasExistingWeekStops ? (
-              <div className="flex items-center space-x-2">
-                <Checkbox id="regenerate" checked={regenerate} onCheckedChange={(v) => setRegenerate(Boolean(v))} />
-                <Label htmlFor="regenerate" className="text-sm">Regenerar paradas existentes</Label>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No hay paradas existentes en esa semana. Se generaran directamente.</p>
-            )}
-            <div className="flex items-center space-x-2">
-              <Checkbox id="auto_estimate_without_contact" checked={autoEstimateWithoutContact} onCheckedChange={(v) => setAutoEstimateWithoutContact(Boolean(v))} />
-              <Label htmlFor="auto_estimate_without_contact" className="text-sm">Autoestimar sin notificar al cliente</Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGenerateModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleGenerateWeek} disabled={submittingGenerate} className="gap-2">
-              <CheckCircle className="w-4 h-4" />
-              {submittingGenerate ? "Generando..." : "Generar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GenerateWeekDialog
+        open={generateModalOpen}
+        onOpenChange={setGenerateModalOpen}
+        weekStartDate={weekStartDate}
+        onWeekStartDateChange={setWeekStartDate}
+        dailyCapacityLiters={dailyCapacityLiters}
+        onDailyCapacityLitersChange={setDailyCapacityLiters}
+        regenerate={regenerate}
+        onRegenerateChange={setRegenerate}
+        autoEstimateWithoutContact={autoEstimateWithoutContact}
+        onAutoEstimateWithoutContactChange={setAutoEstimateWithoutContact}
+        checkingWeekGenerationContext={checkingWeekGenerationContext}
+        hasExistingWeekStops={hasExistingWeekStops}
+        submittingGenerate={submittingGenerate}
+        onSubmit={handleGenerateWeek}
+      />
       )}
 
       <Dialog
@@ -1121,7 +997,7 @@ export default function RouteDetail() {
           setFinishDecisionModalOpen(open);
         }}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Finalizar ruta diaria</DialogTitle>
           </DialogHeader>
@@ -1136,13 +1012,14 @@ export default function RouteDetail() {
             </p>
           </div>
 
-          <DialogFooter className="gap-2 sm:justify-between">
-            <Button variant="outline" onClick={() => setFinishDecisionModalOpen(false)}>
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setFinishDecisionModalOpen(false)}>
               Volver
             </Button>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <Button
                 variant="secondary"
+                className="w-full sm:w-auto"
                 disabled={workingRouteDayId === finishDecisionContext.routeDayId}
                 onClick={() => handleFinishWithDecision("PARTIAL")}
               >
@@ -1150,6 +1027,7 @@ export default function RouteDetail() {
               </Button>
               <Button
                 variant="destructive"
+                className="w-full sm:w-auto"
                 disabled={workingRouteDayId === finishDecisionContext.routeDayId}
                 onClick={() => handleFinishWithDecision("CANCELED")}
               >
@@ -1161,7 +1039,7 @@ export default function RouteDetail() {
       </Dialog>
 
       <Dialog open={completeModalOpen} onOpenChange={setCompleteModalOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Registrar parada</DialogTitle>
           </DialogHeader>
@@ -1242,9 +1120,9 @@ export default function RouteDetail() {
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCompleteStop} disabled={submittingStop} className="gap-2">
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCompleteStop} disabled={submittingStop} className="w-full gap-2 sm:w-auto">
               <CheckCircle className="w-4 h-4" />
               {submittingStop ? "Guardando..." : "Registrar"}
             </Button>

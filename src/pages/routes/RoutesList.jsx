@@ -7,13 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Route,
   MapPin,
   Clock,
@@ -31,6 +24,8 @@ import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
+import RouteActionButton from "@/components/routes/RouteActionButton";
+import GenerateWeekDialog from "@/components/routes/GenerateWeekDialog";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 
@@ -68,6 +63,7 @@ export default function RoutesList() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const routeFilterButtonClass = "h-9 rounded-full px-4";
 
   const fetchWorkers = useCallback(async () => {
     try {
@@ -243,10 +239,9 @@ export default function RoutesList() {
           </p>
         </div>
         {canManageRoutes && (
-          <Button className="gap-2" onClick={() => navigate("/routes/new")}>
-            <Plus className="w-4 h-4" />
+          <RouteActionButton tone="primary" icon={Plus} onClick={() => navigate("/routes/new")}>
             Nueva Ruta
-          </Button>
+          </RouteActionButton>
         )}
       </div>
 
@@ -262,10 +257,11 @@ export default function RoutesList() {
                 className="pl-10"
               />
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               <Button
                 size="sm"
                 variant={routeFilter === "ALL" ? "default" : "outline"}
+                className={routeFilterButtonClass}
                 onClick={() => setRouteFilter("ALL")}
               >
                 Todas
@@ -273,6 +269,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITH_WORKERS" ? "default" : "outline"}
+                className={routeFilterButtonClass}
                 onClick={() => setRouteFilter("WITH_WORKERS")}
               >
                 Con trabajador
@@ -280,6 +277,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITHOUT_WORKERS" ? "default" : "outline"}
+                className={routeFilterButtonClass}
                 onClick={() => setRouteFilter("WITHOUT_WORKERS")}
               >
                 Sin trabajador
@@ -401,29 +399,29 @@ export default function RoutesList() {
                     </div>
                   )}
 
-                  <div className="flex gap-2 pt-2">
-                    <Button size="sm" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}`)}>
-                      <Eye className="w-4 h-4" />
+                  <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                    <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
                       Ver detalle
-                    </Button>
-                    {canManageRoutes && (
-                      <Button size="sm" variant="outline" className="flex-1 gap-2" onClick={() => navigate(`/routes/${route.id}/edit`)}>
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </Button>
-                    )}
-                    {canManageRoutes && (
-                      <Button size="sm" className="flex-1 gap-2" onClick={() => askGenerateWeek(route)}>
-                        <WandSparkles className="w-4 h-4" />
-                        Generar Semana
-                      </Button>
-                    )}
-                    {canManageRoutes && (
-                      <Button size="sm" variant="destructive" className="gap-2" onClick={() => askDelete(route)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    )}
+                    </RouteActionButton>
+                    <RouteActionButton size="sm" tone="primary" icon={Route} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/execute`)}>
+                      Realizar ruta
+                    </RouteActionButton>
                   </div>
+
+                  {canManageRoutes && (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <RouteActionButton size="sm" tone="secondary" icon={Edit} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/edit`)}>
+                        Editar
+                      </RouteActionButton>
+                      <RouteActionButton size="sm" tone="accent" icon={WandSparkles} className="w-full justify-start sm:justify-center" onClick={() => askGenerateWeek(route)}>
+                        Generar semana
+                      </RouteActionButton>
+                      <RouteActionButton size="sm" tone="danger" className="sm:w-10 sm:px-0" onClick={() => askDelete(route)}>
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sm:hidden">Eliminar</span>
+                      </RouteActionButton>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -432,66 +430,22 @@ export default function RoutesList() {
       </div>
 
       {canManageRoutes && (
-      <Dialog open={generateModalOpen} onOpenChange={setGenerateModalOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Generar semana operativa</DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="weekStartDate">Inicio de semana</Label>
-              <Input
-                id="weekStartDate"
-                type="date"
-                value={weekStartDate}
-                onChange={(e) => setWeekStartDate(e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="capacity">Capacidad diaria (litros)</Label>
-              <Input
-                id="capacity"
-                type="number"
-                min="0"
-                step="0.01"
-                value={dailyCapacityLiters}
-                onChange={(e) => setDailyCapacityLiters(e.target.value)}
-              />
-            </div>
-
-            {checkingWeekGenerationContext ? (
-              <p className="text-xs text-muted-foreground">Comprobando si hay paradas existentes en la semana...</p>
-            ) : hasExistingWeekStops ? (
-              <div className="flex items-center space-x-2">
-                <Checkbox id="regenerate" checked={regenerate} onCheckedChange={(v) => setRegenerate(Boolean(v))} />
-                <Label htmlFor="regenerate" className="text-sm">
-                  Regenerar paradas existentes
-                </Label>
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No hay paradas existentes en esa semana. Se generaran directamente.</p>
-            )}
-            <div className="flex items-center space-x-2">
-              <Checkbox id="auto_estimate_without_contact" checked={autoEstimateWithoutContact} onCheckedChange={(v) => setAutoEstimateWithoutContact(Boolean(v))} />
-              <Label htmlFor="auto_estimate_without_contact" className="text-sm">
-                Autoestimar sin notificar al cliente
-              </Label>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setGenerateModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleGenerateWeek} disabled={submittingGenerate} className="gap-2">
-              <RefreshCcw className={`w-4 h-4 ${submittingGenerate ? "animate-spin" : ""}`} />
-              {submittingGenerate ? "Generando..." : "Generar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <GenerateWeekDialog
+          open={generateModalOpen}
+          onOpenChange={setGenerateModalOpen}
+          weekStartDate={weekStartDate}
+          onWeekStartDateChange={setWeekStartDate}
+          dailyCapacityLiters={dailyCapacityLiters}
+          onDailyCapacityLitersChange={setDailyCapacityLiters}
+          regenerate={regenerate}
+          onRegenerateChange={setRegenerate}
+          autoEstimateWithoutContact={autoEstimateWithoutContact}
+          onAutoEstimateWithoutContactChange={setAutoEstimateWithoutContact}
+          checkingWeekGenerationContext={checkingWeekGenerationContext}
+          hasExistingWeekStops={hasExistingWeekStops}
+          submittingGenerate={submittingGenerate}
+          onSubmit={handleGenerateWeek}
+        />
       )}
 
       {canManageRoutes && (

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { StatCard } from "@/components/common/StatCard";
 import { ActionButton } from "@/components/common/ActionButton";
+import RouteActionButton from "@/components/routes/RouteActionButton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthProvider";
@@ -26,7 +27,10 @@ import {
   ClipboardCheck,
   UserCircle2,
   Clock3,
+  Navigation2,
 } from "lucide-react";
+
+const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -35,11 +39,38 @@ function formatDate(dateStr) {
   return d.toLocaleDateString("es-ES");
 }
 
+function isRouteOperationalToday(route) {
+  if (!route) return false;
+  const today = new Date();
+  const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayWeekday = (todayDate.getDay() + 6) % 7;
+
+  if (route.start_date) {
+    const startDate = new Date(`${route.start_date}T00:00:00`);
+    if (!Number.isNaN(startDate.getTime()) && startDate > todayDate) return false;
+  }
+
+  if (route.end_date) {
+    const endDate = new Date(`${route.end_date}T00:00:00`);
+    if (!Number.isNaN(endDate.getTime()) && endDate < todayDate) return false;
+  }
+
+  const weekStart = Number(route.week_start);
+  const weekEnd = Number(route.week_end);
+  if (!Number.isInteger(weekStart) || !Number.isInteger(weekEnd)) return false;
+
+  if (weekStart <= weekEnd) {
+    return todayWeekday >= weekStart && todayWeekday <= weekEnd;
+  }
+  return todayWeekday >= weekStart || todayWeekday <= weekEnd;
+}
+
 export default function Dashboard() {
   const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
   const navigate = useNavigate();
   const isClient = user?.role_type === "client";
+  const canOperateRoutes = user?.role_type === "owner" || user?.role_type === "worker";
 
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -53,6 +84,7 @@ export default function Dashboard() {
     myConfirmedCollections: 0,
   });
   const [recentCollections, setRecentCollections] = useState([]);
+  const [routeShortcuts, setRouteShortcuts] = useState([]);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -77,6 +109,7 @@ export default function Dashboard() {
           myConfirmedCollections: Number(collectionsConfirmedRes.data?.count || 0),
         });
         setRecentCollections(Array.isArray(collectionsPayload.results) ? collectionsPayload.results : []);
+        setRouteShortcuts([]);
         return;
       }
 
@@ -91,7 +124,7 @@ export default function Dashboard() {
         api().get("clients", { params: { page: 1, page_size: 1 } }),
         api().get("workers", { params: { page: 1, page_size: 1 } }),
         api().get("trucks", { params: { page: 1, page_size: 1 } }),
-        api().get("routes", { params: { page: 1, page_size: 1 } }),
+        api().get("routes", { params: { page: 1, page_size: 4 } }),
         api().get("collections", { params: { page: 1, page_size: 8, ordering: "-collection_date" } }),
         api().get("collections", { params: { page: 1, page_size: 1, status: "PENDING_MEASUREMENT" } }),
       ]);
@@ -116,6 +149,14 @@ export default function Dashboard() {
         myConfirmedCollections: 0,
       });
       setRecentCollections(Array.isArray(collectionsPayload.results) ? collectionsPayload.results : []);
+      const routeItems = Array.isArray(routesPayload.results) ? routesPayload.results : [];
+      const sortedRouteItems = [...routeItems].sort((a, b) => {
+        const aToday = isRouteOperationalToday(a) ? 1 : 0;
+        const bToday = isRouteOperationalToday(b) ? 1 : 0;
+        if (aToday !== bToday) return bToday - aToday;
+        return String(a?.name || "").localeCompare(String(b?.name || ""), "es");
+      });
+      setRouteShortcuts(sortedRouteItems);
     } catch (e) {
       const msg = handleApiError(e, "Error cargando el dashboard.");
       showSnackbar(msg, "error");
@@ -214,9 +255,11 @@ export default function Dashboard() {
               Ver Solicitudes
             </ActionButton>
           ) : (
-            <ActionButton icon={BarChart3} onClick={() => navigate("/stats")}>
-              Ver Estadisticas
-            </ActionButton>
+            <>
+              <ActionButton icon={BarChart3} onClick={() => navigate("/stats")}>
+                Ver Estadisticas
+              </ActionButton>
+            </>
           )}
         </div>
       </div>
@@ -267,75 +310,140 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-left">
-              <MapPin className="w-5 h-5 text-primary" />
-              Acciones Rapidas
-            </CardTitle>
-            <CardDescription className="text-left">
-              {isClient ? "Accesos directos para gestionar tus solicitudes" : "Accesos directos y resumen operativo"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="p-3 rounded-lg border border-border text-left">
-              <p className="text-sm font-medium">Resumen operativo</p>
-              <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-muted-foreground">
-                {isClient ? (
-                  <>
-                    <span>Solicitudes abiertas:</span>
-                    <span className="text-right font-medium text-foreground">{stats.myRequestsPending}</span>
-                    <span>Mis recogidas:</span>
-                    <span className="text-right font-medium text-foreground">{stats.myCollections}</span>
-                    <span>Pend. medicion:</span>
-                    <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
-                    <span>Confirmadas:</span>
-                    <span className="text-right font-medium text-foreground">{stats.myConfirmedCollections}</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Rutas totales:</span>
-                    <span className="text-right font-medium text-foreground">{stats.totalRoutes}</span>
-                    <span>Camiones operativos:</span>
-                    <span className="text-right font-medium text-foreground">{stats.operationalTrucks}</span>
-                    <span>Recogidas pendientes:</span>
-                    <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
-                    <span>Trabajadores activos:</span>
-                    <span className="text-right font-medium text-foreground">{stats.activeWorkers}</span>
-                  </>
-                )}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-left">
+                <MapPin className="w-5 h-5 text-primary" />
+                Acciones Rapidas
+              </CardTitle>
+              <CardDescription className="text-left">
+                {isClient ? "Accesos directos para gestionar tus solicitudes" : "Accesos directos y resumen operativo"}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-3 rounded-lg border border-border text-left">
+                <p className="text-sm font-medium">Resumen operativo</p>
+                <div className="mt-2 grid grid-cols-2 gap-y-1 text-sm text-muted-foreground">
+                  {isClient ? (
+                    <>
+                      <span>Solicitudes abiertas:</span>
+                      <span className="text-right font-medium text-foreground">{stats.myRequestsPending}</span>
+                      <span>Mis recogidas:</span>
+                      <span className="text-right font-medium text-foreground">{stats.myCollections}</span>
+                      <span>Pend. medicion:</span>
+                      <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
+                      <span>Confirmadas:</span>
+                      <span className="text-right font-medium text-foreground">{stats.myConfirmedCollections}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Rutas totales:</span>
+                      <span className="text-right font-medium text-foreground">{stats.totalRoutes}</span>
+                      <span>Camiones operativos:</span>
+                      <span className="text-right font-medium text-foreground">{stats.operationalTrucks}</span>
+                      <span>Recogidas pendientes:</span>
+                      <span className="text-right font-medium text-foreground">{stats.pendingCollections}</span>
+                      <span>Trabajadores activos:</span>
+                      <span className="text-right font-medium text-foreground">{stats.activeWorkers}</span>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-            {isClient ? (
-              <>
-                <ActionButton variant="outline" icon={CalendarClock} className="w-full justify-start" onClick={() => navigate("/my-requests")}>
-                  Mis Solicitudes
-                </ActionButton>
-                <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections")}>
-                  Historial de Recogidas
-                </ActionButton>
-                <ActionButton variant="success" icon={UserCircle2} className="w-full justify-start" onClick={() => navigate("/profile")}>
-                  Mi Perfil
-                </ActionButton>
-              </>
-            ) : (
-              <>
-                <ActionButton variant="outline" icon={Users} className="w-full justify-start" onClick={() => navigate("/clients/new")}>
-                  Nuevo Cliente
-                </ActionButton>
-                <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections/new")}>
-                  Registrar Recogida
-                </ActionButton>
-                <ActionButton variant="outline" icon={Route} className="w-full justify-start" onClick={() => navigate("/routes")}>
-                  Gestionar Rutas
-                </ActionButton>
-                <ActionButton variant="success" icon={BarChart3} className="w-full justify-start" onClick={() => navigate("/stats")}>
-                  Ver Estadisticas
-                </ActionButton>
-              </>
-            )}
-          </CardContent>
-        </Card>
+              {isClient ? (
+                <>
+                  <ActionButton variant="outline" icon={CalendarClock} className="w-full justify-start" onClick={() => navigate("/my-requests")}>
+                    Mis Solicitudes
+                  </ActionButton>
+                  <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections")}>
+                    Historial de Recogidas
+                  </ActionButton>
+                  <ActionButton variant="success" icon={UserCircle2} className="w-full justify-start" onClick={() => navigate("/profile")}>
+                    Mi Perfil
+                  </ActionButton>
+                </>
+              ) : (
+                <>
+                  <ActionButton variant="outline" icon={Users} className="w-full justify-start" onClick={() => navigate("/clients/new")}>
+                    Nuevo Cliente
+                  </ActionButton>
+                  <ActionButton variant="outline" icon={Package} className="w-full justify-start" onClick={() => navigate("/collections/new")}>
+                    Registrar Recogida
+                  </ActionButton>
+                  <ActionButton variant="outline" icon={Route} className="w-full justify-start" onClick={() => navigate("/routes")}>
+                    Gestionar Rutas
+                  </ActionButton>
+                  <ActionButton variant="success" icon={BarChart3} className="w-full justify-start" onClick={() => navigate("/stats")}>
+                    Ver Estadisticas
+                  </ActionButton>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {!isClient && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-left">
+                  <Route className="w-5 h-5 text-primary" />
+                  Rutas Operativas
+                </CardTitle>
+                <CardDescription className="text-left">
+                  Acceso rapido para entrar en la operativa diaria de las rutas disponibles.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {routeShortcuts.length === 0 ? (
+                  <div className="rounded-lg border border-dashed border-border bg-muted/20 p-4 text-left text-sm text-muted-foreground">
+                    No hay rutas disponibles para mostrar en este momento.
+                  </div>
+                ) : (
+                  routeShortcuts.map((route) => {
+                    const routeToday = isRouteOperationalToday(route);
+                    return (
+                      <div key={route.id} className="rounded-xl border border-border/80 bg-background/80 p-3 text-left">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-foreground">{route.name}</p>
+                          {routeToday ? <Badge className="bg-emerald-600 text-white">Hoy</Badge> : <Badge variant="outline">Programada</Badge>}
+                        </div>
+                        <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                          <p>
+                            Semana: {WEEKDAY_LABELS[route.week_start] || "-"} - {WEEKDAY_LABELS[route.week_end] || "-"}
+                          </p>
+                          <p>Inicio: {formatDate(route.start_date)}{route.end_date ? ` | Fin: ${formatDate(route.end_date)}` : ""}</p>
+                        </div>
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                          <RouteActionButton
+                            tone="primary"
+                            icon={Navigation2}
+                            className="w-full justify-center sm:flex-1"
+                            onClick={() => navigate(`/routes/${route.id}/execute`)}
+                          >
+                            Realizar ruta
+                          </RouteActionButton>
+                          <RouteActionButton
+                            tone="secondary"
+                            icon={Route}
+                            className="w-full justify-center sm:flex-1"
+                            onClick={() => navigate(`/routes/${route.id}`)}
+                          >
+                            Ver detalle
+                          </RouteActionButton>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+
+                {canOperateRoutes && (
+                  <ActionButton variant="outline" icon={Route} className="w-full justify-start" onClick={() => navigate("/routes")}>
+                    Ver todas las rutas
+                  </ActionButton>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );

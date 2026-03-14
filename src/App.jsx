@@ -22,6 +22,7 @@ import RoutesList from '@/pages/routes/RoutesList';
 import RouteCreate from '@/pages/routes/RouteCreate';
 import RouteEdit from '@/pages/routes/RouteEdit';
 import RouteDetail from '@/pages/routes/RouteDetail';
+import RouteExecution from '@/pages/routes/RouteExecution';
 import CollectionsList from '@/pages/collections/CollectionsList';
 import CollectionCreate from '@/pages/collections/CollectionCreate';
 import CollectionDetail from '@/pages/collections/CollectionDetail';
@@ -79,6 +80,7 @@ function AppContent() {
         <Route element={<RoleRoute allowedRoles={["owner", "worker"]} />}>
           <Route path="/routes" element={<RoutesList />} />
           <Route path="/routes/:id" element={<RouteDetail />} />
+          <Route path="/routes/:id/execute" element={<RouteExecution />} />
           <Route path="/collections/new" element={<CollectionCreate />} />
           <Route path="/collections/:id/new" element={<CollectionCreate />} />
         </Route>
