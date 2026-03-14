@@ -232,6 +232,7 @@ export const AuthProvider = ({ children }) => {
       baseURL: apiUrl,
       headers: {
         Authorization: token ? `Bearer ${token}` : undefined,
+        "ngrok-skip-browser-warning": "true",
       },
     });
 

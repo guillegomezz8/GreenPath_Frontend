@@ -209,7 +209,7 @@ export default function CollectionsList() {
         </div>
       </div>
 
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1 relative">
@@ -222,12 +222,13 @@ export default function CollectionsList() {
               />
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
               {STATUS_OPTIONS.map((status) => (
                 <Button
                   key={status}
                   variant={selectedStatus === status ? "default" : "outline"}
                   size="sm"
+                  className="w-full sm:w-auto"
                   onClick={() => setSelectedStatus(status)}
                 >
                   {status}
