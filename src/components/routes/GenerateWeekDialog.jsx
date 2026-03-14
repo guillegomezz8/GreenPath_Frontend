@@ -32,12 +32,13 @@ export default function GenerateWeekDialog({
         </DialogHeader>
 
         <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-6">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="weekStartDate">Inicio de semana</Label>
               <Input
                 id="weekStartDate"
                 type="date"
+                className="w-full min-w-0"
                 value={weekStartDate}
                 onChange={(e) => onWeekStartDateChange?.(e.target.value)}
               />
