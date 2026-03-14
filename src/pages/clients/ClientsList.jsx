@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSnackbar } from '@/context/SnackbarProvider';
-import { handleApiError } from '@/components/Utils';
+import { handleApiError, getPickupFrequencyClass, getPickupFrequencyLabel } from '@/components/Utils';
 import { Users, Plus, MoreVertical, Edit, Trash2, MapPin, Phone, Mail } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
@@ -73,16 +73,6 @@ export default function ClientsList() {
   useEffect(() => { fetchClients(); }, [fetchClients]);
   useEffect(() => { setPage(1); }, [debouncedSearch, frequency, ordering]);
 
-  const getStatusColor = (st) => {
-    switch (st) {
-      case "Cada semana": return "bg-success text-success-foreground";
-      case "Cada 2 semanas": return "bg-blue-600 text-white";
-      case "Cada 3 semanas": return "bg-orange-500 text-white";
-      case "Cada 4 semanas": return "bg-red-600 text-white";
-      default: return "bg-gray-400 text-white";
-    }
-  };
-
   const askDelete = (client) => {
     setToDelete({ id: client.id, name: client.name });
     setDeleteOpen(true);
@@ -143,7 +133,7 @@ export default function ClientsList() {
                   <CardTitle className="text-lg text-left">{client.name}</CardTitle>
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                     <Badge variant="outline">{client.city}</Badge>
-                    <Badge className={getStatusColor(client.frequency)}>{client.frequency}</Badge>
+                    <Badge className={getPickupFrequencyClass(client.frequency)}>{getPickupFrequencyLabel(client.frequency)}</Badge>
                   </div>
                 </div>
 

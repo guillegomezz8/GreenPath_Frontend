@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError } from "@/components/Utils";
+import { handleApiError, getInitials, getAvatarSrc, formatNumber, formatCurrency, getCollectionStatusClass, getCollectionStatusLabel, normalizeCollectionStatus } from "@/components/Utils";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,6 @@ import {
 
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 import { EmptyState } from "@/components/common/EmptyState";
-import { ActionButton } from "@/components/common/ActionButton";
-import { getInitials, getAvatarSrc, formatNumber, formatCurrency } from "@/components/Utils";
 
 export default function WorkerDetail() {
   const { id } = useParams();
@@ -150,31 +148,19 @@ export default function WorkerDetail() {
     return <Badge className="bg-success text-success-foreground">Activo</Badge>;
   };
 
-  const getCollectionStatusClass = (status) => {
-    switch ((status || "").toUpperCase()) {
-      case "COMPLETED":
-      case "COMPLETADA":
-        return "bg-success text-success-foreground";
-      case "PENDING":
-      case "PENDIENTE":
-        return "bg-blue-600 text-white";
-      case "CANCELLED":
-      case "CANCELADA":
-      case "CANCELED":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
   const asNum = (v) => Number.isFinite(Number(v)) ? Number(v) : 0;
 
   const totalLiters = asNum(worker?.total_liters_collected);
   const totalRoutes = asNum(worker?.total_routes);
   const totalIncomes = asNum(worker?.total_incomes);
+  const totalCollections = asNum(worker?.total_collections);
+  const confirmedCollections = asNum(worker?.confirmed_collections);
+  const pendingCollections = asNum(worker?.pending_collections);
+  const canceledCollections = asNum(worker?.canceled_collections);
 
   const litersPerRoute = totalRoutes > 0 ? totalLiters / totalRoutes : 0;
   const euroPerLiter = totalLiters > 0 ? totalIncomes / totalLiters : 0;
+  const completionRate = totalCollections > 0 ? (confirmedCollections / totalCollections) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -271,17 +257,17 @@ export default function WorkerDetail() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">
-              {loading ? "—" : worker?.total_collections ?? 0}
+              {loading ? "—" : totalCollections}
             </div>
-            <p className="text-sm text-muted-foreground">Total de Recogidas</p>
+            <p className="text-sm text-muted-foreground">Recogidas No Canceladas</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-orange-500">
-              {loading ? "—" : worker?.vehicle ?? "-"}
+              {loading ? "—" : worker?.assigned_trucks ?? "Sin asignar"}
             </div>
-            <p className="text-sm text-muted-foreground">Ruta Activa</p>
+            <p className="text-sm text-muted-foreground">Vehiculo Asignado</p>
           </CardContent>
         </Card>
         <Card>
@@ -391,22 +377,27 @@ export default function WorkerDetail() {
               ) : (
                 <>
                   <div className="space-y-3">
-                    {collections.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Package className="w-5 h-5 text-muted-foreground" />
-                          <div className="text-left">
-                            <p className="font-medium">
-                              {c.collection_date} · {c.client_name ??  "Cliente Desconocido"}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {c.container_number} {c.container_type} / {c.liters_collected} L / {c.total_price} €
-                            </p>
+                    {collections.map((c) => {
+                      const normalizedStatus = normalizeCollectionStatus(c.status);
+                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
+                      const priceLabel = normalizedStatus === "CONFIRMED" ? `${c.total_price} EUR` : "-";
+                      return (
+                        <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                            <div className="text-left">
+                              <p className="font-medium">
+                                {c.collection_date} - {c.client_name ?? "Cliente Desconocido"}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                {c.container_number} {c.container_type} / {litersLabel} / {priceLabel}
+                              </p>
+                            </div>
                           </div>
+                          <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
                         </div>
-                        <Badge className={getCollectionStatusClass(c.status)}>{c.status}</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   {/* Footer de paginación */}
@@ -532,6 +523,25 @@ export default function WorkerDetail() {
                       <span className="text-sm font-semibold">
                         {totalRoutes ? formatCurrency(totalIncomes / totalRoutes) : "—"}
                       </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                    <div className="rounded-lg border p-3 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Confirmadas</span>
+                      <span className="text-sm font-semibold text-green-600">{formatNumber(confirmedCollections)}</span>
+                    </div>
+                    <div className="rounded-lg border p-3 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Pendientes</span>
+                      <span className="text-sm font-semibold text-blue-600">{formatNumber(pendingCollections)}</span>
+                    </div>
+                    <div className="rounded-lg border p-3 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Canceladas</span>
+                      <span className="text-sm font-semibold text-red-600">{formatNumber(canceledCollections)}</span>
+                    </div>
+                    <div className="rounded-lg border p-3 flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Tasa confirmacion</span>
+                      <span className="text-sm font-semibold">{`${Math.round(completionRate)}%`}</span>
                     </div>
                   </div>
                 </>

@@ -1,365 +1,464 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { 
-  Route, 
-  MapPin, 
-  Plus, 
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Route,
+  MapPin,
   Clock,
   Users,
-  Truck,
-  Navigation,
   Search,
   Calendar,
-  CheckCircle,
-  AlertCircle
+  RefreshCcw,
+  WandSparkles,
+  Eye,
+  Edit,
+  Trash2,
+  Plus,
 } from "lucide-react";
+import { useAuth } from "@/context/AuthProvider";
+import { useSnackbar } from "@/context/SnackbarProvider";
+import { handleApiError } from "@/components/Utils";
+import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
+import RouteActionButton from "@/components/routes/RouteActionButton";
+import GenerateWeekDialog from "@/components/routes/GenerateWeekDialog";
 
-const routesData = [
-  {
-    id: 1,
-    name: "Ruta Centro-01",
-    zone: "Centro",
-    driver: "José García",
-    vehicle: "GRN-001",
-    status: "Completada",
-    clients: 8,
-    estimatedTime: "3h 30m",
-    distance: "45.2 km",
-    startTime: "08:00",
-    endTime: "11:30",
-    date: "2024-01-12",
-    progress: 100,
-    collections: 8
-  },
-  {
-    id: 2,
-    name: "Ruta Norte-02",
-    zone: "Norte",
-    driver: "María López",
-    vehicle: "GRN-002",
-    status: "En Progreso",
-    clients: 6,
-    estimatedTime: "2h 45m",
-    distance: "32.8 km",
-    startTime: "09:00",
-    endTime: "11:45",
-    date: "2024-01-12",
-    progress: 67,
-    collections: 4
-  },
-  {
-    id: 3,
-    name: "Ruta Sur-01",
-    zone: "Sur",
-    driver: "Carlos Ruiz",
-    vehicle: "GRN-003",
-    status: "Planificada",
-    clients: 5,
-    estimatedTime: "2h 15m",
-    distance: "28.5 km",
-    startTime: "14:00",
-    endTime: "16:15",
-    date: "2024-01-12",
-    progress: 0,
-    collections: 0
-  },
-  {
-    id: 4,
-    name: "Ruta Centro-02",
-    zone: "Centro",
-    driver: "Ana Martín",
-    vehicle: "GRN-004",
-    status: "Retrasada",
-    clients: 7,
-    estimatedTime: "3h 00m",
-    distance: "38.9 km",
-    startTime: "10:00",
-    endTime: "13:00",
-    date: "2024-01-12",
-    progress: 43,
-    collections: 3
-  }
-];
+const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 
-export default function Rutas() {
+function formatDate(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  return d.toLocaleDateString("es-ES");
+}
+
+export default function RoutesList() {
+  const navigate = useNavigate();
+  const { api, user } = useAuth();
+  const showSnackbar = useSnackbar();
+  const roleType = user?.role_type || "";
+  const isOwner = roleType === "owner";
+  const canManageRoutes = isOwner;
+
+  const [routesData, setRoutesData] = useState([]);
+  const [workersMap, setWorkersMap] = useState({});
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedStatus, setSelectedStatus] = useState("Todas");
+  const [routeFilter, setRouteFilter] = useState("ALL");
+  const [generatedByRoute, setGeneratedByRoute] = useState({});
 
-  const filteredRoutes = routesData.filter(route => {
-    const matchesSearch = route.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         route.zone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         route.driver.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "Todas" || route.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+  const [generateModalOpen, setGenerateModalOpen] = useState(false);
+  const [selectedRoute, setSelectedRoute] = useState(null);
+  const [weekStartDate, setWeekStartDate] = useState("");
+  const [dailyCapacityLiters, setDailyCapacityLiters] = useState("0");
+  const [regenerate, setRegenerate] = useState(false);
+  const [autoEstimateWithoutContact, setAutoEstimateWithoutContact] = useState(false);
+  const [checkingWeekGenerationContext, setCheckingWeekGenerationContext] = useState(false);
+  const [hasExistingWeekStops, setHasExistingWeekStops] = useState(false);
+  const [submittingGenerate, setSubmittingGenerate] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [toDelete, setToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const routeFilterButtonClass = "h-9 rounded-full px-4";
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Completada":
-        return "bg-success text-success-foreground";
-      case "En Progreso":
-        return "bg-blue-500 text-white";
-      case "Planificada":
-        return "bg-orange-500 text-white";
-      case "Retrasada":
-        return "bg-destructive text-destructive-foreground";
-      default:
-        return "bg-secondary text-secondary-foreground";
+  const fetchWorkers = useCallback(async () => {
+    try {
+      const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
+      const items = Array.isArray(res.data?.results) ? res.data.results : [];
+      const map = {};
+      items.forEach((w) => {
+        map[w.id] = `${w.name || ""} ${w.surname || ""}`.trim() || w.username || `Trabajador ${w.id}`;
+      });
+      setWorkersMap(map);
+    } catch {
+      setWorkersMap({});
+    }
+  }, [api]);
+
+  const fetchRoutes = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = { page: 1, page_size: 200 };
+      if (searchTerm) params.search = searchTerm;
+
+      const res = await api().get("routes", { params });
+      const payload = res.data;
+      setRoutesData(Array.isArray(payload?.results) ? payload.results : Array.isArray(payload) ? payload : []);
+    } catch (e) {
+      const msg = handleApiError(e, "Error cargando rutas.");
+      showSnackbar(msg, "error");
+    } finally {
+      setLoading(false);
+    }
+  }, [api, searchTerm, showSnackbar]);
+
+  useEffect(() => {
+    fetchWorkers();
+  }, [fetchWorkers]);
+
+  useEffect(() => {
+    fetchRoutes();
+  }, [fetchRoutes]);
+
+  const filteredRoutes = useMemo(() => {
+    if (routeFilter === "WITH_WORKERS") {
+      return routesData.filter((route) => Boolean(route.worker));
+    }
+    if (routeFilter === "WITHOUT_WORKERS") {
+      return routesData.filter((route) => !route.worker);
+    }
+    return routesData;
+  }, [routeFilter, routesData]);
+
+  const stats = useMemo(() => {
+    const total = routesData.length;
+    const withWorkers = routesData.filter((r) => Boolean(r.worker)).length;
+    const withoutWorkers = routesData.filter((r) => !r.worker).length;
+    const noEndDate = routesData.filter((r) => !r.end_date).length;
+    return { total, withWorkers, withoutWorkers, noEndDate };
+  }, [routesData]);
+
+  const askGenerateWeek = (route) => {
+    setSelectedRoute(route);
+    setWeekStartDate("");
+    setDailyCapacityLiters("0");
+    setRegenerate(false);
+    setAutoEstimateWithoutContact(false);
+    setCheckingWeekGenerationContext(false);
+    setHasExistingWeekStops(false);
+    setGenerateModalOpen(true);
+  };
+
+  const handleGenerateWeek = async () => {
+    if (!selectedRoute?.id) return;
+    const normalizedWeekStartDate = typeof weekStartDate === "string" ? weekStartDate : "";
+    if (!normalizedWeekStartDate) {
+      showSnackbar("Debes indicar la fecha de inicio de semana.", "error");
+      return;
+    }
+
+    try {
+      setSubmittingGenerate(true);
+      const payload = {
+        week_start_date: normalizedWeekStartDate,
+        daily_capacity_liters: dailyCapacityLiters,
+        regenerate: hasExistingWeekStops ? regenerate : false,
+        auto_estimate_without_contact: autoEstimateWithoutContact,
+      };
+      const res = await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
+      const routeDays = Array.isArray(res.data?.route_days) ? res.data.route_days : [];
+
+      setGeneratedByRoute((prev) => ({
+        ...prev,
+        [selectedRoute.id]: routeDays,
+      }));
+      showSnackbar("Semana operativa generada correctamente.", "success");
+      setGenerateModalOpen(false);
+    } catch (e) {
+      const msg = handleApiError(e, "No se pudo generar la semana operativa.");
+      showSnackbar(msg, "error");
+    } finally {
+      setSubmittingGenerate(false);
     }
   };
 
-  const getProgressColor = (progress, status) => {
-    if (status === "Retrasada") return "bg-destructive";
-    if (progress === 100) return "bg-success";
-    if (progress > 0) return "bg-blue-500";
-    return "bg-secondary";
+  useEffect(() => {
+    if (!generateModalOpen || !selectedRoute?.id || typeof weekStartDate !== "string" || !weekStartDate) {
+      setCheckingWeekGenerationContext(false);
+      setHasExistingWeekStops(false);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchWeekContext = async () => {
+      try {
+        setCheckingWeekGenerationContext(true);
+        const res = await api().get(`routes/${encodeURIComponent(selectedRoute.id)}/operational-overview/`, {
+          params: { week_start_date: weekStartDate },
+        });
+        if (cancelled) return;
+        const routeDays = Array.isArray(res.data?.route_days) ? res.data.route_days : [];
+        const hasStops = routeDays.some((routeDay) => {
+          if (Array.isArray(routeDay?.clients)) return routeDay.clients.length > 0;
+          if (typeof routeDay?.stops === "number") return routeDay.stops > 0;
+          return false;
+        });
+        setHasExistingWeekStops(hasStops);
+        if (!hasStops) setRegenerate(false);
+      } catch {
+        if (cancelled) return;
+        setHasExistingWeekStops(false);
+        setRegenerate(false);
+      } finally {
+        if (!cancelled) setCheckingWeekGenerationContext(false);
+      }
+    };
+
+    fetchWeekContext();
+    return () => {
+      cancelled = true;
+    };
+  }, [generateModalOpen, selectedRoute?.id, weekStartDate, api]);
+
+  const askDelete = (route) => {
+    setToDelete(route);
+    setDeleteOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!toDelete?.id) return;
+    try {
+      setDeleting(true);
+      await api().delete(`routes/${encodeURIComponent(toDelete.id)}/`);
+      showSnackbar("Ruta eliminada correctamente.", "success");
+      setDeleteOpen(false);
+      setToDelete(null);
+      await fetchRoutes();
+    } catch (e) {
+      const msg = handleApiError(e, "No se pudo eliminar la ruta.");
+      showSnackbar(msg, "error");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Route className="w-8 h-8 text-primary" />
-            Gestión de Rutas
+            {isOwner ? "Gestion de Rutas" : "Rutas Asignadas"}
           </h1>
-          <p className="text-muted-foreground">Planifica y supervisa las rutas de recogida diarias</p>
+          <p className="text-muted-foreground">
+            {isOwner ? "Planifica y supervisa las rutas operativas" : "Consulta y ejecuta las rutas que tienes asignadas"}
+          </p>
         </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Calendar className="w-4 h-4" />
-            Planificar Día
-          </Button>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
+        {canManageRoutes && (
+          <RouteActionButton tone="primary" icon={Plus} onClick={() => navigate("/routes/new")}>
             Nueva Ruta
-          </Button>
-        </div>
+          </RouteActionButton>
+        )}
       </div>
 
-      {/* Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col md:flex-row gap-4 md:items-end">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por nombre, zona o conductor..."
+                placeholder="Buscar por nombre de ruta o trabajador..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            
-            <div className="flex gap-2">
-              {["Todas", "Completada", "En Progreso", "Planificada", "Retrasada"].map((status) => (
-                <Button
-                  key={status}
-                  variant={selectedStatus === status ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setSelectedStatus(status)}
-                >
-                  {status}
-                </Button>
-              ))}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <Button
+                size="sm"
+                variant={routeFilter === "ALL" ? "default" : "outline"}
+                className={routeFilterButtonClass}
+                onClick={() => setRouteFilter("ALL")}
+              >
+                Todas
+              </Button>
+              <Button
+                size="sm"
+                variant={routeFilter === "WITH_WORKERS" ? "default" : "outline"}
+                className={routeFilterButtonClass}
+                onClick={() => setRouteFilter("WITH_WORKERS")}
+              >
+                Con trabajador
+              </Button>
+              <Button
+                size="sm"
+                variant={routeFilter === "WITHOUT_WORKERS" ? "default" : "outline"}
+                className={routeFilterButtonClass}
+                onClick={() => setRouteFilter("WITHOUT_WORKERS")}
+              >
+                Sin trabajador
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">{routesData.length}</div>
-              <p className="text-sm text-muted-foreground">Rutas Hoy</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-primary">{stats.total}</div>
+            <p className="text-sm text-muted-foreground">Total Rutas</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-success">
-                {routesData.filter(r => r.status === "Completada").length}
-              </div>
-              <p className="text-sm text-muted-foreground">Completadas</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-blue-500">{stats.withWorkers}</div>
+            <p className="text-sm text-muted-foreground">Con trabajador</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-blue-500">
-                {routesData.filter(r => r.status === "En Progreso").length}
-              </div>
-              <p className="text-sm text-muted-foreground">En Progreso</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-orange-500">{stats.withoutWorkers}</div>
+            <p className="text-sm text-muted-foreground">Sin trabajador</p>
           </CardContent>
         </Card>
-        
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
-                {routesData.reduce((sum, route) => sum + route.collections, 0)}
-              </div>
-              <p className="text-sm text-muted-foreground">Recogidas Hoy</p>
-            </div>
+          <CardContent className="pt-6 text-center">
+            <div className="text-2xl font-bold text-success">{stats.noEndDate}</div>
+            <p className="text-sm text-muted-foreground">Sin fecha fin</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Routes List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredRoutes.map((route) => (
-          <Card key={route.id} className="hover:shadow-elegant transition-shadow">
-            <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Route className="w-5 h-5 text-primary" />
-                    {route.name}
-                  </CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <MapPin className="w-4 h-4" />
-                    Zona {route.zone}
-                  </CardDescription>
-                </div>
-                
-                <div className="flex flex-col items-end gap-2">
-                  <Badge className={getStatusColor(route.status)}>
-                    {route.status}
-                  </Badge>
-                  {route.status === "Retrasada" && (
-                    <AlertCircle className="w-4 h-4 text-destructive" />
-                  )}
-                  {route.status === "Completada" && (
-                    <CheckCircle className="w-4 h-4 text-success" />
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* Route Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Conductor:</span>
-                    <span className="font-medium">{route.driver}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <Truck className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Vehículo:</span>
-                    <span className="font-medium">{route.vehicle}</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-2 text-sm">
-                    <Clock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Horario:</span>
-                    <span className="font-medium">{route.startTime} - {route.endTime}</span>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Clientes: </span>
-                    <span className="font-medium">{route.clients}</span>
-                  </div>
-                  
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Distancia: </span>
-                    <span className="font-medium">{route.distance}</span>
-                  </div>
-                  
-                  <div className="text-sm">
-                    <span className="text-muted-foreground">Tiempo est.: </span>
-                    <span className="font-medium">{route.estimatedTime}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progreso de recogidas</span>
-                  <span className="font-medium">
-                    {route.collections}/{route.clients} ({route.progress}%)
-                  </span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div 
-                    className={`h-2 rounded-full transition-all ${getProgressColor(route.progress, route.status)}`}
-                    style={{ width: `${route.progress}%` }}
-                  ></div>
-                </div>
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-2">
-                  <Navigation className="w-4 h-4" />
-                  Ver Ruta
-                </Button>
-                {route.status === "En Progreso" && (
-                  <Button size="sm" className="flex-1 gap-2">
-                    <MapPin className="w-4 h-4" />
-                    Seguir
-                  </Button>
-                )}
-                {route.status === "Planificada" && (
-                  <Button size="sm" className="flex-1 gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Iniciar
-                  </Button>
-                )}
-                {route.status === "Completada" && (
-                  <Button variant="success" size="sm" className="flex-1 gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Reporte
-                  </Button>
-                )}
-              </div>
+        {loading ? (
+          <Card className="lg:col-span-2">
+            <CardContent className="py-12 text-center text-muted-foreground">Cargando rutas...</CardContent>
+          </Card>
+        ) : filteredRoutes.length === 0 ? (
+          <Card className="lg:col-span-2">
+            <CardContent className="py-12 text-center text-muted-foreground">
+              No hay rutas para la combinacion de busqueda y filtro seleccionada.
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          filteredRoutes.map((route) => {
+            const assignedWorkerId = route.worker || null;
+            const assignedWorkerLabel = assignedWorkerId ? (workersMap[assignedWorkerId] || `Trabajador ${assignedWorkerId}`) : null;
+            const generatedDays = generatedByRoute[route.id] || [];
+
+            return (
+              <Card key={route.id} className="hover:shadow-elegant transition-shadow">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Route className="w-5 h-5 text-primary" />
+                        {route.name}
+                      </CardTitle>
+                      <CardDescription className="flex items-center gap-2 mt-1">
+                        <MapPin className="w-4 h-4" />
+                        Empresa #{route.company}
+                      </CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Inicio:</span>
+                        <span className="font-medium">{formatDate(route.start_date)}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Fin:</span>
+                        <span className="font-medium">{route.end_date ? formatDate(route.end_date) : "Sin fin"}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Semana:</span>
+                        <span className="font-medium">
+                          {WEEKDAY_LABELS[route.week_start] || "-"} - {WEEKDAY_LABELS[route.week_end] || "-"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">Trabajador:</span>
+                        <span className="font-medium">{assignedWorkerId ? 1 : 0}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {!assignedWorkerLabel ? (
+                          <Badge variant="outline">Sin asignar</Badge>
+                        ) : (
+                          <Badge variant="outline">{assignedWorkerLabel}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {generatedDays.length > 0 && (
+                    <div className="pt-2 border-t border-border">
+                      <p className="text-sm font-medium mb-2 text-left">Ultima generacion semanal:</p>
+                      <div className="space-y-1">
+                        {generatedDays.slice(0, 7).map((day) => (
+                          <div key={day.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span>{formatDate(day.date)}</span>
+                            <span>{day.stops} paradas</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                    <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
+                      Ver detalle
+                    </RouteActionButton>
+                    <RouteActionButton size="sm" tone="primary" icon={Route} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/execute`)}>
+                      Realizar ruta
+                    </RouteActionButton>
+                  </div>
+
+                  {canManageRoutes && (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                      <RouteActionButton size="sm" tone="secondary" icon={Edit} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/edit`)}>
+                        Editar
+                      </RouteActionButton>
+                      <RouteActionButton size="sm" tone="accent" icon={WandSparkles} className="w-full justify-start sm:justify-center" onClick={() => askGenerateWeek(route)}>
+                        Generar semana
+                      </RouteActionButton>
+                      <RouteActionButton size="sm" tone="danger" className="sm:w-10 sm:px-0" onClick={() => askDelete(route)}>
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sm:hidden">Eliminar</span>
+                      </RouteActionButton>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
-      {filteredRoutes.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-12">
-            <Route className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground">No se encontraron rutas con los criterios seleccionados</p>
-          </CardContent>
-        </Card>
+      {canManageRoutes && (
+        <GenerateWeekDialog
+          open={generateModalOpen}
+          onOpenChange={setGenerateModalOpen}
+          weekStartDate={weekStartDate}
+          onWeekStartDateChange={setWeekStartDate}
+          dailyCapacityLiters={dailyCapacityLiters}
+          onDailyCapacityLitersChange={setDailyCapacityLiters}
+          regenerate={regenerate}
+          onRegenerateChange={setRegenerate}
+          autoEstimateWithoutContact={autoEstimateWithoutContact}
+          onAutoEstimateWithoutContactChange={setAutoEstimateWithoutContact}
+          checkingWeekGenerationContext={checkingWeekGenerationContext}
+          hasExistingWeekStops={hasExistingWeekStops}
+          submittingGenerate={submittingGenerate}
+          onSubmit={handleGenerateWeek}
+        />
       )}
 
-      {/* Route Optimization CTA */}
-      <Card className="bg-gradient-primary text-primary-foreground">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <Navigation className="w-12 h-12 mx-auto mb-4 opacity-90" />
-            <h3 className="text-xl font-semibold mb-2">Optimiza tus rutas automáticamente</h3>
-            <p className="opacity-90 mb-4">
-              Usa nuestro algoritmo de optimización para crear rutas más eficientes y reducir tiempos
-            </p>
-            <Button variant="secondary" className="gap-2">
-              <Route className="w-4 h-4" />
-              Optimizar Rutas
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {canManageRoutes && (
+        <ConfirmDeleteDialog
+          open={deleteOpen}
+          onOpenChange={setDeleteOpen}
+          title="Eliminar ruta"
+          description={toDelete ? `Se va a eliminar la ruta "${toDelete.name}". Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+          confirmLabel="Eliminar"
+          onConfirm={handleDelete}
+          loading={deleting}
+        />
+      )}
     </div>
   );
 }

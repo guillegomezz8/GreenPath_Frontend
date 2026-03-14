@@ -16,11 +16,21 @@ import {
   Button,
 } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import { normalizeRoleType, getRoleLabel } from "@/components/Utils";
 
 const AuthContext = createContext();
 const apiUrl = import.meta.env.VITE_APP_API_URL;
 
 export const useAuth = () => useContext(AuthContext);
+
+const normalizeAuthUser = (userData = {}) => {
+  const normalizedRoleType = normalizeRoleType(userData?.role_type);
+  return {
+    ...(userData || {}),
+    role_type: normalizedRoleType,
+    role_label: getRoleLabel(normalizedRoleType),
+  };
+};
 
 export const AuthProvider = ({ children }) => {
   const [authenticated, setAuthenticated] = useState(false);
@@ -98,11 +108,11 @@ export const AuthProvider = ({ children }) => {
 
       const decoded = jwtDecode(accessToken);
 
-      const userWithRoles = {
+      const userWithRoles = normalizeAuthUser({
         ...userData,
         roles: userData.role_type,
         ...decoded,
-      };
+      });
 
       localStorage.setItem("AccessToken", accessToken);
       localStorage.setItem("UserData", JSON.stringify(userWithRoles));
@@ -115,7 +125,11 @@ export const AuthProvider = ({ children }) => {
       
       startTokenTimer(accessToken);
 
-      navigate("/clients", { replace: true });
+      const roleType = userWithRoles?.role_type;
+      let targetPath = "/dashboard";
+      if (roleType === "worker") targetPath = "/routes";
+      if (roleType === "client") targetPath = "/my-requests";
+      navigate(targetPath, { replace: true });
 
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
@@ -139,10 +153,10 @@ export const AuthProvider = ({ children }) => {
 
       const decoded = jwtDecode(accessToken);
 
-      const userWithRoles = {
+      const userWithRoles = normalizeAuthUser({
         ...userData,
         ...decoded,
-      };
+      });
 
       console.log("Datos del usuario de Google:", userWithRoles);
 
@@ -189,10 +203,11 @@ export const AuthProvider = ({ children }) => {
         ...user,
         ...decoded,
       };
+      const normalizedUpdatedUser = normalizeAuthUser(updatedUser);
 
-      setUser(updatedUser);
+      setUser(normalizedUpdatedUser);
       localStorage.setItem("AccessToken", newAccessToken);
-      localStorage.setItem("UserData", JSON.stringify(updatedUser));
+      localStorage.setItem("UserData", JSON.stringify(normalizedUpdatedUser));
       
       startTokenTimer(newAccessToken);
       handleModalClose();
@@ -202,6 +217,14 @@ export const AuthProvider = ({ children }) => {
       handleLogout();
     }
   };
+
+  const updateAuthUser = useCallback((partialUserData = {}) => {
+    setUser((prev) => {
+      const next = normalizeAuthUser({ ...(prev || {}), ...(partialUserData || {}) });
+      localStorage.setItem("UserData", JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const api = useCallback(() => {
     const token = localStorage.getItem("AccessToken");
@@ -237,7 +260,9 @@ export const AuthProvider = ({ children }) => {
         const savedUser = localStorage.getItem("UserData");
         if (savedUser) {
           const parsedUser = JSON.parse(savedUser);
-          setUser(parsedUser);
+          const normalizedUser = normalizeAuthUser(parsedUser);
+          setUser(normalizedUser);
+          localStorage.setItem("UserData", JSON.stringify(normalizedUser));
           setAuthenticated(true);
         }
 
@@ -282,6 +307,7 @@ export const AuthProvider = ({ children }) => {
         googleLogin,
         logout: handleLogout,
         api,
+        updateAuthUser,
         isLoading,
       }}
     >
@@ -306,3 +332,4 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+

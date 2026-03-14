@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, formatNumber, formatCurrency } from "@/components/Utils";
+import { handleApiError, formatNumber, formatCurrency, normalizeCollectionStatus, getCollectionStatusClass, getCollectionStatusLabel, getPickupFrequencyClass, getPickupFrequencyLabel } from "@/components/Utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, MapPin, Phone, Mail, Calendar, Truck,
@@ -23,12 +23,21 @@ export default function ClientDetail() {
 
   const [client, setClient] = useState(null);
   const [total_liters, setTotalLiters] = useState(0);
-  const [media, setMedia] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [collectionHistory, setCollectionHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyStats, setHistoryStats] = useState({
+    total_collections: 0,
+    effective_collections: 0,
+    confirmed_collections: 0,
+    pending_collections: 0,
+    canceled_collections: 0,
+    total_liters: 0,
+    avg_liters: 0,
+    total_paid: 0,
+  });
 
   const [histPage, setHistPage] = useState(1);
   const [histPageSize] = useState(5);
@@ -61,13 +70,32 @@ export default function ClientDetail() {
       setHistoryLoading(true);
       const { data } = await api().get(`clients/historial/${encodeURIComponent(clientId)}/`);
       setCollectionHistory(data?.historial ?? []);
-      setTotalLiters(Number(data?.total_liters ?? 0));
-      setMedia(Number(data?.media ?? 0));
+      setTotalLiters(Number(data?.total_liters ?? data?.stats?.total_liters ?? 0));
+      setHistoryStats({
+        total_collections: Number(data?.stats?.total_collections ?? 0),
+        effective_collections: Number(data?.stats?.effective_collections ?? 0),
+        confirmed_collections: Number(data?.stats?.confirmed_collections ?? 0),
+        pending_collections: Number(data?.stats?.pending_collections ?? 0),
+        canceled_collections: Number(data?.stats?.canceled_collections ?? 0),
+        total_liters: Number(data?.stats?.total_liters ?? data?.total_liters ?? 0),
+        avg_liters: Number(data?.stats?.avg_liters ?? data?.media ?? 0),
+        total_paid: Number(data?.stats?.total_paid ?? 0),
+      });
       setHistPage(1);
     } catch (e) {
       const message = handleApiError(e, "Error inesperado obteniendo historial de recogidas.");
       showSnackbar(message, "error");
       setCollectionHistory([]);
+      setHistoryStats({
+        total_collections: 0,
+        effective_collections: 0,
+        confirmed_collections: 0,
+        pending_collections: 0,
+        canceled_collections: 0,
+        total_liters: 0,
+        avg_liters: 0,
+        total_paid: 0,
+      });
     } finally {
       setHistoryLoading(false);
     }
@@ -82,39 +110,6 @@ export default function ClientDetail() {
     fetchClient(id);
     fetchHistorial(id);
   }, [id]);
-
-  const getFrequencyColor = (freq) => {
-    switch (freq) {
-      case "Cada semana":
-        return "bg-success text-success-foreground";
-      case "Cada 2 semanas":
-        return "bg-blue-600 text-white";
-      case "Cada 3 semanas":
-        return "bg-orange-500 text-white";
-      case "Cada 4 semanas":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
-  const getCollectionStatusClass = (status) => {
-    switch ((status || "").toUpperCase()) {
-      case "COMPLETED":
-      case "COMPLETADA":
-        return "bg-success text-success-foreground";
-      case "PENDING":
-      case "PENDIENTE":
-        return "bg-blue-600 text-white";
-      case "CANCELLED":
-      case "CANCELADA":
-      case "CANCELED":
-        return "bg-red-600 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
   const handleDelete = async () => {
     if (!id) return;
     try {
@@ -145,21 +140,17 @@ export default function ClientDetail() {
   const lastCollection = client?.last_pick_up ?? "—";
   const companiesCount = Array.isArray(client?.companies) ? client.companies.length : 0;
 
-  const totalPaid = asNum(client?.total_paid);
-  const pickups = collectionHistory.length;
-  const completed = collectionHistory.filter((c) =>
-    ["COMPLETED", "COMPLETADA"].includes((c.status || "").toUpperCase())
-  ).length;
-  const pending = collectionHistory.filter((c) =>
-    ["PENDING", "PENDIENTE"].includes((c.status || "").toUpperCase())
-  ).length;
-  const canceled = collectionHistory.filter((c) =>
-    ["CANCELLED", "CANCELADA", "CANCELED"].includes((c.status || "").toUpperCase())
-  ).length;
+  const totalPaid = asNum(historyStats.total_paid || client?.total_paid);
+  const pickups = asNum(historyStats.total_collections);
+  const effectivePickups = asNum(historyStats.effective_collections);
+  const completed = asNum(historyStats.confirmed_collections);
+  const pending = asNum(historyStats.pending_collections);
+  const canceled = asNum(historyStats.canceled_collections);
 
-  const litersPerPickup = pickups > 0 ? total_liters / pickups : 0;
+  const litersPerPickup = effectivePickups > 0 ? total_liters / effectivePickups : 0;
+  const avgLiters = asNum(historyStats.avg_liters) || litersPerPickup;
   const euroPerLiter = total_liters > 0 ? totalPaid / total_liters : 0;
-  const avgTicket = pickups > 0 ? totalPaid / pickups : 0;
+  const avgTicket = completed > 0 ? totalPaid / completed : 0;
   const completionRate = pickups > 0 ? (completed / pickups) * 100 : 0;
 
   const parseISO = (s) => (s ? new Date(`${s}T00:00:00`) : null);
@@ -174,14 +165,13 @@ export default function ClientDetail() {
     const d = parseISO(s);
     return d && d >= monthStart && d < nextMonthStart;
   };
-  const isCompleted = (status) =>
-    ["COMPLETED", "COMPLETADA"].includes((status || "").toUpperCase());
+  const isCompleted = (status) => normalizeCollectionStatus(status) === "CONFIRMED";
 
   const monthCollections = collectionHistory.filter(
     (c) => isCompleted(c.status) && isInCurrentMonth(c.collection_date)
   );
   const currentMonthLiters = monthCollections.reduce(
-    (acc, c) => acc + Number(c.liters_collected || 0),
+    (acc, c) => acc + Number(c.net_liters || 0),
     0
   );
   const currentMonthCount = monthCollections.length;
@@ -273,8 +263,8 @@ export default function ClientDetail() {
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <Badge className={getFrequencyColor(frequency)}>
-              {loading ? "—" : frequency}
+            <Badge className={getPickupFrequencyClass(frequency)}>
+              {loading ? "—" : getPickupFrequencyLabel(frequency)}
             </Badge>
             <p className="text-sm text-muted-foreground mt-2">Frecuencia</p>
           </CardContent>
@@ -374,20 +364,25 @@ export default function ClientDetail() {
               ) : (
                 <>
                   <div className="space-y-3">
-                    {historyPageItems.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex items-center gap-3">
-                          <Package className="w-5 h-5 text-muted-foreground" />
-                          <div className="text-left">
-                            <p className="font-medium">{c.collection_date} · {c.route_name ??  "Ruta Desconocido"}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {c.container_number} {c.container_type} / {c.liters_collected} L / {c.total_price} €
-                            </p>
+                    {historyPageItems.map((c) => {
+                      const normalizedStatus = normalizeCollectionStatus(c.status);
+                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
+                      const priceLabel = normalizedStatus === "CONFIRMED" ? `${c.total_price} EUR` : "-";
+                      return (
+                        <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Package className="w-5 h-5 text-muted-foreground" />
+                            <div className="text-left">
+                              <p className="font-medium">{c.collection_date} - {c.route_name ?? "Ruta Desconocida"}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {c.container_number} {c.container_type} / {litersLabel} / {priceLabel}
+                              </p>
+                            </div>
                           </div>
+                          <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
                         </div>
-                        <Badge className={getCollectionStatusClass(c.status)}>{c.status}</Badge>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
@@ -499,13 +494,13 @@ export default function ClientDetail() {
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Ticket medio</span>
                       <span className="text-sm font-semibold">
-                        {pickups ? formatCurrency(avgTicket) : "—"}
+                        {completed ? formatCurrency(avgTicket) : "—"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Litros por recogida</span>
                       <span className="text-sm font-semibold">
-                        {pickups ? `${Math.round(litersPerPickup)} L` : "—"}
+                        {effectivePickups ? `${Math.round(avgLiters)} L` : "—"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
@@ -550,3 +545,4 @@ export default function ClientDetail() {
     </div>
   );
 }
+
