@@ -2,7 +2,7 @@ import { useEffect, useMemo } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { CalendarDays, ClipboardCheck, MapPinned, Navigation2, Play, Route as RouteIcon, Square, Warehouse } from "lucide-react";
+import { CalendarDays, ClipboardCheck, MapPinned, Navigation2, Play, Route as RouteIcon, Square } from "lucide-react";
 import {
   getCollectionRequestStatusClass,
   getCollectionRequestStatusLabel,
@@ -13,7 +13,7 @@ import {
   normalizeCollectionStatus,
 } from "@/components/Utils";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RouteActionButton from "@/components/routes/RouteActionButton";
 
@@ -212,16 +212,13 @@ export default function RouteDayMap({
 
   return (
     <Card className="overflow-hidden border-border/80 bg-card/95">
-      <CardHeader className="pb-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div className="space-y-1 text-left">
-            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-              <MapPinned className="h-5 w-5 text-primary" />
-              Ejecucion de ruta
-            </CardTitle>
-            <CardDescription>
-              Selecciona una jornada, visualiza el recorrido y registra la parada activa desde una sola vista.
-            </CardDescription>
+      <CardContent className="space-y-3 p-2.5 sm:space-y-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-left">
+            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <MapPinned className="h-4 w-4 text-primary" />
+              Realizacion de ruta
+            </p>
           </div>
           {selectedRouteDay ? (
             <div className="flex flex-wrap items-center gap-2">
@@ -232,14 +229,26 @@ export default function RouteDayMap({
                 <CalendarDays className="mr-1 h-3.5 w-3.5" />
                 {formatDate(selectedRouteDay.date)}
               </Badge>
-              <Badge variant="outline">{orderedStops.length} paradas</Badge>
             </div>
           ) : null}
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-4">
-        <div className="flex snap-x gap-2 overflow-x-auto pb-1">
+        <div className="md:hidden">
+          <Select value={selectedRouteDay ? String(selectedRouteDay.id) : ""} onValueChange={(value) => onSelectRouteDay?.(value)}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Selecciona jornada" />
+            </SelectTrigger>
+            <SelectContent>
+              {routeDays.map((routeDay) => (
+                <SelectItem key={routeDay.id} value={String(routeDay.id)}>
+                  {formatDate(routeDay.date)} - {getRouteStatusLabel(routeDay.status)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="hidden snap-x gap-2 overflow-x-auto pb-1 md:flex">
           {routeDays.map((routeDay) => {
             const selected = String(routeDay.id) === String(selectedRouteDay?.id);
             return (
@@ -264,17 +273,15 @@ export default function RouteDayMap({
         </div>
 
         {selectedRouteDay ? (
-          <div className="grid items-start gap-4 2xl:grid-cols-[minmax(0,1.7fr)_360px]">
-            <div className="overflow-hidden rounded-3xl border border-border/80 bg-background/70 shadow-elegant">
+          <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.45fr)_340px] xl:gap-4">
+            <div className="order-2 overflow-hidden rounded-3xl border border-border/80 bg-background/70 shadow-elegant xl:order-1">
               <div className="flex flex-col gap-2 border-b border-border/80 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 text-left">
                 <p className="text-sm font-semibold text-foreground">Recorrido del dia</p>
-                <p className="text-xs text-muted-foreground">
-                  {hub?.name ? `Salida desde ${hub.name}.` : "Sin hub configurado para esta empresa."}
-                </p>
+                <p className="text-xs text-muted-foreground">Mapa operativo de la jornada seleccionada.</p>
               </div>
 
               {mapPoints.length === 0 ? (
-                <div className="flex min-h-[420px] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+                <div className="flex min-h-[340px] flex-col items-center justify-center gap-2 px-6 py-10 text-center sm:min-h-[420px] lg:min-h-[520px] xl:min-h-[620px]">
                   <RouteIcon className="h-10 w-10 text-primary/70" />
                   <p className="text-sm font-medium text-foreground">No hay coordenadas suficientes para dibujar el recorrido.</p>
                   <p className="max-w-md text-xs text-muted-foreground">
@@ -286,7 +293,7 @@ export default function RouteDayMap({
                   center={mapPoints[0]}
                   zoom={12}
                   scrollWheelZoom
-                  className="h-[300px] w-full sm:h-[380px] lg:h-[460px] xl:h-[560px] 2xl:h-[640px]"
+                  className="h-[320px] w-full sm:h-[420px] md:h-[480px] lg:h-[540px] xl:h-[620px]"
                 >
                   <TileLayer
                     attribution="&copy; OpenStreetMap contributors"
@@ -346,13 +353,10 @@ export default function RouteDayMap({
               )}
             </div>
 
-            <div className="space-y-4 2xl:sticky 2xl:top-24">
-              <div className="rounded-3xl border border-border/80 bg-background/85 p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-foreground">Acciones del dia</p>
-                    <p className="text-xs text-muted-foreground">La operativa se concentra sobre la jornada seleccionada.</p>
-                  </div>
+            <div className="order-1 space-y-3 xl:order-2 xl:sticky xl:top-24 xl:space-y-4">
+              <div className="rounded-3xl border border-border/80 bg-background/85 p-3 sm:p-4">
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-foreground">Acciones del dia</p>
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2">
@@ -360,11 +364,16 @@ export default function RouteDayMap({
                     size="sm"
                     tone="secondary"
                     icon={Navigation2}
-                    className="justify-start"
+                    className="justify-start text-left"
                     disabled={!selectedRouteDay?.id || workingRouteDayId === selectedRouteDay.id || orderedStops.length === 0}
                     onClick={() => onOpenGoogleNavigation?.(selectedRouteDay.id)}
                   >
-                    {workingRouteDayId === selectedRouteDay.id ? "Preparando Google..." : "Abrir navegacion en Google"}
+                    {workingRouteDayId === selectedRouteDay.id ? "Preparando..." : (
+                      <>
+                        <span className="sm:hidden">Abrir Google</span>
+                        <span className="hidden sm:inline">Abrir navegacion en Google</span>
+                      </>
+                    )}
                   </RouteActionButton>
 
                   {(selectedRouteDay.status === "PLANNED" || selectedRouteDay.status === "PARTIAL") ? (
@@ -372,7 +381,7 @@ export default function RouteDayMap({
                       size="sm"
                       tone="accent"
                       icon={Play}
-                      className="justify-start"
+                      className="justify-start text-left"
                       disabled={workingRouteDayId === selectedRouteDay.id}
                       onClick={() => onStartRouteDay?.(selectedRouteDay.id)}
                     >
@@ -385,7 +394,7 @@ export default function RouteDayMap({
                       size="sm"
                       tone="danger"
                       icon={Square}
-                      className="justify-start"
+                      className="justify-start text-left"
                       disabled={workingRouteDayId === selectedRouteDay.id}
                       onClick={() => onFinishRouteDay?.(selectedRouteDay.id)}
                     >
@@ -394,7 +403,7 @@ export default function RouteDayMap({
                   ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="mt-4 grid grid-cols-2 gap-2">
                   <div className="rounded-2xl border border-border/80 bg-primary/5 px-3 py-3 text-left">
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Pend.</p>
                     <p className="mt-1 text-lg font-semibold text-foreground">{daySummary.pending}</p>
@@ -407,44 +416,16 @@ export default function RouteDayMap({
                     <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Canc.</p>
                     <p className="mt-1 text-lg font-semibold text-rose-700">{daySummary.canceled}</p>
                   </div>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-border/80 bg-background/85 p-4">
-                <div className="flex items-center gap-2 text-left">
-                  <Warehouse className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-semibold text-foreground">Resumen de jornada</p>
-                </div>
-                <div className="mt-3 space-y-2 text-left text-sm">
-                  <p><span className="text-muted-foreground">Hub:</span> {hub?.name || "Sin hub configurado"}</p>
-                  <p><span className="text-muted-foreground">Fecha:</span> {formatDate(selectedRouteDay.date)}</p>
-                  <p>
-                    <span className="text-muted-foreground">Estado:</span>{" "}
-                    <Badge className={getRouteStatusClass(selectedRouteDay.status)}>{getRouteStatusLabel(selectedRouteDay.status)}</Badge>
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Capacidad:</span>{" "}
-                    {selectedRouteDay.daily_capacity_liters !== null && selectedRouteDay.daily_capacity_liters !== undefined && selectedRouteDay.daily_capacity_liters !== ""
-                      ? `${formatLiters(selectedRouteDay.daily_capacity_liters)} L`
-                      : "Sin definir"}
-                  </p>
-                  {selectedRouteDay.started_at ? (
-                    <p><span className="text-muted-foreground">Inicio real:</span> {formatDateTime(selectedRouteDay.started_at)}</p>
-                  ) : (
-                    <p><span className="text-muted-foreground">Inicio real:</span> Pendiente</p>
-                  )}
-                  {selectedRouteDay.finished_at ? (
-                    <p><span className="text-muted-foreground">Fin real:</span> {formatDateTime(selectedRouteDay.finished_at)}</p>
-                  ) : selectedRouteDay.status === "IN_PROGRESS" ? (
-                    <p><span className="text-muted-foreground">Fin real:</span> Jornada en curso</p>
-                  ) : null}
                   {daySummary.withoutLocation > 0 ? (
-                    <p className="text-amber-700">{daySummary.withoutLocation} clientes sin coordenadas no aparecen en el mapa.</p>
+                    <div className="rounded-2xl border border-border/80 bg-amber-500/10 px-3 py-3 text-left">
+                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Sin coord.</p>
+                      <p className="mt-1 text-lg font-semibold text-amber-700">{daySummary.withoutLocation}</p>
+                    </div>
                   ) : null}
                 </div>
               </div>
 
-              <div className="rounded-3xl border border-border/80 bg-background/85 p-4">
+              <div className="rounded-3xl border border-border/80 bg-background/85 p-3 sm:p-4">
                 <div className="text-left">
                   <p className="text-sm font-semibold text-foreground">Parada activa</p>
                   <p className="text-xs text-muted-foreground">Selecciona la siguiente parada pendiente para registrarla.</p>
@@ -474,7 +455,7 @@ export default function RouteDayMap({
                     </Select>
 
                     {activeStop ? (
-                      <div className="rounded-2xl border border-border/80 bg-muted/20 p-4 text-left">
+                      <div className="rounded-2xl border border-border/80 bg-muted/20 p-3 text-left sm:p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0">
                             <p className="font-semibold text-foreground">#{activeStop.order} - {activeStop.client_name}</p>
@@ -510,7 +491,8 @@ export default function RouteDayMap({
                           disabled={selectedRouteDay.status !== "IN_PROGRESS"}
                           onClick={() => onCollectStop?.(selectedRouteDay, activeStop)}
                         >
-                          Recoger parada seleccionada
+                          <span className="sm:hidden">Registrar parada</span>
+                          <span className="hidden sm:inline">Recoger parada seleccionada</span>
                         </RouteActionButton>
                       </div>
                     ) : null}

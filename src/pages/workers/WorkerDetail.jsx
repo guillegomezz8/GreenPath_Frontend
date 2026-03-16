@@ -210,8 +210,7 @@ export default function WorkerDetail() {
         </div>
 
         {/* Right section: Action buttons */}
-        <div className="flex gap-2 sm:gap-3 flex-shrink-0 self-start lg:self-center">
-          {/* Edit button */}
+        <div className="flex gap-2 sm:gap-3 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"
@@ -223,7 +222,6 @@ export default function WorkerDetail() {
             <span className="hidden xs:inline sm:hidden md:inline">Editar</span>
           </Button>
 
-          {/* Delete button */}
           <Button
             variant={toggleButtonVariant}
             size="sm"
@@ -238,7 +236,11 @@ export default function WorkerDetail() {
               </>
             ) : (
               <>
-                {React.createElement(toggleButtonIcon, { className: "w-4 h-4 sm:mr-2 flex-shrink-0" })}
+                {toggleButtonIcon === UserCheck ? (
+                  <UserCheck className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                ) : (
+                  <Trash2 className="w-4 h-4 sm:mr-2 flex-shrink-0" />
+                )}
                 <span className="hidden xs:inline sm:hidden md:inline">{toggleButtonText}</span>
               </>
             )}

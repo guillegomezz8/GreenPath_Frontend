@@ -5,7 +5,6 @@ import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError, normalizeCollectionStatus } from "@/components/Utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -15,8 +14,6 @@ import { Textarea } from "@/components/ui/textarea";
 import RouteDayMap from "@/components/routes/RouteDayMap";
 import RouteActionButton from "@/components/routes/RouteActionButton";
 import { ArrowLeft, Calendar, ClipboardCheck, Eye, RefreshCcw } from "lucide-react";
-
-const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 const CONTAINER_TYPES = [
   { value: "BIDONES", label: "Bidones (60L)" },
   { value: "IBC", label: "IBC (1000L)" },
@@ -40,11 +37,6 @@ function formatLiters(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return "-";
   return parsed.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-}
-
-function formatCapacityLiters(value) {
-  if (value === null || value === undefined || value === "") return "Sin definir";
-  return `${formatLiters(value)} L`;
 }
 
 function getContainerCapacity(containerType) {
@@ -76,7 +68,6 @@ export default function RouteExecution() {
 
   const [loading, setLoading] = useState(false);
   const [overview, setOverview] = useState({ route: null, route_days: [] });
-  const [workersMap, setWorkersMap] = useState({});
   const [weekFilter, setWeekFilter] = useState("");
   const [selectedMapRouteDayId, setSelectedMapRouteDayId] = useState("");
   const [selectedStopByRouteDay, setSelectedStopByRouteDay] = useState({});
@@ -93,20 +84,6 @@ export default function RouteExecution() {
     mark_as_canceled: false,
     force: false,
   });
-
-  const fetchWorkers = useCallback(async () => {
-    try {
-      const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
-      const items = Array.isArray(res.data?.results) ? res.data.results : [];
-      const map = {};
-      items.forEach((worker) => {
-        map[worker.id] = `${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username || `Trabajador ${worker.id}`;
-      });
-      setWorkersMap(map);
-    } catch {
-      setWorkersMap({});
-    }
-  }, [api]);
 
   const fetchOverview = useCallback(async () => {
     if (!id) return;
@@ -128,10 +105,6 @@ export default function RouteExecution() {
   }, [api, id, showSnackbar, weekFilter]);
 
   useEffect(() => {
-    fetchWorkers();
-  }, [fetchWorkers]);
-
-  useEffect(() => {
     fetchOverview();
   }, [fetchOverview]);
 
@@ -144,20 +117,6 @@ export default function RouteExecution() {
       return plannedStops > 0 || ["IN_PROGRESS", "PARTIAL", "COMPLETED", "CANCELED"].includes(routeDay?.status);
     });
   }, [routeDays]);
-
-  const assignedWorkerLabel = useMemo(() => {
-    const workerId = overview.route?.worker;
-    if (!workerId) return "Sin asignar";
-    return workersMap[workerId] || `Trabajador ${workerId}`;
-  }, [overview.route?.worker, workersMap]);
-
-  const routeDefaultCapacityLabel = useMemo(() => {
-    const routeDayWithCapacity = executionRouteDays.find(
-      (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
-    );
-    if (routeDayWithCapacity) return formatCapacityLiters(routeDayWithCapacity.daily_capacity_liters);
-    return formatCapacityLiters(overview.route?.default_daily_capacity_liters);
-  }, [executionRouteDays, overview.route?.default_daily_capacity_liters]);
 
   useEffect(() => {
     if (executionRouteDays.length === 0) {
@@ -269,6 +228,11 @@ export default function RouteExecution() {
         showSnackbar("No se pudo generar el enlace de navegacion.", "error");
         return;
       }
+      const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent || "");
+      if (isMobileDevice) {
+        window.location.assign(navigationUrl);
+        return;
+      }
       window.open(navigationUrl, "_blank", "noopener,noreferrer");
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la navegacion de Google.");
@@ -340,44 +304,19 @@ export default function RouteExecution() {
         </RouteActionButton>
       </div>
 
-      <Card className="overflow-hidden">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
-            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4 2xl:flex-1">
-              <div className="rounded-2xl border border-border/80 bg-background/80 px-4 py-3 text-left">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Trabajador</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{assignedWorkerLabel}</p>
-              </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 px-4 py-3 text-left">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Semana operativa</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">
-                  {WEEKDAY_LABELS[overview.route?.week_start ?? 0]} - {WEEKDAY_LABELS[overview.route?.week_end ?? 6]}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 px-4 py-3 text-left">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Capacidad diaria</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{routeDefaultCapacityLabel}</p>
-              </div>
-              <div className="rounded-2xl border border-border/80 bg-background/80 px-4 py-3 text-left">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Dias con paradas</p>
-                <p className="mt-1 text-sm font-semibold text-foreground">{executionRouteDays.length}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto] sm:items-end">
-              <div className="min-w-0 space-y-2">
-                <Label htmlFor="weekFilter">Semana</Label>
-                <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
-              </div>
-              <RouteActionButton tone="secondary" className="w-full sm:w-auto" onClick={fetchOverview} disabled={loading}>
-                <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-                Refrescar
-              </RouteActionButton>
-              <RouteActionButton tone="secondary" className="w-full sm:w-auto" onClick={() => setWeekFilter("")}>Actual</RouteActionButton>
-            </div>
+      <div className="rounded-3xl border border-border/80 bg-card/95 p-4 shadow-sm sm:p-5">
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
+          <div className="min-w-0 space-y-2">
+            <Label htmlFor="weekFilter">Semana</Label>
+            <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
           </div>
-        </CardContent>
-      </Card>
+          <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={fetchOverview} disabled={loading}>
+            <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Refrescar
+          </RouteActionButton>
+          <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={() => setWeekFilter("")}>Semana actual</RouteActionButton>
+        </div>
+      </div>
 
       {loading ? (
         <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
@@ -461,13 +400,13 @@ export default function RouteExecution() {
       </Dialog>
 
       <Dialog open={completeModalOpen} onOpenChange={setCompleteModalOpen}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Registrar parada</DialogTitle>
+        <DialogContent className="max-h-[92vh] w-[calc(100vw-0.5rem)] max-w-[calc(100vw-0.5rem)] overflow-hidden rounded-3xl p-0 sm:max-w-lg">
+          <DialogHeader className="border-b border-border/70 px-4 py-4 text-left sm:px-6">
+            <DialogTitle>Guardar recogida</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-1 rounded-lg border border-border p-3 text-left">
+          <div className="max-h-[calc(92vh-8.5rem)] space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            <div className="space-y-1 rounded-2xl border border-border p-3 text-left">
               <p className="font-medium">{activeStop?.stop?.client_name || "Cliente"}</p>
               <p className="text-xs text-muted-foreground">{activeStop?.stop?.client_address || "-"}</p>
               <div className="flex flex-wrap gap-2 pt-1">
@@ -482,7 +421,7 @@ export default function RouteExecution() {
             <p className="text-left text-xs text-muted-foreground">
               La medicion y el ajuste de litros se hace en nave, no en esta parada.
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="container_type">Tipo de envase</Label>
                 <Select
@@ -513,7 +452,7 @@ export default function RouteExecution() {
                 />
               </div>
             </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left text-xs">
+            <div className="rounded-2xl border border-border bg-muted/20 p-3 text-left text-xs">
               <p>
                 <span className="text-muted-foreground">Plan base esperado:</span>{" "}
                 {(() => {
@@ -525,7 +464,13 @@ export default function RouteExecution() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="notes">Notas</Label>
-              <Textarea id="notes" value={completePayload.notes} onChange={(e) => setCompletePayload((prev) => ({ ...prev, notes: e.target.value }))} rows={4} />
+              <Textarea
+                id="notes"
+                value={completePayload.notes}
+                onChange={(e) => setCompletePayload((prev) => ({ ...prev, notes: e.target.value }))}
+                rows={4}
+                className="min-h-[112px]"
+              />
             </div>
             <div className="flex items-start gap-2">
               <Checkbox
@@ -545,12 +490,14 @@ export default function RouteExecution() {
             </div>
           </div>
 
-          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button className="w-full sm:w-auto" variant="outline" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCompleteStop} disabled={submittingStop} className="w-full gap-2 sm:w-auto">
-              <ClipboardCheck className="h-4 w-4" />
-              {submittingStop ? "Registrando..." : "Registrar parada"}
-            </Button>
+          <DialogFooter className="border-t border-border/70 px-4 py-4 sm:px-6">
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button className="w-full sm:w-auto" variant="outline" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleCompleteStop} disabled={submittingStop} className="w-full gap-2 sm:w-auto">
+                <ClipboardCheck className="h-4 w-4" />
+                {submittingStop ? "Guardando..." : "Guardar recogida"}
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

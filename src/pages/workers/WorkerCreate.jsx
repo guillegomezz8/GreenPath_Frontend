@@ -30,7 +30,7 @@ export default function WorkerCreate() {
     email: "",
     get_access: false,
 
-    role: "WORKER",
+    role: "worker",
     name: "",
     surname: "",
     address: "",
@@ -71,7 +71,7 @@ export default function WorkerCreate() {
           username: formData.username,
           email: formData.email,
         }));
-        fd.append("role", formData.role || "WORKER");
+        fd.append("role", formData.role || "worker");
         fd.append("name", formData.name || "");
         fd.append("surname", formData.surname || "");
         fd.append("address", formData.address || "");
@@ -218,21 +218,23 @@ export default function WorkerCreate() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono</Label>
+                <Label htmlFor="phone">Telefono *</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   placeholder="+34 666 000 000"
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dni">DNI</Label>
+                <Label htmlFor="dni">DNI *</Label>
                 <Input
                   id="dni"
                   value={formData.dni}
                   onChange={(e) => update("dni", e.target.value)}
                   placeholder="12345678Z"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -252,7 +254,7 @@ export default function WorkerCreate() {
                   htmlFor="address"
                   className="text-sm font-medium text-foreground"
                 >
-                  Dirección
+                  Direccion *
                 </Label>
                 <Input
                   id="address"
@@ -260,6 +262,7 @@ export default function WorkerCreate() {
                   onChange={(e) => update("address", e.target.value)}
                   placeholder="C/ Ejemplo 123, Sevilla"
                   className="w-full text-sm sm:text-base"
+                  required
                 />
               </div>
 
@@ -300,3 +303,5 @@ export default function WorkerCreate() {
     </div>
   );
 }
+
+
