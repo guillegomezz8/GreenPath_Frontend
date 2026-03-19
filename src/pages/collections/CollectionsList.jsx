@@ -21,6 +21,7 @@ import {
   Eye,
   Edit,
   Trash2,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -76,6 +77,7 @@ export default function CollectionsList() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [isCountsOpen, setIsCountsOpen] = useState(false);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
@@ -239,7 +241,47 @@ export default function CollectionsList() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="md:hidden">
+        <Card>
+          <CardContent className="p-0">
+            <button
+              type="button"
+              onClick={() => setIsCountsOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/40"
+            >
+              <span className="text-sm font-medium text-foreground">Ver contadores</span>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isCountsOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isCountsOpen && (
+              <div className="space-y-3 border-t px-4 py-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Total</span>
+                  <span className="text-lg font-bold text-primary">{counts.total}</span>
+                </div>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Pendientes</span>
+                  <span className="text-lg font-bold text-blue-500">{counts.pending}</span>
+                </div>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Confirmadas</span>
+                  <span className="text-lg font-bold text-success">{counts.confirmed}</span>
+                </div>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Canceladas</span>
+                  <span className="text-lg font-bold text-destructive">{counts.canceled}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Litros pagina</span>
+                  <span className="text-lg font-bold text-primary">{Math.round(totalNetLiters)}L</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">{counts.total}</div>

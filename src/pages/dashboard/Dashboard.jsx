@@ -28,6 +28,7 @@ import {
   UserCircle2,
   Clock3,
   Navigation2,
+  ChevronDown,
 } from "lucide-react";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
@@ -85,6 +86,7 @@ export default function Dashboard() {
   });
   const [recentCollections, setRecentCollections] = useState([]);
   const [routeShortcuts, setRouteShortcuts] = useState([]);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -264,7 +266,33 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className={`grid grid-cols-1 md:grid-cols-2 gap-6 ${isClient ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
+      <div className="md:hidden">
+        <Card>
+          <CardContent className="p-0">
+            <button
+              type="button"
+              onClick={() => setIsStatsOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/40"
+            >
+              <span className="text-sm font-medium text-foreground">Ver contadores</span>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isStatsOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isStatsOpen && (
+              <div className="space-y-3 border-t px-4 py-3">
+                {statsData.map((stat) => (
+                  <div key={stat.title} className="flex items-center justify-between border-b pb-2 last:border-b-0 last:pb-0">
+                    <span className="text-sm text-muted-foreground">{stat.title}</span>
+                    <span className={`text-lg font-bold ${stat.color || "text-primary"}`}>{stat.value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className={`hidden gap-6 md:grid md:grid-cols-2 ${isClient ? "lg:grid-cols-4" : "lg:grid-cols-5"}`}>
         {statsData.map((stat) => (
           <StatCard key={stat.title} title={stat.title} value={stat.value} icon={stat.icon} color={stat.color} />
         ))}
@@ -289,7 +317,7 @@ export default function Dashboard() {
                 {recentCollections.map((collection) => (
                   <div
                     key={collection.id}
-                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/50 transition-colors"
+                    className="flex flex-col gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-accent/50 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0">
                       <p className="font-medium text-foreground">{collection.client_name || "Cliente"}</p>
@@ -297,11 +325,12 @@ export default function Dashboard() {
                         {collection.route_name || "Sin ruta"} | {getCollectionStatusLabel(collection.status)}
                       </p>
                     </div>
-                    <div className="flex flex-col items-end gap-1 ml-3">
-                      <Badge className={getCollectionStatusClass(collection.status)}>
+
+                    <div className="flex items-center justify-between gap-3 sm:ml-3 sm:min-w-[118px] sm:flex-col sm:items-end sm:justify-center">
+                      <Badge className={`${getCollectionStatusClass(collection.status)} shrink-0 whitespace-nowrap px-2.5 py-1 text-[11px] leading-none sm:text-xs`}>
                         {getCollectionStatusLabel(collection.status)}
                       </Badge>
-                      <span className="text-xs text-muted-foreground">{formatDate(collection.collection_date)}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{formatDate(collection.collection_date)}</span>
                     </div>
                   </div>
                 ))}

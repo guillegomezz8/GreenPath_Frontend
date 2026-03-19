@@ -19,6 +19,7 @@ import {
   Edit,
   Trash2,
   Plus,
+  ChevronDown,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -63,6 +64,7 @@ export default function RoutesList() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [isStatsOpen, setIsStatsOpen] = useState(false);
   const routeFilterButtonClass = "h-9 rounded-full px-4";
 
   const fetchWorkers = useCallback(async () => {
@@ -287,7 +289,43 @@ export default function RoutesList() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="md:hidden">
+        <Card>
+          <CardContent className="p-0">
+            <button
+              type="button"
+              onClick={() => setIsStatsOpen((prev) => !prev)}
+              className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/40"
+            >
+              <span className="text-sm font-medium text-foreground">Ver contadores</span>
+              <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isStatsOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {isStatsOpen && (
+              <div className="space-y-3 border-t px-4 py-3">
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Total rutas</span>
+                  <span className="text-lg font-bold text-primary">{stats.total}</span>
+                </div>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Con trabajador</span>
+                  <span className="text-lg font-bold text-blue-500">{stats.withWorkers}</span>
+                </div>
+                <div className="flex items-center justify-between border-b pb-2">
+                  <span className="text-sm text-muted-foreground">Sin trabajador</span>
+                  <span className="text-lg font-bold text-orange-500">{stats.withoutWorkers}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Sin fecha fin</span>
+                  <span className="text-lg font-bold text-success">{stats.noEndDate}</span>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="hidden gap-4 md:grid md:grid-cols-4">
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">{stats.total}</div>

@@ -307,7 +307,7 @@ export default function RouteExecution() {
         <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto_auto] md:items-end">
           <div className="min-w-0 space-y-2">
             <Label htmlFor="weekFilter">Semana</Label>
-            <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
+            <Input id="weekFilter" type="date" className="min-w-0 max-w-full" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
           </div>
           <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={fetchOverview} disabled={loading}>
             <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -399,28 +399,34 @@ export default function RouteExecution() {
       </Dialog>
 
       <Dialog open={completeModalOpen} onOpenChange={setCompleteModalOpen}>
-        <DialogContent className="max-h-[92vh] w-[calc(100vw-0.5rem)] max-w-[calc(100vw-0.5rem)] overflow-hidden rounded-3xl p-0 sm:max-w-lg">
-          <DialogHeader className="border-b border-border/70 px-4 py-4 text-left sm:px-6">
+        <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col overflow-hidden rounded-none border-0 p-0 sm:h-auto sm:max-h-[92vh] sm:w-[calc(100vw-1rem)] sm:max-w-xl sm:rounded-3xl sm:border">
+          <DialogHeader className="border-b border-border/70 bg-background px-4 py-4 text-left sm:px-6">
             <DialogTitle>Guardar recogida</DialogTitle>
           </DialogHeader>
 
-          <div className="max-h-[calc(92vh-8.5rem)] space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
-            <div className="space-y-1 rounded-2xl border border-border p-3 text-left">
+          <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <div className="space-y-2 rounded-2xl border border-border bg-muted/20 p-3 text-left sm:p-4">
               <p className="font-medium">{activeStop?.stop?.client_name || "Cliente"}</p>
               <p className="text-xs text-muted-foreground">{activeStop?.stop?.client_address || "-"}</p>
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="grid grid-cols-1 gap-2 pt-1">
                 {activeStop?.stop?.collection_request?.estimated_liters ? (
-                  <Badge variant="outline">Estimados: {activeStop.stop.collection_request.estimated_liters} L</Badge>
+                  <Badge variant="outline" className="w-fit max-w-full">
+                    Estimados: {activeStop.stop.collection_request.estimated_liters} L
+                  </Badge>
                 ) : (
-                  <Badge variant="outline">Estimados: -</Badge>
+                  <Badge variant="outline" className="w-fit">Estimados: -</Badge>
                 )}
-                <Badge variant="outline">Limite respuesta: {formatDateTime(activeStop?.stop?.collection_request?.expires_at)}</Badge>
+                <Badge variant="outline" className="w-fit max-w-full whitespace-normal text-left">
+                  Limite respuesta: {formatDateTime(activeStop?.stop?.collection_request?.expires_at)}
+                </Badge>
               </div>
             </div>
-            <p className="text-left text-xs text-muted-foreground">
+
+            <div className="rounded-2xl border border-border/80 bg-primary/5 p-3 text-left text-xs text-muted-foreground">
               La medicion y el ajuste de litros se hace en nave, no en esta parada.
-            </p>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="container_type">Tipo de envase</Label>
                 <Select
@@ -451,6 +457,7 @@ export default function RouteExecution() {
                 />
               </div>
             </div>
+
             <div className="rounded-2xl border border-border bg-muted/20 p-3 text-left text-xs">
               <p>
                 <span className="text-muted-foreground">Plan base esperado:</span>{" "}
@@ -471,25 +478,35 @@ export default function RouteExecution() {
                 className="min-h-[112px]"
               />
             </div>
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="mark_as_canceled"
-                checked={completePayload.mark_as_canceled}
-                onCheckedChange={(value) => setCompletePayload((prev) => ({ ...prev, mark_as_canceled: Boolean(value) }))}
-              />
-              <Label htmlFor="mark_as_canceled" className="text-sm">Marcar parada como cancelada</Label>
-            </div>
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="force"
-                checked={completePayload.force}
-                onCheckedChange={(value) => setCompletePayload((prev) => ({ ...prev, force: Boolean(value) }))}
-              />
-              <Label htmlFor="force" className="text-sm">Forzar recogida fuera de orden</Label>
+
+            <div className="space-y-3">
+              <label htmlFor="mark_as_canceled" className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/80 p-3 text-left">
+                <Checkbox
+                  id="mark_as_canceled"
+                  checked={completePayload.mark_as_canceled}
+                  onCheckedChange={(value) => setCompletePayload((prev) => ({ ...prev, mark_as_canceled: Boolean(value) }))}
+                />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Marcar parada como cancelada</p>
+                  <p className="text-xs text-muted-foreground">Usalo si no se ha podido recoger en esta visita.</p>
+                </div>
+              </label>
+
+              <label htmlFor="force" className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/80 p-3 text-left">
+                <Checkbox
+                  id="force"
+                  checked={completePayload.force}
+                  onCheckedChange={(value) => setCompletePayload((prev) => ({ ...prev, force: Boolean(value) }))}
+                />
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-foreground">Forzar recogida fuera de orden</p>
+                  <p className="text-xs text-muted-foreground">Solo para incidencias puntuales en campo.</p>
+                </div>
+              </label>
             </div>
           </div>
 
-          <DialogFooter className="border-t border-border/70 px-4 py-4 sm:px-6">
+          <DialogFooter className="border-t border-border/70 bg-background px-4 py-4 sm:px-6">
             <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button className="w-full sm:w-auto" variant="outline" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
               <Button onClick={handleCompleteStop} disabled={submittingStop} className="w-full gap-2 sm:w-auto">

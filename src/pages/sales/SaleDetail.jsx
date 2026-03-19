@@ -189,10 +189,6 @@ export default function SaleDetail() {
                     <p className="text-sm text-muted-foreground">Factura generada</p>
                     <p className="mt-2 font-semibold text-foreground">{formatDateTime(sale.invoice_generated_at)}</p>
                   </div>
-                  <div className="rounded-xl border border-primary/20 bg-primary/10 p-4 md:col-span-2">
-                    <p className="text-sm text-muted-foreground">Criterio actual</p>
-                    <p className="mt-2 text-sm text-foreground">Numero definido manualmente y unica fecha operativa: la fecha de factura.</p>
-                  </div>
                 </CardContent>
               </Card>
 

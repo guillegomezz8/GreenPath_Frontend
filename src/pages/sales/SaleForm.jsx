@@ -180,7 +180,7 @@ export default function SaleForm({ mode = "create", saleId = null }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="buyer">Comprador *</Label>
                   <Select value={formData.buyer} onValueChange={(value) => handleChange("buyer", value)} disabled={submitting}>
                     <SelectTrigger id="buyer">
@@ -195,7 +195,7 @@ export default function SaleForm({ mode = "create", saleId = null }) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="invoice_number">Numero de factura *</Label>
                   <Input
                     id="invoice_number"
@@ -205,9 +205,9 @@ export default function SaleForm({ mode = "create", saleId = null }) {
                     disabled={submitting}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   <Label htmlFor="invoice_date">Fecha de factura *</Label>
-                  <Input id="invoice_date" type="date" value={formData.invoice_date} onChange={(e) => handleChange("invoice_date", e.target.value)} disabled={submitting} />
+                  <Input id="invoice_date" type="date" className="min-w-0 max-w-full" value={formData.invoice_date} onChange={(e) => handleChange("invoice_date", e.target.value)} disabled={submitting} />
                 </div>
               </div>
             </CardContent>
