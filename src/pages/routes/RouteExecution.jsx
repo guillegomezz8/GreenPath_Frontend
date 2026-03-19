@@ -2,7 +2,7 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, normalizeCollectionStatus } from "@/components/Utils";
+import { handleApiError } from "@/components/Utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -51,8 +51,7 @@ function getContainerNumber(containerNumber) {
 }
 
 function isStopCollectable(stop) {
-  if (!stop?.collection?.id) return true;
-  return normalizeCollectionStatus(stop.collection.status) === "CANCELED";
+  return !stop?.collection?.id;
 }
 
 function getCollectableStops(routeDay) {

@@ -130,7 +130,7 @@ export default function CollectionDetail() {
           <p><span className="text-muted-foreground">Litros medidos:</span> {collection?.measured_liters !== null ? asNumber(collection?.measured_liters).toFixed(2) : "-"} L</p>
           <p><span className="text-muted-foreground">Litros deducidos:</span> {asNumber(collection?.deduction_liters).toFixed(2)} L</p>
           <p><span className="text-muted-foreground">Litros netos:</span> {asNumber(collection?.net_liters).toFixed(2)} L</p>
-          <p><span className="text-muted-foreground">Motivo deduccion:</span> {collection?.deduction_reason || "-"}</p>
+          <p><span className="text-muted-foreground">Motivo deduccion:</span> {collection?.deduction_reason_label || collection?.deduction_reason || "-"}</p>
           <p><span className="text-muted-foreground">Notas deduccion:</span> {collection?.deduction_notes || "-"}</p>
         </CardContent>
       </Card>

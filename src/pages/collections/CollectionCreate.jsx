@@ -29,7 +29,7 @@ export default function CollectionCreate() {
     collection_date: "",
     container_type: "BIDONES",
     container_number: "1",
-    price_per_liter: "2.50",
+    price_per_liter: "",
     notes: ""
   });
 
@@ -53,10 +53,21 @@ export default function CollectionCreate() {
     setWorkers(res.data.results || []);
   }, [api, isWorker]);
 
+  const fetchCompanySettings = useCallback(async () => {
+    const res = await api().get("companies/settings/");
+    const defaultPrice = res.data?.default_price_per_liter;
+    if (defaultPrice !== undefined && defaultPrice !== null) {
+      setFormData((prev) => ({
+        ...prev,
+        price_per_liter: prev.price_per_liter === "" ? String(defaultPrice) : prev.price_per_liter,
+      }));
+    }
+  }, [api]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
-        await Promise.all([fetchClients(), fetchWorkers()]);
+        await Promise.all([fetchClients(), fetchWorkers(), fetchCompanySettings()]);
       } catch (err) {
         const msg = handleApiError(err, "No se pudieron cargar clientes o trabajadores.");
         toast({
@@ -67,7 +78,7 @@ export default function CollectionCreate() {
       }
     };
     loadData();
-  }, [fetchClients, fetchWorkers, toast]);
+  }, [fetchClients, fetchWorkers, fetchCompanySettings, toast]);
 
   const calculateTotals = () => {
     const containerNumber = parseInt(formData.container_number) || 0;
@@ -103,7 +114,7 @@ export default function CollectionCreate() {
       return;
     }
 
-    if ((parseFloat(formData.price_per_liter) || 0) <= 0) {
+    if (formData.price_per_liter !== "" && (parseFloat(formData.price_per_liter) || 0) <= 0) {
       toast({
         title: "Error",
         description: "El precio por litro debe ser mayor a 0",
@@ -114,15 +125,20 @@ export default function CollectionCreate() {
 
     try {
       setLoading(true);
-      await api().post("collections/", {
+      const payload = {
         client: Number(formData.client),
         worker: formData.worker ? Number(formData.worker) : null,
         collection_date: formData.collection_date,
         container_type: formData.container_type,
         container_number: Number(formData.container_number),
-        price_per_liter: formData.price_per_liter,
         notes: formData.notes,
-      });
+      };
+
+      if (formData.price_per_liter !== "") {
+        payload.price_per_liter = formData.price_per_liter;
+      }
+
+      await api().post("collections/", payload);
 
       toast({
         title: "Recogida programada",
@@ -281,7 +297,7 @@ export default function CollectionCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price_per_liter">Precio por Litro (€) *</Label>
+                <Label htmlFor="price_per_liter">Precio por Litro (EUR)</Label>
                 <Input
                   id="price_per_liter"
                   type="number"
@@ -289,9 +305,9 @@ export default function CollectionCreate() {
                   step="0.01"
                   value={formData.price_per_liter}
                   onChange={(e) => handleChange("price_per_liter", e.target.value)}
-                  placeholder="2.50"
-                  required
+                  placeholder="Se usara el precio global"
                 />
+                <p className="text-xs text-muted-foreground text-left">Se rellena con el precio global de la empresa y puedes ajustarlo si hace falta.</p>
               </div>
             </div>
 

@@ -124,10 +124,7 @@ function getStopVisualState(stop) {
 }
 
 function getCollectableStops(stops) {
-  return stops.filter((stop) => {
-    if (!stop?.collection?.id) return true;
-    return normalizeCollectionStatus(stop.collection.status) === "CANCELED";
-  });
+  return stops.filter((stop) => !stop?.collection?.id);
 }
 
 function getPlanLabel(stop) {
@@ -273,8 +270,8 @@ export default function RouteDayMap({
         </div>
 
         {selectedRouteDay ? (
-          <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.45fr)_340px] xl:gap-4">
-            <div className="order-2 overflow-hidden rounded-3xl border border-border/80 bg-background/70 shadow-elegant xl:order-1">
+          <div className="grid items-start gap-3 2xl:grid-cols-[minmax(0,1.45fr)_360px] 2xl:gap-4">
+            <div className="order-2 overflow-hidden rounded-3xl border border-border/80 bg-background/70 shadow-elegant 2xl:order-1">
               <div className="flex flex-col gap-2 border-b border-border/80 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 text-left">
                 <p className="text-sm font-semibold text-foreground">Recorrido del dia</p>
                 <p className="text-xs text-muted-foreground">Mapa operativo de la jornada seleccionada.</p>
@@ -353,7 +350,7 @@ export default function RouteDayMap({
               )}
             </div>
 
-            <div className="order-1 space-y-3 xl:order-2 xl:sticky xl:top-24 xl:space-y-4">
+            <div className="order-1 space-y-3 2xl:order-2 2xl:sticky 2xl:top-24 2xl:space-y-4">
               <div className="rounded-3xl border border-border/80 bg-background/85 p-3 sm:p-4">
                 <div className="text-left">
                   <p className="text-sm font-semibold text-foreground">Acciones del dia</p>

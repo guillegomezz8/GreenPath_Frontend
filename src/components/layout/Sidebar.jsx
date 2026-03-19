@@ -10,6 +10,9 @@ import {
   BarChart3,
   Package,
   CalendarClock,
+  Settings2,
+  Building2,
+  ReceiptText,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,7 +26,10 @@ const ownerMenuItems = [
   { id: "zonas", label: "Zonas de Recogida", icon: Map, path: "/collection-zones" },
   { id: "rutas", label: "Rutas", icon: Route, path: "/routes" },
   { id: "recogidas", label: "Recogidas", icon: Package, path: "/collections" },
+  { id: "compradores", label: "Compradores", icon: Building2, path: "/buyers" },
+  { id: "ventas", label: "Ventas", icon: ReceiptText, path: "/sales" },
   { id: "estadisticas", label: "Estadisticas", icon: BarChart3, path: "/stats" },
+  { id: "configuracion", label: "Configuracion", icon: Settings2, path: "/settings" },
 ];
 
 const workerMenuItems = [

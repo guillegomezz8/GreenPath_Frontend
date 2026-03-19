@@ -182,7 +182,7 @@ export default function CollectionsList() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
             <Package className="w-8 h-8 text-primary" />
@@ -193,15 +193,15 @@ export default function CollectionsList() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
           {isOwner && (
-            <Button variant="outline" className="gap-2" onClick={() => navigate("/stats")}>
+            <Button variant="outline" className="gap-2 w-full md:w-auto" onClick={() => navigate("/stats")}>
               <BarChart3 className="w-4 h-4" />
               Reportes
             </Button>
           )}
           {canCreateCollection && (
-            <Button className="gap-2" onClick={() => navigate("/collections/new")}>
+            <Button className="gap-2 w-full md:w-auto" onClick={() => navigate("/collections/new")}>
               <Plus className="w-4 h-4" />
               Nueva Recogida
             </Button>
@@ -211,7 +211,7 @@ export default function CollectionsList() {
 
       <Card className="overflow-hidden">
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col gap-4 xl:flex-row">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
               <Input
@@ -222,13 +222,13 @@ export default function CollectionsList() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+            <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
               {STATUS_OPTIONS.map((status) => (
                 <Button
                   key={status}
                   variant={selectedStatus === status ? "default" : "outline"}
                   size="sm"
-                  className="w-full sm:w-auto"
+                  className="w-full text-xs sm:text-sm md:w-auto"
                   onClick={() => setSelectedStatus(status)}
                 >
                   {status}
@@ -239,7 +239,7 @@ export default function CollectionsList() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">{counts.total}</div>
@@ -288,9 +288,9 @@ export default function CollectionsList() {
           {collections.map((collection) => (
             <Card key={collection.id} className="hover:shadow-elegant transition-shadow">
               <CardContent className="pt-6">
-                <div className="flex flex-col lg:flex-row gap-6">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
                   <div className="flex-1 space-y-3">
-                    <div className="flex items-start justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
                           {getStatusIcon(collection.status)}
@@ -302,10 +302,12 @@ export default function CollectionsList() {
                         </p>
                       </div>
 
-                      <Badge className={getCollectionStatusClass(collection.status)}>{getCollectionStatusLabel(collection.status)}</Badge>
+                      <Badge className={`${getCollectionStatusClass(collection.status)} w-fit self-start`}>
+                        {getCollectionStatusLabel(collection.status)}
+                      </Badge>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Trabajador:</span>
@@ -326,8 +328,8 @@ export default function CollectionsList() {
                     </div>
                   </div>
 
-                  <div className="lg:w-80 space-y-3">
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="w-full space-y-3 xl:w-80">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
                       <div className="p-3 bg-accent/50 rounded-lg">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
                           <Weight className="w-4 h-4" />
@@ -363,7 +365,7 @@ export default function CollectionsList() {
                   </div>
                 )}
 
-                <div className="mt-3 pt-3 border-t border-border flex gap-2 justify-end">
+                <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
                     <Eye className="w-4 h-4" />
                     Ver

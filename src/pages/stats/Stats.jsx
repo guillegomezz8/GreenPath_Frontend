@@ -1,63 +1,44 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  BarChart3,
-  TrendingUp,
-  TrendingDown,
-  Calendar,
-  Users,
-  UserCheck,
-  Truck,
-  MapPin,
-  Droplets,
-  Euro,
-  Package,
-} from "lucide-react";
+import { BarChart3, Building2, Droplets, Euro, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, normalizeCollectionStatus } from "@/components/Utils";
-
-const MONTH_FORMATTER = new Intl.DateTimeFormat("es-ES", { month: "short" });
+import { handleApiError } from "@/components/Utils";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 function toNumber(value) {
-  const n = Number(value);
-  return Number.isFinite(n) ? n : 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function monthKey(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+function formatCurrency(value) {
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(toNumber(value));
 }
 
-function parseDate(dateStr) {
-  if (!dateStr) return null;
-  const d = new Date(`${dateStr}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return null;
-  return d;
+function formatLiters(value) {
+  return `${Math.round(toNumber(value)).toLocaleString("es-ES")} L`;
 }
 
-function buildLastMonths(count = 6, referenceDate = new Date()) {
-  const now = new Date(referenceDate);
-  now.setHours(0, 0, 0, 0);
-  const months = [];
-  for (let i = count - 1; i >= 0; i -= 1) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    months.push({ key, label: MONTH_FORMATTER.format(d).replace(".", "") });
-  }
-  return months;
+function buildMonthlyRows(rawRows = []) {
+  return rawRows.map((row) => {
+    const referenceDate = new Date(row.year, (row.month || 1) - 1, 1);
+    const monthLabel = new Intl.DateTimeFormat("es-ES", { month: "short" }).format(referenceDate).replace(".", "");
+    return {
+      ...row,
+      label: monthLabel,
+      income: toNumber(row.income),
+      cost: toNumber(row.cost),
+      profit: toNumber(row.profit),
+      sold_volume: toNumber(row.sold_volume),
+      bought_volume: toNumber(row.bought_volume),
+    };
+  });
 }
 
-function getBarHeightPercent(value, maxValue, minVisiblePercent = 8) {
-  const parsed = toNumber(value);
-  if (parsed <= 0 || maxValue <= 0) return 0;
-  const rawPercent = (parsed / maxValue) * 100;
-  return Math.max(minVisiblePercent, Math.min(100, rawPercent));
+function getHeight(value, maxValue, minPercent = 6) {
+  if (maxValue <= 0 || value <= 0) return 0;
+  return Math.max(minPercent, Math.min(100, (value / maxValue) * 100));
 }
 
 export default function Stats() {
@@ -65,207 +46,83 @@ export default function Stats() {
   const showSnackbar = useSnackbar();
 
   const [loading, setLoading] = useState(false);
-  const [collections, setCollections] = useState([]);
-  const [clientsTotal, setClientsTotal] = useState(0);
-  const [workersActive, setWorkersActive] = useState(0);
-
-  const fetchAllCollections = useCallback(async () => {
-    let page = 1;
-    const pageSize = 300;
-    const maxPages = 30;
-    const rows = [];
-    let totalCount = 0;
-
-    while (page <= maxPages) {
-      const res = await api().get("collections", { params: { page, page_size: pageSize, ordering: "-collection_date" } });
-      const payload = res.data || {};
-      const items = Array.isArray(payload?.results) ? payload.results : [];
-      rows.push(...items);
-      totalCount = Number(payload?.count || rows.length);
-
-      if (!payload?.next || items.length === 0 || rows.length >= totalCount) {
-        break;
-      }
-      page += 1;
-    }
-
-    return rows;
-  }, [api]);
+  const [summary, setSummary] = useState(null);
+  const [buyersCount, setBuyersCount] = useState(0);
+  const [salesCount, setSalesCount] = useState(0);
+  const [confirmedCollectionsCount, setConfirmedCollectionsCount] = useState(0);
 
   const fetchStatsData = useCallback(async () => {
     try {
       setLoading(true);
-      const [collectionsRows, clientsRes, workersRes] = await Promise.all([
-        fetchAllCollections(),
-        api().get("clients", { params: { page: 1, page_size: 1 } }),
-        api().get("workers", { params: { page: 1, page_size: 1 } }),
+      const [summaryRes, buyersRes, salesRes, collectionsRes] = await Promise.all([
+        api().get("sales/economic-summary/"),
+        api().get("buyers/", { params: { page: 1, page_size: 1 } }),
+        api().get("sales/", { params: { page: 1, page_size: 1 } }),
+        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED" } }),
       ]);
 
-      setCollections(collectionsRows);
-      setClientsTotal(Number(clientsRes.data?.count || 0));
-      setWorkersActive(Number(workersRes.data?.counts?.active || 0));
+      setSummary(summaryRes.data || null);
+      setBuyersCount(Number(buyersRes.data?.count || 0));
+      setSalesCount(Number(salesRes.data?.count || 0));
+      setConfirmedCollectionsCount(Number(collectionsRes.data?.count || 0));
     } catch (e) {
-      const msg = handleApiError(e, "Error cargando estadisticas.");
+      const msg = handleApiError(e, "No se pudieron cargar las estadisticas economicas.");
       showSnackbar(msg, "error");
     } finally {
       setLoading(false);
     }
-  }, [api, fetchAllCollections, showSnackbar]);
+  }, [api, showSnackbar]);
 
   useEffect(() => {
     fetchStatsData();
   }, [fetchStatsData]);
 
-  const { monthlyData, routeStats, kpiData } = useMemo(() => {
-    const latestCollectionDate = collections.reduce((acc, item) => {
-      const d = parseDate(item.collection_date);
-      if (!d) return acc;
-      if (!acc) return d;
-      return d > acc ? d : acc;
-    }, null);
-
-    const months = buildLastMonths(6, latestCollectionDate || new Date());
-    const monthMap = {};
-    months.forEach((m) => {
-      monthMap[m.key] = { month: m.label, collections: 0, volume: 0, revenue: 0, efficiency: 0, confirmed: 0 };
-    });
-
-    const routeMap = {};
-    let confirmedTotal = 0;
-    let canceledTotal = 0;
-    let totalVolume = 0;
-    let totalRevenue = 0;
-
-    collections.forEach((item) => {
-      const mKey = monthKey(item.collection_date);
-      const volume = toNumber(item.net_liters);
-      const revenue = toNumber(item.total_price);
-      const normalizedStatus = normalizeCollectionStatus(item.status);
-      const isConfirmed = normalizedStatus === "CONFIRMED";
-      const isCanceled = normalizedStatus === "CANCELED";
-
-      if (mKey && monthMap[mKey]) {
-        monthMap[mKey].collections += 1;
-        monthMap[mKey].volume += volume;
-        monthMap[mKey].revenue += revenue;
-        if (isConfirmed) monthMap[mKey].confirmed += 1;
-      }
-
-      const routeName = item.route_name || "Sin ruta";
-      if (!routeMap[routeName]) {
-        routeMap[routeName] = { route: routeName, collections: 0, volume: 0, confirmed: 0 };
-      }
-      routeMap[routeName].collections += 1;
-      routeMap[routeName].volume += volume;
-      if (isConfirmed) routeMap[routeName].confirmed += 1;
-
-      if (isConfirmed) confirmedTotal += 1;
-      if (isCanceled) canceledTotal += 1;
-      totalVolume += volume;
-      totalRevenue += revenue;
-    });
-
-    const monthly = months.map((m) => {
-      const raw = monthMap[m.key] || { collections: 0, volume: 0, revenue: 0, confirmed: 0 };
-      const efficiency = raw.collections > 0 ? Math.round((raw.confirmed / raw.collections) * 100) : 0;
-      return { ...raw, efficiency };
-    });
-
-    const routes = Object.values(routeMap)
-      .map((row) => {
-        const efficiency = row.collections > 0 ? Math.round((row.confirmed / row.collections) * 100) : 0;
-        return { ...row, efficiency };
-      })
-      .sort((a, b) => b.collections - a.collections)
-      .slice(0, 4);
-
-    const lastMonth = monthly[monthly.length - 1] || { collections: 0, volume: 0, revenue: 0, efficiency: 0 };
-    const prevMonth = monthly[monthly.length - 2] || { collections: 0, volume: 0, revenue: 0, efficiency: 0 };
-    const growthCollections = prevMonth.collections > 0 ? ((lastMonth.collections - prevMonth.collections) / prevMonth.collections) * 100 : 0;
-    const growthRevenue = prevMonth.revenue > 0 ? ((lastMonth.revenue - prevMonth.revenue) / prevMonth.revenue) * 100 : 0;
-    const kpi = [
-      {
-        title: "Total Recogidas",
-        value: collections.length.toLocaleString("es-ES"),
-        change: `${growthCollections >= 0 ? "+" : ""}${growthCollections.toFixed(1)}%`,
-        trend: growthCollections >= 0 ? "up" : "down",
-        icon: Truck,
-        description: "Ultimos registros",
-      },
-      {
-        title: "Volumen Total",
-        value: `${Math.round(totalVolume).toLocaleString("es-ES")} L`,
-        change: `${totalVolume > 0 ? "+" : ""}${lastMonth.volume.toFixed(0)}L`,
-        trend: "up",
-        icon: Droplets,
-        description: "Litros netos",
-      },
-      {
-        title: "Ingresos",
-        value: `${totalRevenue.toFixed(2)} EUR`,
-        change: `${growthRevenue >= 0 ? "+" : ""}${growthRevenue.toFixed(1)}%`,
-        trend: growthRevenue >= 0 ? "up" : "down",
-        icon: Euro,
-        description: "Ultimos registros",
-      },
-      {
-        title: "Eficiencia Media",
-        value: `${collections.length > 0 ? Math.round((confirmedTotal / collections.length) * 100) : 0}%`,
-        change: `${lastMonth.efficiency >= prevMonth.efficiency ? "+" : ""}${(lastMonth.efficiency - prevMonth.efficiency).toFixed(1)}%`,
-        trend: lastMonth.efficiency >= prevMonth.efficiency ? "up" : "down",
-        icon: BarChart3,
-        description: "Confirmadas / Total",
-      },
-      {
-        title: "Clientes Activos",
-        value: clientsTotal.toLocaleString("es-ES"),
-        change: null,
-        trend: null,
-        icon: Users,
-        description: "Clientes registrados",
-      },
-      {
-        title: "Trabajadores Activos",
-        value: workersActive.toLocaleString("es-ES"),
-        change: null,
-        trend: null,
-        icon: UserCheck,
-        description: "Con perfil habilitado",
-      },
-    ];
+  const monthlyData = useMemo(() => buildMonthlyRows(summary?.monthly || []), [summary?.monthly]);
+  const totals = useMemo(() => {
+    const totalIncome = toNumber(summary?.total_income);
+    const totalCost = toNumber(summary?.total_cost);
+    const netProfit = toNumber(summary?.net_profit);
+    const boughtVolume = toNumber(summary?.total_bought_volume);
+    const soldVolume = toNumber(summary?.total_sold_volume);
+    const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
 
     return {
-      monthlyData: monthly,
-      routeStats: routes,
-      kpiData: kpi,
-      confirmedTotal,
-      canceledTotal,
+      totalIncome,
+      totalCost,
+      netProfit,
+      boughtVolume,
+      soldVolume,
+      margin,
     };
-  }, [clientsTotal, collections, workersActive]);
+  }, [summary]);
 
-  const getTrendColor = (trend) => (trend === "up" ? "text-success" : "text-destructive");
-  const getTrendIcon = (trend) => (trend === "up" ? TrendingUp : TrendingDown);
-  const maxVolume = Math.max(1, ...monthlyData.map((m) => m.volume));
-  const maxRevenue = Math.max(1, ...monthlyData.map((m) => m.revenue));
-  const maxCollections = Math.max(1, ...monthlyData.map((m) => m.collections));
+  const maxFinance = useMemo(() => Math.max(1, ...monthlyData.flatMap((item) => [item.income, item.cost, Math.abs(item.profit)])), [monthlyData]);
+  const maxVolume = useMemo(() => Math.max(1, ...monthlyData.flatMap((item) => [item.bought_volume, item.sold_volume])), [monthlyData]);
+
+  const kpiCards = useMemo(
+    () => [
+      { title: "Ingresos", value: formatCurrency(totals.totalIncome), icon: TrendingUp, className: "text-emerald-600" },
+      { title: "Coste invertido", value: formatCurrency(totals.totalCost), icon: TrendingDown, className: "text-red-600" },
+      { title: "Beneficio neto", value: formatCurrency(totals.netProfit), icon: Wallet, className: totals.netProfit >= 0 ? "text-primary" : "text-red-600" },
+      { title: "Margen", value: `${totals.margin.toFixed(1)}%`, icon: Euro, className: totals.margin >= 0 ? "text-primary" : "text-red-600" },
+      { title: "Volumen comprado", value: formatLiters(totals.boughtVolume), icon: Droplets, className: "text-blue-600" },
+      { title: "Volumen vendido", value: formatLiters(totals.soldVolume), icon: Receipt, className: "text-orange-500" },
+    ],
+    [totals.boughtVolume, totals.margin, totals.netProfit, totals.soldVolume, totals.totalCost, totals.totalIncome]
+  );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-primary" />
-            Estadisticas y Reportes
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 text-left">
+          <h1 className="flex items-center gap-3 text-2xl font-bold text-foreground sm:text-3xl">
+            <BarChart3 className="h-7 w-7 text-primary sm:h-8 sm:w-8" />
+            Estadisticas
           </h1>
-          <p className="text-muted-foreground text-left">Analisis del rendimiento operativo real</p>
         </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2" disabled>
-            <Calendar className="w-4 h-4" />
-            Ultimos 6 meses
-          </Button>
-        </div>
+        <Badge variant="outline" className="w-fit border-border/70 bg-background/80 text-muted-foreground">
+          Resumen economico
+        </Badge>
       </div>
 
       {loading ? (
@@ -274,205 +131,198 @@ export default function Stats() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            {kpiData.map((kpi) => {
-              const TrendIcon = kpi.trend ? getTrendIcon(kpi.trend) : null;
-              return (
-                <Card key={kpi.title} className="hover:shadow-elegant transition-shadow">
-                  <CardContent className="pt-6">
-                    <div className="flex items-center justify-between mb-2">
-                      <kpi.icon className="w-5 h-5 text-primary" />
-                      {kpi.change && TrendIcon ? (
-                        <div className={`flex items-center gap-1 text-sm ${getTrendColor(kpi.trend)}`}>
-                          <TrendIcon className="w-3 h-3" />
-                          {kpi.change}
-                        </div>
-                      ) : null}
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold text-foreground text-left">{kpi.value}</div>
-                      <p className="text-xs text-muted-foreground text-left">{kpi.title}</p>
-                      <p className="text-xs text-muted-foreground mt-1 text-left">{kpi.description}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {kpiCards.map((card) => (
+              <Card key={card.title} className="transition-shadow hover:shadow-elegant">
+                <CardContent className="pt-6 text-left">
+                  <div className="mb-3 flex items-center justify-between">
+                    <card.icon className={`h-5 w-5 ${card.className}`} />
+                  </div>
+                  <div className={`text-2xl font-bold ${card.className}`}>{card.value}</div>
+                  <p className="text-xs text-muted-foreground">{card.title}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
             <Card>
-              <CardHeader>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-primary">{buyersCount}</div>
+                <p className="text-sm text-muted-foreground">Compradores</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-foreground">{salesCount}</div>
+                <p className="text-sm text-muted-foreground">Ventas registradas</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <div className="text-2xl font-bold text-blue-600">{confirmedCollectionsCount}</div>
+                <p className="text-sm text-muted-foreground">Compras confirmadas</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+            <Card>
+              <CardHeader className="text-left">
                 <CardTitle className="flex items-center gap-2">
-                  <Droplets className="w-5 h-5 text-primary" />
-                  Volumen de Recogida Mensual
+                  <Euro className="h-5 w-5 text-primary" />
+                  Ingresos vs costes
                 </CardTitle>
-                <CardDescription className="text-left">Evolucion de litros netos por mes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data, index) => {
-                    const barHeight = getBarHeightPercent(data.volume, maxVolume);
-                    return (
-                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
-                      <div className="text-xs text-muted-foreground">{Math.round(data.volume)}L</div>
-                      <div className="h-40 w-full flex items-end">
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${barHeight}%` }}
-                          transition={{ duration: 0.6, delay: index * 0.04 }}
-                          className="w-full bg-primary rounded-t-sm hover:bg-primary-glow"
-                        />
-                      </div>
-                      <div className="text-xs font-medium text-foreground">{data.month}</div>
-                    </div>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <div className="flex h-72 min-w-[560px] items-end gap-4 p-4 sm:min-w-0">
+                    {monthlyData.map((item, index) => {
+                      const incomeHeight = getHeight(item.income, maxFinance);
+                      const costHeight = getHeight(item.cost, maxFinance);
+                      return (
+                        <div key={`${item.year}-${item.month}`} className="flex flex-1 flex-col items-center gap-2">
+                          <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                            <span className="text-center">{item.income.toFixed(0)}</span>
+                            <span className="text-center">{item.cost.toFixed(0)}</span>
+                          </div>
+                          <div className="flex h-44 w-full items-end gap-2">
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${incomeHeight}%` }}
+                              transition={{ duration: 0.45, delay: index * 0.04 }}
+                              className="w-full rounded-t-md bg-emerald-500"
+                            />
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${costHeight}%` }}
+                              transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
+                              className="w-full rounded-t-md bg-red-500"
+                            />
+                          </div>
+                          <div className="text-xs font-medium text-foreground">{item.label}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader>
+              <CardHeader className="text-left">
                 <CardTitle className="flex items-center gap-2">
-                  <Euro className="w-5 h-5 text-primary" />
-                  Ingresos Mensuales
+                  <Wallet className="h-5 w-5 text-primary" />
+                  Beneficio mensual
                 </CardTitle>
-                <CardDescription className="text-left">Evolucion de ingresos por mes</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data, index) => {
-                    const barHeight = getBarHeightPercent(data.revenue, maxRevenue);
-                    return (
-                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
-                      <div className="text-xs text-muted-foreground">{data.revenue.toFixed(0)} EUR</div>
-                      <div className="h-40 w-full flex items-end">
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${barHeight}%` }}
-                          transition={{ duration: 0.6, delay: index * 0.04 }}
-                          className="w-full bg-success rounded-t-sm hover:bg-success/80"
-                        />
-                      </div>
-                      <div className="text-xs font-medium text-foreground">{data.month}</div>
-                    </div>
-                    );
-                  })}
+                <div className="overflow-x-auto">
+                  <div className="flex h-72 min-w-[560px] items-end gap-4 p-4 sm:min-w-0">
+                    {monthlyData.map((item, index) => {
+                      const profitHeight = getHeight(Math.abs(item.profit), maxFinance);
+                      const barClass = item.profit >= 0 ? "bg-primary" : "bg-red-500";
+                      return (
+                        <div key={`${item.year}-${item.month}-profit`} className="flex flex-1 flex-col items-center gap-2">
+                          <div className="text-xs text-muted-foreground">{item.profit.toFixed(0)}</div>
+                          <div className="flex h-44 w-full items-end">
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${profitHeight}%` }}
+                              transition={{ duration: 0.45, delay: index * 0.04 }}
+                              className={`w-full rounded-t-md ${barClass}`}
+                            />
+                          </div>
+                          <div className="text-xs font-medium text-foreground">{item.label}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="text-left">
               <CardTitle className="flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-primary" />
-                Rendimiento por Rutas
+                <Droplets className="h-5 w-5 text-primary" />
+                Volumen comprado vs vendido
               </CardTitle>
-              <CardDescription className="text-left">Comparacion de rendimiento entre rutas activas</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {routeStats.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hay datos suficientes para calcular rendimiento por rutas.</p>
-                ) : (
-                  routeStats.map((route) => (
-                    <div key={route.route} className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-accent/50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                          <MapPin className="w-6 h-6 text-primary" />
+              <div className="overflow-x-auto">
+                <div className="flex h-72 min-w-[720px] items-end gap-4 p-4 sm:min-w-0">
+                  {monthlyData.map((item, index) => {
+                    const boughtHeight = getHeight(item.bought_volume, maxVolume);
+                    const soldHeight = getHeight(item.sold_volume, maxVolume);
+                    return (
+                      <div key={`${item.year}-${item.month}-volume`} className="flex flex-1 flex-col items-center gap-2">
+                        <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                          <span className="text-center">{Math.round(item.bought_volume)}</span>
+                          <span className="text-center">{Math.round(item.sold_volume)}</span>
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-foreground text-left">{route.route}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {route.collections} recogidas | {Math.round(route.volume)}L
-                          </p>
+                        <div className="flex h-44 w-full items-end gap-2">
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: `${boughtHeight}%` }}
+                            transition={{ duration: 0.45, delay: index * 0.04 }}
+                            className="w-full rounded-t-md bg-blue-500"
+                          />
+                          <motion.div
+                            initial={{ height: 0 }}
+                            animate={{ height: `${soldHeight}%` }}
+                            transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
+                            className="w-full rounded-t-md bg-orange-500"
+                          />
                         </div>
+                        <div className="text-xs font-medium text-foreground">{item.label}</div>
                       </div>
-
-                      <div className="flex items-center gap-6">
-                        <div className="text-center">
-                          <div className="text-lg font-semibold text-foreground">{route.efficiency}%</div>
-                          <div className="text-xs text-muted-foreground">Eficiencia</div>
-                        </div>
-                        <Badge variant="outline" className="text-success">
-                          <Package className="w-3 h-3 mr-1" />
-                          Top
-                        </Badge>
-                      </div>
-                    </div>
-                  ))
-                )}
+                    );
+                  })}
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-primary" />
-                  Tendencia de Eficiencia
-                </CardTitle>
-                <CardDescription className="text-left">Porcentaje de recogidas confirmadas por mes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data, index) => {
-                    const barHeight = getBarHeightPercent(data.efficiency, 100, 6);
-                    const barClass =
-                      data.efficiency >= 95 ? "bg-success" : data.efficiency >= 80 ? "bg-orange-500" : "bg-destructive";
-                    return (
-                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
-                      <div className="text-xs text-muted-foreground">{data.efficiency}%</div>
-                      <div className="h-40 w-full flex items-end">
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${barHeight}%` }}
-                          transition={{ duration: 0.6, delay: index * 0.04 }}
-                          className={`w-full rounded-t-sm ${barClass}`}
-                        />
-                      </div>
-                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+          <Card>
+            <CardHeader className="text-left">
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-primary" />
+                Evolucion mensual
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {monthlyData.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sin movimientos economicos registrados.</p>
+              ) : (
+                monthlyData.map((item) => (
+                  <div key={`${item.year}-${item.month}-row`} className="grid grid-cols-1 gap-3 rounded-xl border border-border/80 p-4 text-left md:grid-cols-5">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Mes</p>
+                      <p className="font-semibold text-foreground">{item.label} {item.year}</p>
                     </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-primary" />
-                  Recogidas por Mes
-                </CardTitle>
-                <CardDescription className="text-left">Numero total de recogidas realizadas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-end justify-between gap-2 p-4">
-                  {monthlyData.map((data, index) => {
-                    const barHeight = getBarHeightPercent(data.collections, maxCollections);
-                    return (
-                    <div key={data.month} className="flex flex-col items-center gap-2 flex-1">
-                      <div className="text-xs text-muted-foreground">{data.collections}</div>
-                      <div className="h-40 w-full flex items-end">
-                        <motion.div
-                          initial={{ height: 0 }}
-                          animate={{ height: `${barHeight}%` }}
-                          transition={{ duration: 0.6, delay: index * 0.04 }}
-                          className="w-full bg-blue-500 rounded-t-sm hover:bg-blue-600"
-                        />
-                      </div>
-                      <div className="text-xs font-medium text-foreground">{data.month}</div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Ingresos</p>
+                      <p className="font-semibold text-emerald-600">{formatCurrency(item.income)}</p>
                     </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Costes</p>
+                      <p className="font-semibold text-red-600">{formatCurrency(item.cost)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Beneficio</p>
+                      <p className={`font-semibold ${item.profit >= 0 ? "text-primary" : "text-red-600"}`}>{formatCurrency(item.profit)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Volumen</p>
+                      <p className="font-semibold text-foreground">{Math.round(item.bought_volume)}L / {Math.round(item.sold_volume)}L</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
         </>
       )}
     </div>

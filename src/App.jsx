@@ -34,6 +34,15 @@ import TruckEdit from '@/pages/trucks/TruckEdit';
 import AssignTruck from '@/pages/trucks/AssignTruck';
 import Stats from '@/pages/stats/Stats';
 import ProfilePage from '@/pages/profile/ProfilePage';
+import CompanySettingsPage from '@/pages/settings/CompanySettingsPage';
+import BuyersList from '@/pages/buyers/BuyersList';
+import BuyerDetail from '@/pages/buyers/BuyerDetail';
+import BuyerCreate from '@/pages/buyers/BuyerCreate';
+import BuyerEdit from '@/pages/buyers/BuyerEdit';
+import SalesList from '@/pages/sales/SalesList';
+import SaleDetail from '@/pages/sales/SaleDetail';
+import SaleCreate from '@/pages/sales/SaleCreate';
+import SaleEdit from '@/pages/sales/SaleEdit';
 
 function AppContent() {
   return (
@@ -75,6 +84,15 @@ function AppContent() {
           <Route path="/trucks/:id/edit" element={<TruckEdit />} />
           <Route path="/assign-truck/:id" element={<AssignTruck />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/settings" element={<CompanySettingsPage />} />
+          <Route path="/buyers" element={<BuyersList />} />
+          <Route path="/buyers/new" element={<BuyerCreate />} />
+          <Route path="/buyers/:id" element={<BuyerDetail />} />
+          <Route path="/buyers/:id/edit" element={<BuyerEdit />} />
+          <Route path="/sales" element={<SalesList />} />
+          <Route path="/sales/new" element={<SaleCreate />} />
+          <Route path="/sales/:id" element={<SaleDetail />} />
+          <Route path="/sales/:id/edit" element={<SaleEdit />} />
         </Route>
 
         <Route element={<RoleRoute allowedRoles={["owner", "worker"]} />}>
