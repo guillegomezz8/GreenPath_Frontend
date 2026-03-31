@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,6 @@ import {
   Truck,
   Search,
   Plus,
-  Calendar,
   MapPin,
   Users,
   Clock,
@@ -61,19 +60,12 @@ export default function CollectionsList() {
 
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Todas");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
   const [total, setTotal] = useState(0);
-
-  const [counts, setCounts] = useState({
-    total: 0,
-    pending: 0,
-    confirmed: 0,
-    canceled: 0,
-  });
+  const [counts, setCounts] = useState({ total: 0, pending: 0, confirmed: 0, canceled: 0 });
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -137,26 +129,20 @@ export default function CollectionsList() {
   }, [searchTerm, selectedStatus]);
 
   const totalNetLiters = useMemo(
-    () =>
-      collections
-        .filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED")
-        .reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
+    () => collections.filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED").reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
     [collections]
   );
 
   const totalPrice = useMemo(
-    () =>
-      collections
-        .filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED")
-        .reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
+    () => collections.filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED" && item.billable !== false).reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
     [collections]
   );
 
   const getStatusIcon = (status) => {
     const normalized = normalizeCollectionStatus(status);
-    if (normalized === "CONFIRMED") return <CheckCircle className="w-4 h-4" />;
-    if (normalized === "CANCELED") return <AlertTriangle className="w-4 h-4" />;
-    return <Truck className="w-4 h-4" />;
+    if (normalized === "CONFIRMED") return <CheckCircle className="h-4 w-4" />;
+    if (normalized === "CANCELED") return <AlertTriangle className="h-4 w-4" />;
+    return <Truck className="h-4 w-4" />;
   };
 
   const askDelete = (collection) => {
@@ -186,8 +172,8 @@ export default function CollectionsList() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <Package className="w-8 h-8 text-primary" />
+          <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
+            <Package className="h-8 w-8 text-primary" />
             {isClient ? "Historial de Recogidas" : "Gestion de Recogidas"}
           </h1>
           <p className="text-muted-foreground">
@@ -197,14 +183,14 @@ export default function CollectionsList() {
 
         <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 md:w-auto">
           {isOwner && (
-            <Button variant="outline" className="gap-2 w-full md:w-auto" onClick={() => navigate("/stats")}>
-              <BarChart3 className="w-4 h-4" />
+            <Button variant="outline" className="w-full gap-2 md:w-auto" onClick={() => navigate("/stats")}>
+              <BarChart3 className="h-4 w-4" />
               Reportes
             </Button>
           )}
           {canCreateCollection && (
-            <Button className="gap-2 w-full md:w-auto" onClick={() => navigate("/collections/new")}>
-              <Plus className="w-4 h-4" />
+            <Button className="w-full gap-2 md:w-auto" onClick={() => navigate("/collections/new")}>
+              <Plus className="h-4 w-4" />
               Nueva Recogida
             </Button>
           )}
@@ -214,8 +200,8 @@ export default function CollectionsList() {
       <Card className="overflow-hidden">
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 xl:flex-row">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por cliente, ruta, trabajador o notas..."
                 value={searchTerm}
@@ -282,64 +268,39 @@ export default function CollectionsList() {
       </div>
 
       <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-2xl font-bold text-primary">{counts.total}</div>
-            <p className="text-sm text-muted-foreground">Total</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-2xl font-bold text-blue-500">{counts.pending}</div>
-            <p className="text-sm text-muted-foreground">Pendientes</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-2xl font-bold text-success">{counts.confirmed}</div>
-            <p className="text-sm text-muted-foreground">Confirmadas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-2xl font-bold text-destructive">{counts.canceled}</div>
-            <p className="text-sm text-muted-foreground">Canceladas</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-2xl font-bold text-primary">{Math.round(totalNetLiters)}L</div>
-            <p className="text-sm text-muted-foreground">Litros (pagina)</p>
-          </CardContent>
-        </Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{counts.total}</div><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-blue-500">{counts.pending}</div><p className="text-sm text-muted-foreground">Pendientes</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-success">{counts.confirmed}</div><p className="text-sm text-muted-foreground">Confirmadas</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-destructive">{counts.canceled}</div><p className="text-sm text-muted-foreground">Canceladas</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{Math.round(totalNetLiters)}L</div><p className="text-sm text-muted-foreground">Litros (pagina)</p></CardContent></Card>
       </div>
 
       {loading ? (
         <Card>
-          <CardContent className="text-center py-12 text-muted-foreground">Cargando recogidas...</CardContent>
+          <CardContent className="py-12 text-center text-muted-foreground">Cargando recogidas...</CardContent>
         </Card>
       ) : collections.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <Truck className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <CardContent className="py-12 text-center">
+            <Truck className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">No se encontraron recogidas con los criterios seleccionados</p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {collections.map((collection) => (
-            <Card key={collection.id} className="hover:shadow-elegant transition-shadow">
+            <Card key={collection.id} className="transition-shadow hover:shadow-elegant">
               <CardContent className="pt-6">
                 <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
                   <div className="flex-1 space-y-3">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                        <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
                           {getStatusIcon(collection.status)}
                           {collection.client_name || "Cliente"}
                         </h3>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="w-4 h-4" />
+                        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
                           {collection.route_name || "Sin ruta planificada"}
                         </p>
                       </div>
@@ -349,50 +310,54 @@ export default function CollectionsList() {
                       </Badge>
                     </div>
 
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline" className={collection.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
+                        {collection.billable ? "Facturable" : "No facturable"}
+                      </Badge>
+                    </div>
+
                     <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
                       <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <Users className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Trabajador:</span>
                         <span className="font-medium">{collection.worker_name || "-"}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
+                        <Clock className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Fecha:</span>
                         <span className="font-medium">{formatDate(collection.collection_date)}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Weight className="w-4 h-4 text-muted-foreground" />
+                        <Weight className="h-4 w-4 text-muted-foreground" />
                         <span className="text-muted-foreground">Envases:</span>
-                        <span className="font-medium">
-                          {collection.container_number || 0} ({collection.container_type || "-"})
-                        </span>
+                        <span className="font-medium">{collection.container_number || 0} ({collection.container_type || "-"})</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="w-full space-y-3 xl:w-80">
                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
-                      <div className="p-3 bg-accent/50 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <Weight className="w-4 h-4" />
+                      <div className="rounded-lg bg-accent/50 p-3">
+                        <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+                          <Weight className="h-4 w-4" />
                           Estimados
                         </div>
                         <div className="font-semibold">{normalizeNumber(collection.estimated_liters).toFixed(2)} L</div>
                       </div>
 
-                      <div className="p-3 bg-accent/50 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                          <CheckCircle className="w-4 h-4" />
+                      <div className="rounded-lg bg-accent/50 p-3">
+                        <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle className="h-4 w-4" />
                           Netos
                         </div>
                         <div className="font-semibold">{normalizeNumber(collection.net_liters).toFixed(2)} L</div>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-primary/10 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
-                        <Euro className="w-4 h-4" />
-                        Precio total
+                    <div className="rounded-lg bg-primary/10 p-3">
+                      <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+                        <Euro className="h-4 w-4" />
+                        Importe
                       </div>
                       <div className="font-semibold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</div>
                     </div>
@@ -400,8 +365,8 @@ export default function CollectionsList() {
                 </div>
 
                 {collection.notes && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground text-left">
+                  <div className="mt-4 border-t border-border pt-4">
+                    <p className="text-left text-sm text-muted-foreground">
                       <strong>Notas:</strong> {collection.notes}
                     </p>
                   </div>
@@ -409,18 +374,18 @@ export default function CollectionsList() {
 
                 <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-3">
                   <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
-                    <Eye className="w-4 h-4" />
+                    <Eye className="h-4 w-4" />
                     Ver
                   </Button>
                   {canManageCollection && (
                     <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
-                      <Edit className="w-4 h-4" />
+                      <Edit className="h-4 w-4" />
                       Editar
                     </Button>
                   )}
                   {canManageCollection && (
                     <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="h-4 w-4" />
                       Eliminar
                     </Button>
                   )}
@@ -434,22 +399,11 @@ export default function CollectionsList() {
       {!loading && totalPages > 1 && (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-muted-foreground">
-                {total} resultados • Pagina {page} de {totalPages}
-              </p>
+            <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+              <p className="text-sm text-muted-foreground">{total} resultados • Pagina {page} de {totalPages}</p>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Siguiente
-                </Button>
+                <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</Button>
+                <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => Math.min(totalPages, p + 1))}>Siguiente</Button>
               </div>
             </div>
           </CardContent>
@@ -459,9 +413,9 @@ export default function CollectionsList() {
       <Card className="bg-gradient-primary text-primary-foreground">
         <CardContent className="pt-6">
           <div className="text-center">
-            <Weight className="w-12 h-12 mx-auto mb-4 opacity-90" />
-            <h3 className="text-xl font-semibold mb-2">Resumen de pagina</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <Weight className="mx-auto mb-4 h-12 w-12 opacity-90" />
+            <h3 className="mb-2 text-xl font-semibold">Resumen de pagina</h3>
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <div className="text-2xl font-bold">{collections.length}</div>
                 <p className="opacity-90">Recogidas visibles</p>
@@ -472,7 +426,7 @@ export default function CollectionsList() {
               </div>
               <div>
                 <div className="text-2xl font-bold">{totalPrice.toFixed(2)} EUR</div>
-                <p className="opacity-90">Importe total</p>
+                <p className="opacity-90">Importe facturable</p>
               </div>
             </div>
           </div>

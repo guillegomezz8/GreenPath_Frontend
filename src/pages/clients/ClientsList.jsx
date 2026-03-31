@@ -98,11 +98,11 @@ export default function ClientsList() {
   return (
     <>
       <PaginatedScaffold
-        title={<><Users className="w-8 h-8 text-primary" /> Gestión de Clientes</>}
-        subtitle="Administra la información de todos tus clientes"
+        title={<><Users className="w-8 h-8 text-primary" /> Gestion de Clientes</>}
+        subtitle="Administra la informacion operativa de todos tus clientes"
         rightAction={{ label: "Nuevo Cliente", onClick: () => navigate("/clients/new"), icon: <Plus className="w-4 h-4" /> }}
 
-        searchPlaceholder="Buscar por nombre o dirección..."
+        searchPlaceholder="Buscar por nombre, direccion o telefono..."
         searchValue={search}
         onSearchChange={setSearch}
 
@@ -169,7 +169,7 @@ export default function ClientsList() {
 
               <div className="pt-3 border-t border-border">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Última recogida:</span>
+                  <span className="text-muted-foreground">Ultima recogida:</span>
                   <span className="font-medium">{client.last_pick_up}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
@@ -191,15 +191,15 @@ export default function ClientsList() {
         ))}
       </PaginatedScaffold>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmacin */}
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={(o) => { if (!o) setToDelete(null); setDeleteOpen(o); }}
         title="Eliminar cliente"
         description={
           toDelete
-            ? <span>Se eliminará <b>{toDelete.name}</b>. Esta acción no se puede deshacer.</span>
-            : "Esta acción no se puede deshacer."
+            ? <span>Se eliminara <b>{toDelete.name}</b>. Esta accion no se puede deshacer.</span>
+            : "Esta accion no se puede deshacer."
         }
         confirmLabel="Eliminar"
         onConfirm={confirmDelete}

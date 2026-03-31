@@ -4,13 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { ArrowLeft, Save, UserCheck, UserPen, IdCard } from "lucide-react";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
@@ -29,8 +22,6 @@ export default function WorkerCreate() {
     username: "",
     email: "",
     get_access: false,
-
-    role: "worker",
     name: "",
     surname: "",
     address: "",
@@ -54,7 +45,6 @@ export default function WorkerCreate() {
           username: formData.username,
           email: formData.email,
         },
-        role: formData.role,
         name: formData.name,
         surname: formData.surname,
         address: formData.address,
@@ -71,7 +61,6 @@ export default function WorkerCreate() {
           username: formData.username,
           email: formData.email,
         }));
-        fd.append("role", formData.role || "worker");
         fd.append("name", formData.name || "");
         fd.append("surname", formData.surname || "");
         fd.append("address", formData.address || "");
@@ -85,7 +74,6 @@ export default function WorkerCreate() {
         await api().post("/workers/", {
           get_access: formData.get_access,
           user: { username: formData.username, email: formData.email },
-          role: formData.role,
           name: formData.name,
           surname: formData.surname,
           address: formData.address,
@@ -121,7 +109,7 @@ export default function WorkerCreate() {
             <span>Crear Trabajador</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Rellena la información para registrar un nuevo trabajador
+            Rellena la informacion para registrar un nuevo trabajador
           </p>
         </div>
       </div>
@@ -164,35 +152,26 @@ export default function WorkerCreate() {
               onCheckedChange={(v) => update("get_access", !!v)}
             />
             <Label htmlFor="get_access">
-              Dar acceso a la plataforma (enviar contraseña temporal por email)
+              Dar acceso a la plataforma (enviar contrasena temporal por email)
             </Label>
           </div>
         </CardContent>
       </Card>
 
-      {/* Información del Trabajador */}
+      {/* Informacion del Trabajador */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IdCard className="w-5 h-5 text-primary" />
-            Información del Trabajador
+            Informacion del Trabajador
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select value={formData.role} onValueChange={(value) => update("role", value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el rol" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {/* Ajusta a tus Role.choices de apps.base.enums */}
-                    <SelectItem value="owner">Dueño</SelectItem>
-                    <SelectItem value="worker">Trabajador</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Rol asignado</Label>
+                <Input value="Trabajador" disabled />
               </div>
 
               <div className="space-y-2">
@@ -238,7 +217,7 @@ export default function WorkerCreate() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
+                <Label htmlFor="birth_date">Fecha de nacimiento</Label>
                 <Input
                   id="birth_date"
                   type="date"
@@ -303,5 +282,3 @@ export default function WorkerCreate() {
     </div>
   );
 }
-
-

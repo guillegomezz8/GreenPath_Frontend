@@ -40,7 +40,7 @@ export default function EditarCliente() {
     address: "",
     city: "",
     postal_code: "",
-    country: "España",
+    country: "Espaa",
     phone: "",
     frequency: "WEEKLY",
   });
@@ -65,7 +65,7 @@ export default function EditarCliente() {
           address: data?.address || "",
           city: data?.city || "",
           postal_code: data?.postal_code || "",
-          country: data?.country || "España",
+          country: data?.country || "Espaa",
           phone: data?.phone || "",
           frequency: freqCode,
         });
@@ -124,7 +124,7 @@ export default function EditarCliente() {
             <span>Editar Cliente</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Modifica la información del cliente
+            Modifica la informacion del cliente
           </p>
         </div>
     </div>
@@ -165,12 +165,12 @@ export default function EditarCliente() {
         </CardContent>
       </Card>
 
-      {/* Información del Cliente */}
+      {/* Informacion del Cliente */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IdCard className="w-5 h-5 text-primary" />
-            Información del Trabajador
+            Informacion del Cliente
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -200,54 +200,57 @@ export default function EditarCliente() {
               </div>
             </div>
 
-            {/* Dirección */}
+            {/* Direccion */}
             <div className="space-y-2">
-              <Label htmlFor="address">Dirección *</Label>
+              <Label htmlFor="address">Direccion *</Label>
               <Input
                 id="address"
                 value={formData.address}
                 onChange={(e) => update("address", e.target.value)}
                 required
                 disabled={fetching}
-                placeholder="Calle, número, ciudad"
+                placeholder="Calle, numero, ciudad"
               />
             </div>
 
-            {/* City / CP / País */}
+            {/* City / CP / Pas */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="city">Ciudad</Label>
+                <Label htmlFor="city">Ciudad *</Label>
                 <Input
                   id="city"
                   value={formData.city}
                   onChange={(e) => update("city", e.target.value)}
                   disabled={fetching}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="postal_code">Código Postal</Label>
+                <Label htmlFor="postal_code">Codigo postal *</Label>
                 <Input
                   id="postal_code"
                   value={formData.postal_code}
                   onChange={(e) => update("postal_code", e.target.value)}
                   disabled={fetching}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="country">País</Label>
+                <Label htmlFor="country">Pais *</Label>
                 <Input
                   id="country"
                   value={formData.country}
                   onChange={(e) => update("country", e.target.value)}
                   disabled={fetching}
+                  required
                 />
               </div>
             </div>
 
-            {/* Teléfono / Frecuencia */}
+            {/* Telefono / Frecuencia */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono *</Label>
+                <Label htmlFor="phone">Telefono *</Label>
                 <Input
                   id="phone"
                   value={formData.phone}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Save, Package, FlaskConical, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -57,6 +58,7 @@ export default function CollectionEdit() {
     deduction_reason: "RESIDUE",
     deduction_notes: "",
     price_per_liter: "0.000",
+    billable: true,
     status: "PENDING_MEASUREMENT",
     notes: "",
   });
@@ -64,6 +66,7 @@ export default function CollectionEdit() {
   const measuredValue = toOptionalNumber(formData.measured_liters);
   const isCanceled = formData.status === "CANCELED";
   const isPendingMeasurement = formData.status === "PENDING_MEASUREMENT";
+
   const handleGoBack = useCallback(() => {
     if (window.history.length > 1) {
       navigate(-1);
@@ -105,6 +108,7 @@ export default function CollectionEdit() {
         deduction_reason: item.deduction_reason || "RESIDUE",
         deduction_notes: item.deduction_notes || "",
         price_per_liter: item.price_per_liter ?? "0.000",
+        billable: item.billable !== false,
         status: item.status_code || statusCode,
         notes: item.notes || "",
       });
@@ -196,6 +200,7 @@ export default function CollectionEdit() {
         deduction_reason: formData.deduction_reason,
         deduction_notes: formData.deduction_notes || "",
         price_per_liter: Number(formData.price_per_liter || 0),
+        billable: !!formData.billable,
         status: normalizedStatus,
         notes: formData.notes || "",
       };
@@ -213,15 +218,15 @@ export default function CollectionEdit() {
   return (
     <div className="space-y-6">
       <div className="flex items-start gap-3 sm:items-center sm:gap-4">
-        <Button variant="ghost" size="icon" onClick={handleGoBack} className="flex-shrink-0 mt-1 sm:mt-0">
-          <ArrowLeft className="w-4 h-4" />
+        <Button variant="ghost" size="icon" onClick={handleGoBack} className="mt-1 flex-shrink-0 sm:mt-0">
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
-            <Package className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+          <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold leading-tight text-foreground sm:text-2xl lg:gap-3 lg:text-3xl">
+            <Package className="h-6 w-6 flex-shrink-0 text-primary sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
             <span>Editar Recogida</span>
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 text-left">Actualiza los datos de la recogida.</p>
+          <p className="mt-1 text-left text-sm text-muted-foreground sm:text-base">Actualiza los datos de la recogida.</p>
         </div>
       </div>
 
@@ -263,7 +268,7 @@ export default function CollectionEdit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Cliente *</Label>
                 <Select value={formData.client} onValueChange={(v) => handleChange("client", v)} disabled={loading || submitting}>
@@ -291,7 +296,7 @@ export default function CollectionEdit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Fecha *</Label>
                 <Input type="date" value={formData.collection_date} onChange={(e) => handleChange("collection_date", e.target.value)} disabled={loading || submitting} />
@@ -313,7 +318,7 @@ export default function CollectionEdit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Litros medidos</Label>
                 <Input type="number" min="0" step="0.01" value={formData.measured_liters} onChange={(e) => handleChange("measured_liters", e.target.value)} disabled={loading || submitting || isCanceled} />
@@ -328,7 +333,7 @@ export default function CollectionEdit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Motivo deduccion</Label>
                 <Select value={formData.deduction_reason} onValueChange={(v) => handleChange("deduction_reason", v)} disabled={loading || submitting || isCanceled || measuredValue === null}>
@@ -357,6 +362,21 @@ export default function CollectionEdit() {
               </div>
             </div>
 
+            <div className="rounded-xl border border-border/70 bg-background/70 p-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="billable"
+                  checked={!!formData.billable}
+                  onCheckedChange={(checked) => handleChange("billable", checked === true)}
+                  disabled={loading || submitting}
+                />
+                <div className="min-w-0 text-left">
+                  <Label htmlFor="billable" className="cursor-pointer">Facturable</Label>
+                  <p className="text-xs text-muted-foreground">Incluye esta recogida en el resumen economico.</p>
+                </div>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label>Notas deduccion</Label>
               <Textarea value={formData.deduction_notes} onChange={(e) => handleChange("deduction_notes", e.target.value)} disabled={loading || submitting || isCanceled || measuredValue === null} rows={3} />
@@ -367,12 +387,12 @@ export default function CollectionEdit() {
               <Textarea value={formData.notes} onChange={(e) => handleChange("notes", e.target.value)} disabled={loading || submitting} rows={4} />
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-2">
-              <Button type="button" variant="outline" onClick={handleGoBack} className="flex-1 order-2 sm:order-1 h-10 sm:h-9">
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:gap-4">
+              <Button type="button" variant="outline" onClick={handleGoBack} className="order-2 h-10 flex-1 sm:order-1 sm:h-9">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={loading || submitting} className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9">
-                <Save className="w-4 h-4 flex-shrink-0" />
+              <Button type="submit" disabled={loading || submitting} className="order-1 h-10 flex-1 gap-2 sm:order-2 sm:h-9">
+                <Save className="h-4 w-4 flex-shrink-0" />
                 {submitting ? "Guardando..." : "Actualizar Recogida"}
               </Button>
             </div>

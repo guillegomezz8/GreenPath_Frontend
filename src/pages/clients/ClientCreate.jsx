@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react"; // ⬅️ añadido UserCog y IdCard
+import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react"; //  aadido UserCog y IdCard
 import { useSnackbar } from '@/context/SnackbarProvider';
 import { handleApiError } from '@/components/Utils';
 import { useAuth } from "@/context/AuthProvider";
@@ -27,7 +27,7 @@ export default function ClientCreate() {
     address: "",
     city: "",
     postal_code: "",
-    country: "España",
+    country: "Espaa",
     frequency: "WEEKLY",
   });
 
@@ -83,7 +83,7 @@ export default function ClientCreate() {
             <span>Crear Cliente</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Rellena la información para registrar un nuevo cliente
+            Rellena la informacion para registrar un nuevo cliente
           </p>
         </div>
       </div>
@@ -125,17 +125,17 @@ export default function ClientCreate() {
               checked={formData.get_access}
               onCheckedChange={(v) => update("get_access", !!v)}
             />
-            <Label htmlFor="get_access">Dar acceso a la plataforma (enviar contraseña temporal por email)</Label>
+            <Label htmlFor="get_access">Dar acceso a la plataforma (enviar contrasena temporal por email)</Label>
           </div>
         </CardContent>
       </Card>
 
-      {/* Información del Cliente */}
+      {/* Informacion del Cliente */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IdCard className="w-5 h-5 text-primary" />
-            Información del Cliente
+            Informacion del Cliente
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -163,7 +163,7 @@ export default function ClientCreate() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="address">Dirección *</Label>
+              <Label htmlFor="address">Direccion *</Label>
               <Input
                 id="address"
                 value={formData.address}
@@ -174,34 +174,37 @@ export default function ClientCreate() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="city">Ciudad</Label>
+                <Label htmlFor="city">Ciudad *</Label>
                 <Input
                   id="city"
                   value={formData.city}
                   onChange={(e) => update("city", e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="postal_code">Código Postal</Label>
+                <Label htmlFor="postal_code">Codigo postal *</Label>
                 <Input
                   id="postal_code"
                   value={formData.postal_code}
                   onChange={(e) => update("postal_code", e.target.value)}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="country">País</Label>
+                <Label htmlFor="country">Pais *</Label>
                 <Input
                   id="country"
                   value={formData.country}
                   onChange={(e) => update("country", e.target.value)}
+                  required
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono *</Label>
+                <Label htmlFor="phone">Telefono *</Label>
                 <Input
                   id="phone"
                   value={formData.phone}

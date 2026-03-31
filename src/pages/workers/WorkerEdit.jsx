@@ -4,13 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 import { ArrowLeft, Save, UserPen, UserCog, IdCard } from "lucide-react";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
@@ -31,13 +24,17 @@ function toDateInputValue(value) {
   return "";
 }
 
-const toRoleValue = (r) => {
-  if (!r) return "worker";
-  const s = String(r).trim().toLowerCase();
-  if (["worker", "trabajador"].includes(s)) return "worker";
-  if (["owner", "dueño", "dueno"].includes(s)) return "owner";
-  if (["trabajador"].includes(s)) return "worker";
-  return "worker";
+const toRoleLabel = (roleValue) => {
+  if (!roleValue) return "Trabajador";
+  const normalized = String(roleValue)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  if (["owner", "propietario", "dueno"].includes(normalized)) return "Propietario";
+  if (["worker", "trabajador"].includes(normalized)) return "Trabajador";
+  return "Trabajador";
 };
 
 export default function WorkerEdit() {
@@ -53,7 +50,7 @@ export default function WorkerEdit() {
   const [formData, setFormData] = useState({
     username: "",
     email: "",
-    role: "worker",
+    role_label: "Trabajador",
     name: "",
     surname: "",
     address: "",
@@ -79,7 +76,7 @@ export default function WorkerEdit() {
         setFormData({
           username,
           email,
-          role: toRoleValue(data?.role),
+          role_label: toRoleLabel(data?.role_code || data?.role),
           name: data?.name || "",
           surname: data?.surname || "",
           address: data?.address || "",
@@ -106,11 +103,7 @@ export default function WorkerEdit() {
 
     try {
       const jsonPayload = {
-        user: {
-          username: formData.username,
-          email: formData.email,
-        },
-        role: formData.role,
+        email: formData.email,
         name: formData.name,
         surname: formData.surname,
         address: formData.address,
@@ -121,13 +114,12 @@ export default function WorkerEdit() {
 
       if (photoFile) {
         const fd = new FormData();
-        fd.append("user", JSON.stringify(jsonPayload.user));
-        fd.append("role", jsonPayload.role);
         fd.append("name", jsonPayload.name || "");
         fd.append("surname", jsonPayload.surname || "");
         fd.append("address", jsonPayload.address || "");
         fd.append("phone", jsonPayload.phone || "");
         fd.append("dni", jsonPayload.dni || "");
+        fd.append("email", jsonPayload.email || "");
         if (jsonPayload.birth_date) fd.append("birth_date", jsonPayload.birth_date);
         fd.append("photo", photoFile);
 
@@ -163,7 +155,7 @@ export default function WorkerEdit() {
             <span>Editar Trabajador</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Modifica la información del trabajador
+            Modifica la informacion del trabajador
           </p>
         </div>
       </div>
@@ -203,32 +195,20 @@ export default function WorkerEdit() {
         </CardContent>
       </Card>
 
-      {/* Información del Trabajador */}
+      {/* Informacion del Trabajador */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <IdCard className="w-5 h-5 text-primary" />
-            Información del Trabajador
+            Informacion del Trabajador
           </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="role">Rol</Label>
-                <Select
-                  value={formData.role}
-                  onValueChange={(value) => update("role", value)}
-                  disabled={fetching}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona el rol" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="owner">Dueño</SelectItem>
-                    <SelectItem value="worker">Trabajador</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label>Rol actual</Label>
+                <Input value={formData.role_label} disabled />
               </div>
 
               <div className="space-y-2">
@@ -256,27 +236,29 @@ export default function WorkerEdit() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="phone">Teléfono</Label>
+                <Label htmlFor="phone">Telefono *</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => update("phone", e.target.value)}
                   placeholder="+34 666 000 000"
                   disabled={fetching}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="dni">DNI</Label>
+                <Label htmlFor="dni">DNI *</Label>
                 <Input
                   id="dni"
                   value={formData.dni}
                   onChange={(e) => update("dni", e.target.value)}
                   placeholder="12345678Z"
                   disabled={fetching}
+                  required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="birth_date">Fecha de Nacimiento</Label>
+                <Label htmlFor="birth_date">Fecha de nacimiento</Label>
                 <Input
                   id="birth_date"
                   type="date"
@@ -290,7 +272,7 @@ export default function WorkerEdit() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2 col-span-full md:col-span-2">
                 <Label className="text-sm font-medium text-foreground" htmlFor="address">
-                  Dirección
+                  Direccion *
                 </Label>
                 <Input
                   id="address"
@@ -299,6 +281,7 @@ export default function WorkerEdit() {
                   placeholder="C/ Ejemplo 123, Sevilla"
                   className="w-full text-sm sm:text-base"
                   disabled={fetching}
+                  required
                 />
               </div>
 

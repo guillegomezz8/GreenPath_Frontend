@@ -104,7 +104,7 @@ export default function ClientDetail() {
   useEffect(() => {
     if (!id) {
       setLoading(false);
-      setError("No se encontró el ID del cliente en la URL");
+      setError("No se encontro el ID del cliente en la URL");
       return;
     }
     fetchClient(id);
@@ -128,16 +128,16 @@ export default function ClientDetail() {
 
   const asNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 
-  const name = client?.name ?? "—";
-  const email = client?.email ?? "—";
-  const phone = client?.phone ?? "—";
-  const cif = client?.cif ?? "—";
-  const address = client?.address ?? "—";
-  const city = client?.city ?? "—";
-  const postalCode = client?.postal_code ?? "—";
-  const country = client?.country ?? "—";
-  const frequency = client?.frequency ?? "—";
-  const lastCollection = client?.last_pick_up ?? "—";
+  const name = client?.name ?? "";
+  const email = client?.email ?? "";
+  const phone = client?.phone ?? "";
+  const cif = client?.cif ?? "";
+  const address = client?.address ?? "";
+  const city = client?.city ?? "";
+  const postalCode = client?.postal_code ?? "";
+  const country = client?.country ?? "";
+  const frequency = client?.frequency ?? "";
+  const lastCollection = client?.last_pick_up ?? "";
   const companiesCount = Array.isArray(client?.companies) ? client.companies.length : 0;
 
   const totalPaid = asNum(historyStats.total_paid || client?.total_paid);
@@ -196,7 +196,7 @@ export default function ClientDetail() {
               {loading ? "Cargando..." : name}
             </h1>
             <p className="text-sm sm:text-base text-muted-foreground text-left mt-1 leading-relaxed">
-              Información detallada del cliente
+              Informacion detallada del cliente
             </p>
           </div>
         </div>
@@ -226,7 +226,7 @@ export default function ClientDetail() {
             {deleting ? (
               <>
                 <Loader2 className="w-4 h-4 sm:mr-2 animate-spin flex-shrink-0" />
-                <span className="hidden xs:inline sm:hidden md:inline">Eliminando…</span>
+                <span className="hidden xs:inline sm:hidden md:inline">Eliminando</span>
               </>
             ) : (
               <>
@@ -243,12 +243,12 @@ export default function ClientDetail() {
         </Card>
       )}
 
-      {/* Métricas superiores */}
+      {/* Mtricas superiores */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">
-              {loading ? "—" : `${formatNumber(total_liters)} L`}
+              {loading ? "" : `${formatNumber(total_liters)} L`}
             </div>
             <p className="text-sm text-muted-foreground">Total Recogido</p>
           </CardContent>
@@ -256,15 +256,15 @@ export default function ClientDetail() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold">
-              {loading ? "—" : lastCollection}
+              {loading ? "" : lastCollection}
             </div>
-            <p className="text-sm text-muted-foreground">Última Recogida</p>
+            <p className="text-sm text-muted-foreground">Ultima recogida</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <Badge className={getPickupFrequencyClass(frequency)}>
-              {loading ? "—" : getPickupFrequencyLabel(frequency)}
+              {loading ? "" : getPickupFrequencyLabel(frequency)}
             </Badge>
             <p className="text-sm text-muted-foreground mt-2">Frecuencia</p>
           </CardContent>
@@ -274,16 +274,16 @@ export default function ClientDetail() {
       {/* Tabs */}
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="info">Información</TabsTrigger>
+          <TabsTrigger value="info">Informacion</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
-          <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+          <TabsTrigger value="stats">Estadisticas</TabsTrigger>
         </TabsList>
 
         {/* INFO */}
         <TabsContent value="info" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Información del Cliente</CardTitle>
+              <CardTitle>Informacion del Cliente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-left">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -291,16 +291,16 @@ export default function ClientDetail() {
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Dirección</p>
-                      <p className="text-sm text-muted-foreground">{loading ? "—" : address}</p>
+                      <p className="font-medium">Direccion</p>
+                      <p className="text-sm text-muted-foreground">{loading ? "" : address}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Teléfono</p>
-                      <p className="text-sm text-muted-foreground">{loading ? "—" : phone}</p>
+                      <p className="font-medium">Telefono</p>
+                      <p className="text-sm text-muted-foreground">{loading ? "" : phone}</p>
                     </div>
                   </div>
 
@@ -308,7 +308,7 @@ export default function ClientDetail() {
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">{loading ? "—" : email}</p>
+                      <p className="text-sm text-muted-foreground">{loading ? "" : email}</p>
                     </div>
                   </div>
                 </div>
@@ -318,16 +318,16 @@ export default function ClientDetail() {
                     <FileText className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="font-medium">CIF</p>
-                      <p className="text-sm text-muted-foreground">{loading ? "—" : cif}</p>
+                      <p className="text-sm text-muted-foreground">{loading ? "" : cif}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Ciudad / CP / País</p>
+                      <p className="font-medium">Ciudad / CP / Pais</p>
                       <p className="text-sm text-muted-foreground">
-                        {loading ? "—" : `${city} · ${postalCode} · ${country}`}
+                        {loading ? "-" : `${city} · ${postalCode} · ${country}`}
                       </p>
                     </div>
                   </div>
@@ -337,7 +337,7 @@ export default function ClientDetail() {
                     <div>
                       <p className="font-medium">Empresas asociadas</p>
                       <p className="text-sm text-muted-foreground">
-                        {loading ? "—" : `${companiesCount} vinculada(s)`}
+                        {loading ? "" : `${companiesCount} vinculada(s)`}
                       </p>
                     </div>
                   </div>
@@ -367,10 +367,12 @@ export default function ClientDetail() {
                     {historyPageItems.map((c) => {
                       const normalizedStatus = normalizeCollectionStatus(c.status);
                       const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
-                      const priceLabel = normalizedStatus === "CONFIRMED" ? `${c.total_price} EUR` : "-";
+                      const priceLabel = normalizedStatus === "CONFIRMED"
+                        ? (c.billable ? `${formatCurrency(c.total_price)} facturable` : `${formatCurrency(c.total_price)} no facturable`)
+                        : "-";
                       return (
-                        <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
+                        <div key={c.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-3">
                             <Package className="w-5 h-5 text-muted-foreground" />
                             <div className="text-left">
                               <p className="font-medium">{c.collection_date} - {c.route_name ?? "Ruta Desconocida"}</p>
@@ -379,7 +381,15 @@ export default function ClientDetail() {
                               </p>
                             </div>
                           </div>
-                          <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
+                          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                            <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
+                            <Badge
+                              variant="outline"
+                              className={c.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}
+                            >
+                              {c.billable ? "Facturable" : "No facturable"}
+                            </Badge>
+                          </div>
                         </div>
                       );
                     })}
@@ -387,7 +397,7 @@ export default function ClientDetail() {
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
                     <div className="text-sm text-muted-foreground">
-                      Página <span className="font-medium">{histPage}</span> de{" "}
+                      Pagina <span className="font-medium">{histPage}</span> de{" "}
                       <span className="font-medium">{histTotalPages}</span> ·{" "}
                       <span className="font-medium">{histTotal}</span> resultados
                     </div>
@@ -415,13 +425,13 @@ export default function ClientDetail() {
           </Card>
         </TabsContent>
 
-        {/* ESTADÍSTICAS mejoradas */}
+        {/* ESTADSTICAS mejoradas */}
         <TabsContent value="stats" className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-primary" />
-                Estadísticas
+                Estadisticas
               </CardTitle>
             </CardHeader>
 
@@ -447,13 +457,13 @@ export default function ClientDetail() {
                           <Coins className="h-5 w-5 text-amber-600" />
                         </span>
                         <span className="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-700">
-                          {euroPerLiter ? `${euroPerLiter.toFixed(3)} €/L` : "— €/L"}
+                          {euroPerLiter ? `${euroPerLiter.toFixed(3)} €/L` : "- €/L"}
                         </span>
                       </div>
                       <div className="mt-3 text-3xl font-bold text-foreground">
                         {formatCurrency(totalPaid)}
                       </div>
-                      <p className="text-sm text-muted-foreground">Total Pagado</p>
+                      <p className="text-sm text-muted-foreground">Total facturable</p>
                     </div>
 
                     {/* Litros totales */}
@@ -494,19 +504,19 @@ export default function ClientDetail() {
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Ticket medio</span>
                       <span className="text-sm font-semibold">
-                        {completed ? formatCurrency(avgTicket) : "—"}
+                        {completed ? formatCurrency(avgTicket) : "-"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Litros por recogida</span>
                       <span className="text-sm font-semibold">
-                        {effectivePickups ? `${Math.round(avgLiters)} L` : "—"}
+                        {effectivePickups ? `${Math.round(avgLiters)} L` : "-"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Última recogida completada</span>
+                      <span className="text-sm text-muted-foreground">Ultima recogida completada</span>
                       <span className="text-sm font-semibold">
-                        {client?.last_completed_pick_up ?? "—"}
+                        {client?.last_completed_pick_up ?? "-"}
                       </span>
                     </div>
                   </div>
@@ -537,7 +547,7 @@ export default function ClientDetail() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Eliminar cliente"
-        description={`Se va a eliminar el cliente "${name}". Esta acción no se puede deshacer.`}
+        description={`Se va a eliminar el cliente "${name}". Esta accion no se puede deshacer.`}
         confirmLabel="Eliminar"
         onConfirm={handleDelete}
         loading={deleting}
@@ -545,4 +555,3 @@ export default function ClientDetail() {
     </div>
   );
 }
-

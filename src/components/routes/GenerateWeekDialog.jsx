@@ -1,6 +1,6 @@
 import { RefreshCcw, WandSparkles } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -26,9 +26,9 @@ export default function GenerateWeekDialog({
       <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl p-0 sm:max-w-lg">
         <DialogHeader className="border-b border-border/70 px-4 py-4 text-left sm:px-6">
           <DialogTitle className="text-xl">Generar semana operativa</DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Configura la semana y la capacidad diaria. El resto de la lógica de paradas se generará automáticamente.
-          </p>
+          <DialogDescription className="text-sm text-muted-foreground">
+            Configura la semana y la capacidad diaria. El resto de la logica de paradas se generara automaticamente.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-6">
@@ -76,7 +76,7 @@ export default function GenerateWeekDialog({
               </div>
             ) : (
               <div className="rounded-2xl border border-dashed border-border/80 bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
-                No hay paradas existentes en esa semana. Se generarán directamente.
+                No hay paradas existentes en esa semana. Se generaran directamente.
               </div>
             )}
 
@@ -91,7 +91,7 @@ export default function GenerateWeekDialog({
                   Autoestimar sin notificar al cliente
                 </Label>
                 <p className="text-xs text-muted-foreground">
-                  Crea la planificación usando estimación automática sin enviar aviso previo.
+                  Crea la planificacion usando estimacion automatica sin enviar aviso previo.
                 </p>
               </div>
             </div>

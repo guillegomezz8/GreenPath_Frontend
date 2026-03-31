@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+﻿import { useState, useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowLeft, Save, MapPin, Calculator, Package } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +20,6 @@ export default function CollectionCreate() {
   const isWorker = user?.role_type === "worker";
 
   const [loading, setLoading] = useState(false);
-
   const [clients, setClients] = useState([]);
   const [workers, setWorkers] = useState([]);
 
@@ -30,15 +30,15 @@ export default function CollectionCreate() {
     container_type: "BIDONES",
     container_number: "1",
     price_per_liter: "",
-    notes: ""
+    billable: true,
+    notes: "",
   });
 
   const containerTypes = [
     { value: "BIDONES", label: "Bidones (60L cada uno)" },
-    { value: "IBC", label: "IBC (1000L cada uno)" }
+    { value: "IBC", label: "IBC (1000L cada uno)" },
   ];
 
-  // Traer clientes y trabajadores
   const fetchClients = useCallback(async () => {
     const res = await api().get("clients", { params: { page: 1, page_size: 300 } });
     setClients(res.data.results || []);
@@ -81,7 +81,7 @@ export default function CollectionCreate() {
   }, [fetchClients, fetchWorkers, fetchCompanySettings, toast]);
 
   const calculateTotals = () => {
-    const containerNumber = parseInt(formData.container_number) || 0;
+    const containerNumber = parseInt(formData.container_number, 10) || 0;
     const pricePerLiter = parseFloat(formData.price_per_liter) || 0;
     const volumePerContainer = formData.container_type === "BIDONES" ? 60 : 1000;
 
@@ -105,10 +105,10 @@ export default function CollectionCreate() {
       return;
     }
 
-    if ((parseInt(formData.container_number) || 0) < 1) {
+    if ((parseInt(formData.container_number, 10) || 0) < 1) {
       toast({
         title: "Error",
-        description: "El número de contenedores debe ser mayor a 0",
+        description: "El numero de contenedores debe ser mayor a 0",
         variant: "destructive",
       });
       return;
@@ -131,6 +131,7 @@ export default function CollectionCreate() {
         collection_date: formData.collection_date,
         container_type: formData.container_type,
         container_number: Number(formData.container_number),
+        billable: !!formData.billable,
         notes: formData.notes,
       };
 
@@ -167,38 +168,36 @@ export default function CollectionCreate() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start gap-3 sm:items-center sm:gap-4">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/collections")}
-          className="flex-shrink-0 mt-1 sm:mt-0"
+          className="mt-1 flex-shrink-0 sm:mt-0"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
-            <Package className="w-6 h-6 sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-primary flex-shrink-0" />
+          <h1 className="flex flex-wrap items-center gap-2 text-xl font-bold leading-tight text-foreground sm:text-2xl lg:gap-3 lg:text-3xl">
+            <Package className="h-6 w-6 flex-shrink-0 text-primary sm:h-7 sm:w-7 lg:h-8 lg:w-8" />
             <span>{isWorker ? "Registrar Recogida" : "Crear Recogida"}</span>
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Rellena la información para registrar una nueva recogida
+          <p className="mt-1 text-left text-sm leading-relaxed text-muted-foreground sm:text-base">
+            Rellena la informacion para registrar una nueva recogida
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Información básica */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Información Básica
+              <MapPin className="h-5 w-5 text-primary" />
+              Informacion basica
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="client">Cliente *</Label>
                 <Select
@@ -222,10 +221,7 @@ export default function CollectionCreate() {
               {!isWorker && (
                 <div className="space-y-2">
                   <Label htmlFor="worker">Trabajador</Label>
-                  <Select
-                    value={formData.worker}
-                    onValueChange={(value) => handleChange("worker", value)}
-                  >
+                  <Select value={formData.worker} onValueChange={(value) => handleChange("worker", value)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar trabajador" />
                     </SelectTrigger>
@@ -241,7 +237,7 @@ export default function CollectionCreate() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="collection_date">Fecha de Recogida *</Label>
+                <Label htmlFor="collection_date">Fecha de recogida *</Label>
                 <Input
                   id="collection_date"
                   type="date"
@@ -254,22 +250,18 @@ export default function CollectionCreate() {
           </CardContent>
         </Card>
 
-        {/* Información de contenedores */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Calculator className="w-5 h-5 text-primary" />
-              Información de Contenedores
+              <Calculator className="h-5 w-5 text-primary" />
+              Informacion de contenedores
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="container_type">Tipo de Contenedor *</Label>
-                <Select
-                  value={formData.container_type}
-                  onValueChange={(value) => handleChange("container_type", value)}
-                >
+                <Label htmlFor="container_type">Tipo de contenedor *</Label>
+                <Select value={formData.container_type} onValueChange={(value) => handleChange("container_type", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar tipo" />
                   </SelectTrigger>
@@ -284,7 +276,7 @@ export default function CollectionCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="container_number">Número de Contenedores *</Label>
+                <Label htmlFor="container_number">Numero de contenedores *</Label>
                 <Input
                   id="container_number"
                   type="number"
@@ -297,7 +289,7 @@ export default function CollectionCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="price_per_liter">Precio por Litro (EUR)</Label>
+                <Label htmlFor="price_per_liter">Precio por litro (EUR)</Label>
                 <Input
                   id="price_per_liter"
                   type="number"
@@ -307,25 +299,39 @@ export default function CollectionCreate() {
                   onChange={(e) => handleChange("price_per_liter", e.target.value)}
                   placeholder="Se usara el precio global"
                 />
-                <p className="text-xs text-muted-foreground text-left">Se rellena con el precio global de la empresa y puedes ajustarlo si hace falta.</p>
+                <p className="text-left text-xs text-muted-foreground">
+                  Se rellena con el precio global de la empresa y puedes ajustarlo si hace falta.
+                </p>
               </div>
             </div>
 
-            {/* Cálculos automáticos */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-accent/50 rounded-lg">
+            <div className="rounded-xl border border-border/70 bg-background/70 p-4">
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  id="billable"
+                  checked={!!formData.billable}
+                  onCheckedChange={(checked) => handleChange("billable", checked === true)}
+                />
+                <div className="min-w-0 text-left">
+                  <Label htmlFor="billable" className="cursor-pointer">Facturable</Label>
+                  <p className="text-xs text-muted-foreground">Incluye esta recogida en el resumen economico.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 rounded-lg bg-accent/50 p-4 md:grid-cols-2">
               <div>
-                <p className="text-sm text-muted-foreground">Litros Totales Estimados</p>
+                <p className="text-sm text-muted-foreground">Litros totales estimados</p>
                 <p className="text-lg font-semibold text-primary">{litersCollected} L</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Precio Total Estimado</p>
-                <p className="text-lg font-semibold text-success">{totalPrice.toFixed(2)} €</p>
+                <p className="text-sm text-muted-foreground">Importe estimado</p>
+                <p className="text-lg font-semibold text-success">{totalPrice.toFixed(2)} EUR</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Observaciones */}
         <Card>
           <CardHeader className="text-left">
             <CardTitle>Observaciones</CardTitle>
@@ -337,28 +343,26 @@ export default function CollectionCreate() {
                 id="notes"
                 value={formData.notes}
                 onChange={(e) => handleChange("notes", e.target.value)}
-                placeholder="Cualquier información adicional sobre la recogida..."
+                placeholder="Cualquier informacion adicional sobre la recogida..."
                 rows={4}
               />
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 pt-4 sm:pt-6">
+            <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4 sm:pt-6">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => navigate("/collections")}
-                className="flex-1 order-2 sm:order-1 h-10 sm:h-9"
+                className="order-2 h-10 flex-1 sm:order-1 sm:h-9"
               >
                 <span className="text-sm sm:text-base">Cancelar</span>
               </Button>
               <Button
                 type="submit"
                 disabled={loading}
-                className="flex-1 order-1 sm:order-2 gap-2 h-10 sm:h-9"
+                className="order-1 h-10 flex-1 gap-2 sm:order-2 sm:h-9"
               >
-                <Save className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm sm:text-base">
-                  {loading ? "Guardando..." : "Crear Recogida"}
-                </span>
+                <Save className="h-4 w-4 flex-shrink-0" />
+                <span className="text-sm sm:text-base">{loading ? "Guardando..." : "Crear Recogida"}</span>
               </Button>
             </div>
           </CardContent>

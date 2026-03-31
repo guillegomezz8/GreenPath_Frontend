@@ -102,7 +102,7 @@ export default function WorkerDetail() {
   useEffect(() => {
     if (!id) {
       setLoading(false);
-      setError("No se encontró el ID del trabajador en la URL");
+      setError("No se encontro el ID del trabajador en la URL");
       return;
     }
     fetchWorker(id);
@@ -118,7 +118,7 @@ export default function WorkerDetail() {
   const toggleButtonText = isDisabled ? "Habilitar" : "Deshabilitar";
   const toggleButtonIcon = isDisabled ? UserCheck : Trash2;
   const toggleButtonVariant = isDisabled ? "default" : "destructive";
-  const loadingText = isDisabled ? "Habilitando…" : "Deshabilitando…";
+  const loadingText = isDisabled ? "Habilitando" : "Deshabilitando";
 
   const handleToggleStatus = async () => {
     if (!id || !worker) return;
@@ -197,11 +197,11 @@ export default function WorkerDetail() {
                 {loading ? "Cargando..." : `${worker?.name ?? ""} ${worker?.surname ?? ""}`}
               </h1>
               <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed">
-                {loading ? "—" : (
+                {loading ? "" : (
                   <>
-                    <span className="hidden sm:inline">Nombre de Usuario: </span>
+                    <span className="hidden sm:inline">Nombre de usuario: </span>
                     <span className="sm:hidden">Usuario: </span>
-                    <span className="font-medium">{worker?.username ?? "—"}</span>
+                    <span className="font-medium">{worker?.username ?? ""}</span>
                   </>
                 )}
               </p>
@@ -259,17 +259,17 @@ export default function WorkerDetail() {
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-primary">
-              {loading ? "—" : totalCollections}
+              {loading ? "" : totalCollections}
             </div>
-            <p className="text-sm text-muted-foreground">Recogidas No Canceladas</p>
+            <p className="text-sm text-muted-foreground">Recogidas activas</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
             <div className="text-2xl font-bold text-orange-500">
-              {loading ? "—" : worker?.assigned_trucks ?? "Sin asignar"}
+              {loading ? "" : worker?.assigned_trucks ?? "Sin asignar"}
             </div>
-            <p className="text-sm text-muted-foreground">Vehiculo Asignado</p>
+            <p className="text-sm text-muted-foreground">Vehiculo asignado</p>
           </CardContent>
         </Card>
         <Card>
@@ -287,16 +287,16 @@ export default function WorkerDetail() {
       {/* Tabs */}
       <Tabs defaultValue="info" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="info">Información</TabsTrigger>
+          <TabsTrigger value="info">Informacion</TabsTrigger>
           <TabsTrigger value="history">Historial</TabsTrigger>
-          <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+          <TabsTrigger value="stats">Estadisticas</TabsTrigger>
         </TabsList>
 
-        {/* Información */}
+        {/* Informacion */}
         <TabsContent value="info" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Información del Trabajador</CardTitle>
+              <CardTitle>Informacion del Trabajador</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-left">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -304,16 +304,16 @@ export default function WorkerDetail() {
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Dirección</p>
-                      <p className="text-sm text-muted-foreground">{worker?.address ?? "—"}</p>
+                      <p className="font-medium">Direccion</p>
+                      <p className="text-sm text-muted-foreground">{worker?.address ?? ""}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Teléfono</p>
-                      <p className="text-sm text-muted-foreground">{worker?.phone ?? "—"}</p>
+                      <p className="font-medium">Telefono</p>
+                      <p className="text-sm text-muted-foreground">{worker?.phone ?? ""}</p>
                     </div>
                   </div>
 
@@ -321,7 +321,7 @@ export default function WorkerDetail() {
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="font-medium">Email</p>
-                      <p className="text-sm text-muted-foreground">{worker?.email ?? "—"}</p>
+                      <p className="text-sm text-muted-foreground">{worker?.email ?? ""}</p>
                     </div>
                   </div>
                 </div>
@@ -331,7 +331,7 @@ export default function WorkerDetail() {
                     <IdCard className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="font-medium">DNI</p>
-                      <p className="text-sm text-muted-foreground">{worker?.dni ?? "—"}</p>
+                      <p className="text-sm text-muted-foreground">{worker?.dni ?? ""}</p>
                     </div>
                   </div>
 
@@ -340,7 +340,7 @@ export default function WorkerDetail() {
                     <div>
                       <p className="font-medium">Fecha de nacimiento</p>
                       <p className="text-sm text-muted-foreground">
-                        {loading ? "—" : `${worker?.birth_date ?? "—"}`}
+                        {loading ? "" : `${worker?.birth_date ?? ""}`}
                       </p>
                     </div>
                   </div>
@@ -348,9 +348,9 @@ export default function WorkerDetail() {
                   <div className="flex items-center gap-2">
                     <Truck className="w-4 h-4 text-muted-foreground" />
                     <div>
-                      <p className="font-medium">Vehículo Asociado</p>
+                      <p className="font-medium">Vehiculo Asociado</p>
                       <p className="text-sm text-muted-foreground">
-                        {loading ? "—" : `${worker?.assigned_trucks ?? "Sin asignar"}`}
+                        {loading ? "" : `${worker?.assigned_trucks ?? "Sin asignar"}`}
                       </p>
                     </div>
                   </div>
@@ -382,10 +382,12 @@ export default function WorkerDetail() {
                     {collections.map((c) => {
                       const normalizedStatus = normalizeCollectionStatus(c.status);
                       const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
-                      const priceLabel = normalizedStatus === "CONFIRMED" ? `${c.total_price} EUR` : "-";
+                      const priceLabel = normalizedStatus === "CONFIRMED"
+                        ? (c.billable ? `${formatCurrency(c.total_price)} facturable` : `${formatCurrency(c.total_price)} no facturable`)
+                        : "-";
                       return (
-                        <div key={c.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
+                        <div key={c.id} className="flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex items-start gap-3">
                             <Package className="w-5 h-5 text-muted-foreground" />
                             <div className="text-left">
                               <p className="font-medium">
@@ -396,16 +398,24 @@ export default function WorkerDetail() {
                               </p>
                             </div>
                           </div>
-                          <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
+                          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                            <Badge className={getCollectionStatusClass(c.status)}>{getCollectionStatusLabel(c.status)}</Badge>
+                            <Badge
+                              variant="outline"
+                              className={c.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}
+                            >
+                              {c.billable ? "Facturable" : "No facturable"}
+                            </Badge>
+                          </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  {/* Footer de paginación */}
+                  {/* Footer de paginacin */}
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
                     <div className="text-sm text-muted-foreground">
-                      Página <span className="font-medium">{collPage}</span> de{" "}
+                      Pagina <span className="font-medium">{collPage}</span> de{" "}
                       <span className="font-medium">{collTotalPages}</span>
                       {typeof collTotal === "number" && (
                         <> · <span className="font-medium">{collTotal}</span> resultados</>
@@ -435,11 +445,11 @@ export default function WorkerDetail() {
           </Card>
         </TabsContent>
 
-        {/* Estadísticas */}
+        {/* Estadisticas */}
         <TabsContent value="stats" className="space-y-4">
           <Card>
             <CardHeader className="flex items-center justify-between">
-              <CardTitle>Estadísticas</CardTitle>
+              <CardTitle>Estadisticas</CardTitle>
             </CardHeader>
 
             <CardContent>
@@ -502,28 +512,28 @@ export default function WorkerDetail() {
                       <div className="mt-3 text-3xl font-bold text-foreground">
                         {formatCurrency(totalIncomes)}
                       </div>
-                      <p className="text-sm text-muted-foreground">Ingresos Totales</p>
+                      <p className="text-sm text-muted-foreground">Ingresos facturables</p>
                     </div>
                   </div>
 
-                  {/* Línea secundaria con “mini KPIs” */}
+                  {/* Lnea secundaria con mini KPIs */}
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">€/L medio</span>
                       <span className="text-sm font-semibold">
-                        {euroPerLiter ? `${euroPerLiter.toFixed(3)} €` : "—"}
+                        {euroPerLiter ? `${euroPerLiter.toFixed(3)} €` : "-"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Litros por ruta</span>
                       <span className="text-sm font-semibold">
-                        {litersPerRoute ? `${Math.round(litersPerRoute)} L` : "—"}
+                        {litersPerRoute ? `${Math.round(litersPerRoute)} L` : "-"}
                       </span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Ingresos por ruta</span>
                       <span className="text-sm font-semibold">
-                        {totalRoutes ? formatCurrency(totalIncomes / totalRoutes) : "—"}
+                        {totalRoutes ? formatCurrency(totalIncomes / totalRoutes) : "-"}
                       </span>
                     </div>
                   </div>
@@ -542,7 +552,7 @@ export default function WorkerDetail() {
                       <span className="text-sm font-semibold text-red-600">{formatNumber(canceledCollections)}</span>
                     </div>
                     <div className="rounded-lg border p-3 flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Tasa confirmacion</span>
+                      <span className="text-sm text-muted-foreground">Tasa de confirmacion</span>
                       <span className="text-sm font-semibold">{`${Math.round(completionRate)}%`}</span>
                     </div>
                   </div>
@@ -553,15 +563,15 @@ export default function WorkerDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Modal de confirmación de borrado */}
+      {/* Modal de confirmacion de borrado */}
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title={isDisabled ? "Habilitar trabajador" : "Deshabilitar trabajador"}
         description={
           isDisabled 
-            ? `Se habilitará el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Podrá acceder al sistema nuevamente.`
-            : `Se deshabilitará el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Esta acción no se puede deshacer.`
+            ? `Se habilitara el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Podra acceder al sistema nuevamente.`
+            : `Se deshabilitara el trabajador ${worker?.name ?? ""} ${worker?.surname ?? ""}. Esta accion no se puede deshacer.`
         }
         confirmLabel={isDisabled ? "Habilitar" : "Deshabilitar"}
         onConfirm={handleToggleStatus}

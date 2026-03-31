@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -70,29 +70,29 @@ export default function CollectionDetail() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-start gap-3 sm:items-center sm:gap-4 min-w-0 flex-1">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/collections")} className="flex-shrink-0 mt-1 sm:mt-0">
-            <ArrowLeft className="w-4 h-4" />
+        <div className="flex min-w-0 flex-1 items-start gap-3 sm:items-center sm:gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/collections")} className="mt-1 flex-shrink-0 sm:mt-0">
+            <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground text-left leading-tight">
+            <h1 className="text-left text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">
               {loading ? "Cargando..." : `Recogida #${collection?.id || id}`}
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground text-left mt-1 leading-relaxed">
+            <p className="mt-1 text-left text-sm leading-relaxed text-muted-foreground sm:text-base">
               Detalle de recogida y sus importes.
             </p>
           </div>
         </div>
-        <div className="flex gap-2 sm:gap-3 flex-shrink-0">
+        <div className="flex flex-shrink-0 gap-2 sm:gap-3">
           {isOwner && (
             <Button variant="outline" size="sm" onClick={() => navigate(`/collections/${id}/edit`)}>
-              <Edit className="w-4 h-4 sm:mr-2" />
+              <Edit className="h-4 w-4 sm:mr-2" />
               Editar
             </Button>
           )}
           {isOwner && (
             <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
-              <Trash2 className="w-4 h-4 sm:mr-2" />
+              <Trash2 className="h-4 w-4 sm:mr-2" />
               Eliminar
             </Button>
           )}
@@ -102,28 +102,37 @@ export default function CollectionDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Package className="w-5 h-5 text-primary" />
+            <Package className="h-5 w-5 text-primary" />
             Datos generales
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
-          <p><span className="text-muted-foreground">Cliente:</span> {collection?.client_name || "-"}</p>
-          <p><span className="text-muted-foreground">Ruta:</span> {collection?.route_name || "Sin ruta"}</p>
-          <p><span className="text-muted-foreground">Fecha:</span> {formatDate(collection?.collection_date)}</p>
-          <p><span className="text-muted-foreground">Estado:</span> <Badge className={getCollectionStatusClass(collection?.status)}>{getCollectionStatusLabel(collection?.status)}</Badge></p>
-          <p><span className="text-muted-foreground">Trabajador:</span> {collection?.worker_name || "-"}</p>
-          <p><span className="text-muted-foreground">Parada planificada:</span> {collection?.route_day_client || "-"}</p>
+        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
+          <div><span className="text-muted-foreground">Cliente:</span> {collection?.client_name || "-"}</div>
+          <div><span className="text-muted-foreground">Ruta:</span> {collection?.route_name || "Sin ruta"}</div>
+          <div><span className="text-muted-foreground">Fecha:</span> {formatDate(collection?.collection_date)}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">Estado:</span>
+            <Badge className={getCollectionStatusClass(collection?.status)}>{getCollectionStatusLabel(collection?.status)}</Badge>
+          </div>
+          <div><span className="text-muted-foreground">Trabajador:</span> {collection?.worker_name || "-"}</div>
+          <div><span className="text-muted-foreground">Parada planificada:</span> {collection?.route_day_client || "-"}</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">Facturacion:</span>
+            <Badge variant="outline" className={collection?.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
+              {collection?.billable_label || (collection?.billable ? "Facturable" : "No facturable")}
+            </Badge>
+          </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Weight className="w-5 h-5 text-primary" />
+            <Weight className="h-5 w-5 text-primary" />
             Litros y envases
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
+        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
           <p><span className="text-muted-foreground">Tipo envase:</span> {collection?.container_type || "-"}</p>
           <p><span className="text-muted-foreground">Numero envases:</span> {collection?.container_number || 0}</p>
           <p><span className="text-muted-foreground">Litros estimados:</span> {asNumber(collection?.estimated_liters).toFixed(2)} L</p>
@@ -138,14 +147,20 @@ export default function CollectionDetail() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Euro className="w-5 h-5 text-primary" />
-            Precio
+            <Euro className="h-5 w-5 text-primary" />
+            Precio y facturacion
           </CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-left">
-          <p><span className="text-muted-foreground">Precio por litro:</span> {asNumber(collection?.price_per_liter).toFixed(3)} EUR</p>
-          <p><span className="text-muted-foreground">Total:</span> {asNumber(collection?.total_price).toFixed(2)} EUR</p>
-          <p className="md:col-span-2"><span className="text-muted-foreground">Notas:</span> {collection?.notes || "-"}</p>
+        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
+          <div><span className="text-muted-foreground">Precio por litro:</span> {asNumber(collection?.price_per_liter).toFixed(3)} EUR</div>
+          <div><span className="text-muted-foreground">Total:</span> {asNumber(collection?.total_price).toFixed(2)} EUR</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-foreground">Facturable:</span>
+            <Badge variant="outline" className={collection?.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
+              {collection?.billable ? "Si" : "No"}
+            </Badge>
+          </div>
+          <div className="md:col-span-2"><span className="text-muted-foreground">Notas:</span> {collection?.notes || "-"}</div>
         </CardContent>
       </Card>
 

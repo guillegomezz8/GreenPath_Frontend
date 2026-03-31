@@ -131,8 +131,8 @@ export function formatNumber(n) {
 }
 
 export function formatCurrency(n) {
-  new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(n ?? 0);
-  return n?.toLocaleString("es-ES", { style: "currency", currency: "EUR" }) || "0 €";
+  const value = Number(n ?? 0);
+  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(value);
 }
 
 export function normalizeCollectionStatus(status) {

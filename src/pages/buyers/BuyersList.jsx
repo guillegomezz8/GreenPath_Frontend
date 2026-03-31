@@ -148,6 +148,7 @@ export default function BuyersList() {
         totalPages={totalPages}
         onPrevPage={() => setPage((prev) => Math.max(1, prev - 1))}
         onNextPage={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+        showDefaultEmpty={false}
       >
         {!loading && visibleBuyers.length === 0 ? (
           <Card className="lg:col-span-2">

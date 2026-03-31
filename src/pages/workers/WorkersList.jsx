@@ -162,7 +162,7 @@ export default function WorkersList() {
       <PaginatedScaffold
         title={
           <>
-            <UserCog className="w-8 h-8 text-primary" /> Gestión de Trabajadores
+            <UserCog className="w-8 h-8 text-primary" /> Gestion de Trabajadores
           </>
         }
         subtitle="Administra el equipo de trabajo de GreenPath"
@@ -235,7 +235,7 @@ export default function WorkersList() {
                       <Edit className="w-4 h-4" /> Editar
                     </DropdownMenuItem>
                     <DropdownMenuItem
-                      className={`gap-2 text-${worker.disabled ? "success" : "destructive"}`}
+                      className={worker.disabled ? "gap-2 text-emerald-600" : "gap-2 text-destructive"}
                       onClick={() => askToggleStatus(worker)}
                     >
                       {React.createElement(toggleButtonIcon(worker.disabled), { className: "w-4 h-4 sm:mr-2 flex-shrink-0" })}
@@ -265,9 +265,9 @@ export default function WorkersList() {
                 </div>
               )}
 
-              {worker.vehicle && (
+              {worker.assigned_trucks && worker.assigned_trucks !== "Sin asignar" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Truck className="w-4 h-4" /> Vehículo {worker.vehicle}
+                  <Truck className="w-4 h-4" /> Vehiculo {worker.assigned_trucks}
                 </div>
               )}
 
@@ -302,7 +302,7 @@ export default function WorkersList() {
                   className="flex-1"
                   onClick={() => navigate(`/assign-truck/${worker.id}`)}
                 >
-                  Asignar Camión
+                  Asignar Camion
                 </ActionButton>
               </div>
             </CardContent>
@@ -310,7 +310,7 @@ export default function WorkersList() {
         ))}
       </PaginatedScaffold>
 
-      {/* Modal de confirmación */}
+      {/* Modal de confirmacion */}
       <ConfirmDeleteDialog
         open={deleteOpen}
         onOpenChange={(o) => { if (!o) setToToggle(null); setDeleteOpen(o); }}
@@ -318,9 +318,9 @@ export default function WorkersList() {
         description={
           toToggle ? (
             toToggle.disabled 
-              ? <span>Se habilitará el trabajador {toToggle.name}. Podrá acceder al sistema nuevamente.</span>
-              : <span>Se deshabilitará el trabajador {toToggle.name}. Esta acción no se puede deshacer.</span>
-          ) : "Esta acción no se puede deshacer."
+              ? <span>Se habilitara el trabajador {toToggle.name}. Podra acceder al sistema nuevamente.</span>
+              : <span>Se deshabilitara el trabajador {toToggle.name}. Esta accion no se puede deshacer.</span>
+          ) : "Esta accion no se puede deshacer."
         }
         confirmLabel={toToggle?.disabled ? "Habilitar" : "Deshabilitar"}
         onConfirm={confirmDelete}

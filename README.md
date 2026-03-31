@@ -1,30 +1,14 @@
 # GreenPath Frontend
 
-## Modulos owner-only
+La documentacion funcional y tecnica del proyecto se centraliza en:
 
-### Compradores
-- `#/buyers`
-- listado, detalle, alta y edicion
-- gestion interna de datos fiscales del comprador
+- `e:/TFG/back/GreenPath_Backend/docs/INDICE_DOCUMENTACION.md`
 
-### Ventas
-- `#/sales`
-- listado, detalle, alta y edicion
-- descarga de factura PDF
-- regeneracion de factura desde detalle
+Documentos recomendados:
 
-### Configuracion
-- `#/settings`
-- precio global por litro
-- hub de empresa en mapa
-- datos de facturacion para emision de facturas
+- `e:/TFG/back/GreenPath_Backend/docs/FUNCIONAL.md`
+- `e:/TFG/back/GreenPath_Backend/docs/FRONTEND_PANTALLAS.md`
+- `e:/TFG/back/GreenPath_Backend/docs/API.md`
+- `e:/TFG/back/GreenPath_Backend/docs/ROUTE_FLOW.md`
 
-### Estadisticas
-- `#/stats`
-- ingresos por ventas
-- costes por compras o recogidas confirmadas
-- beneficio neto
-- volumen comprado vs volumen vendido
-
-## Validacion
-- build verificado dentro del contenedor `greenpath_frontend`
+Este README queda solo como puntero para evitar documentacion duplicada entre front y back.

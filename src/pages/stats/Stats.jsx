@@ -58,7 +58,7 @@ export default function Stats() {
         api().get("sales/economic-summary/"),
         api().get("buyers/", { params: { page: 1, page_size: 1 } }),
         api().get("sales/", { params: { page: 1, page_size: 1 } }),
-        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED" } }),
+        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED", billable: true } }),
       ]);
 
       setSummary(summaryRes.data || null);
@@ -161,7 +161,7 @@ export default function Stats() {
             <Card>
               <CardContent className="pt-6 text-center">
                 <div className="text-2xl font-bold text-blue-600">{confirmedCollectionsCount}</div>
-                <p className="text-sm text-muted-foreground">Compras confirmadas</p>
+                <p className="text-sm text-muted-foreground">Compras facturables</p>
               </CardContent>
             </Card>
           </div>
