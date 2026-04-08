@@ -27,6 +27,7 @@ export default function CollectionDetail() {
   const { api, user } = useAuth();
   const showSnackbar = useSnackbar();
   const isOwner = user?.role_type === "owner";
+  const isClient = user?.role_type === "client";
 
   const [loading, setLoading] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -76,10 +77,10 @@ export default function CollectionDetail() {
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-left text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">
-              {loading ? "Cargando..." : `Recogida #${collection?.id || id}`}
+              {loading ? "Cargando..." : `${isClient ? "Mi recogida" : "Recogida"} #${collection?.id || id}`}
             </h1>
             <p className="mt-1 text-left text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Detalle de recogida y sus importes.
+              {isClient ? "Consulta el detalle de tu recogida y los litros registrados." : "Detalle de recogida y sus importes."}
             </p>
           </div>
         </div>
@@ -115,13 +116,7 @@ export default function CollectionDetail() {
             <Badge className={getCollectionStatusClass(collection?.status)}>{getCollectionStatusLabel(collection?.status)}</Badge>
           </div>
           <div><span className="text-muted-foreground">Trabajador:</span> {collection?.worker_name || "-"}</div>
-          <div><span className="text-muted-foreground">Parada planificada:</span> {collection?.route_day_client || "-"}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">Facturacion:</span>
-            <Badge variant="outline" className={collection?.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
-              {collection?.billable_label || (collection?.billable ? "Facturable" : "No facturable")}
-            </Badge>
-          </div>
+          <div><span className="text-muted-foreground">Planificacion:</span> {collection?.route_day_client ? "Asignada a una ruta" : "Sin planificacion previa"}</div>
         </CardContent>
       </Card>
 

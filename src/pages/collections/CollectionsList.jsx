@@ -70,6 +70,9 @@ export default function CollectionsList() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [isCountsOpen, setIsCountsOpen] = useState(false);
+  const searchPlaceholder = isClient
+    ? "Buscar por ruta, trabajador o notas..."
+    : "Buscar por cliente, ruta, trabajador o notas...";
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
 
@@ -203,7 +206,7 @@ export default function CollectionsList() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por cliente, ruta, trabajador o notas..."
+                placeholder={searchPlaceholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -319,7 +322,7 @@ export default function CollectionsList() {
                     <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
                       <div className="flex items-center gap-2">
                         <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Trabajador:</span>
+                        <span className="text-muted-foreground">{isClient ? "Registrada por:" : "Trabajador:"}</span>
                         <span className="font-medium">{collection.worker_name || "-"}</span>
                       </div>
                       <div className="flex items-center gap-2">
@@ -414,7 +417,7 @@ export default function CollectionsList() {
         <CardContent className="pt-6">
           <div className="text-center">
             <Weight className="mx-auto mb-4 h-12 w-12 opacity-90" />
-            <h3 className="mb-2 text-xl font-semibold">Resumen de pagina</h3>
+            <h3 className="mb-2 text-xl font-semibold">{isClient ? "Resumen de mis recogidas" : "Resumen de pagina"}</h3>
             <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
               <div>
                 <div className="text-2xl font-bold">{collections.length}</div>
@@ -422,11 +425,11 @@ export default function CollectionsList() {
               </div>
               <div>
                 <div className="text-2xl font-bold">{totalNetLiters.toFixed(2)}L</div>
-                <p className="opacity-90">Litros netos</p>
+                <p className="opacity-90">{isClient ? "Litros registrados" : "Litros netos"}</p>
               </div>
               <div>
                 <div className="text-2xl font-bold">{totalPrice.toFixed(2)} EUR</div>
-                <p className="opacity-90">Importe facturable</p>
+                <p className="opacity-90">{isClient ? "Importe asociado" : "Importe facturable"}</p>
               </div>
             </div>
           </div>

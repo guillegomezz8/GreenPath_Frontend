@@ -330,9 +330,9 @@ export default function RouteExecution() {
           <p className="mt-1 text-xs text-muted-foreground">
             Revisa la planificacion desde el detalle de la ruta y genera la semana operativa si hace falta.
           </p>
-          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => navigate(`/routes/${id}`)}>Ir al detalle</Button>
-            <Button size="sm" variant="outline" onClick={fetchOverview}>Refrescar</Button>
+          <div className="mt-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:flex-wrap">
+            <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/routes/${id}`)}>Ir al detalle</Button>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={fetchOverview}>Refrescar</Button>
           </div>
         </div>
       ) : executionRouteDays.length === 0 ? (

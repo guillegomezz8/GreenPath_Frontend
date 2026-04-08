@@ -253,7 +253,7 @@ export default function RouteDayMap({
                 key={routeDay.id}
                 type="button"
                 onClick={() => onSelectRouteDay?.(String(routeDay.id))}
-                className={`min-w-[138px] snap-start rounded-2xl border px-3 py-3 text-left transition-all sm:min-w-[170px] sm:px-4 ${
+                className={`min-w-[124px] snap-start rounded-2xl border px-3 py-3 text-left transition-all sm:min-w-[160px] sm:px-4 ${
                   selected
                     ? "border-primary/40 bg-primary/10 shadow-elegant"
                     : "border-border/80 bg-background/80 hover:border-primary/30 hover:bg-accent/40"
@@ -320,7 +320,7 @@ export default function RouteDayMap({
                       icon={createStopIcon(stop.order, getStopVisualState(stop))}
                     >
                       <Popup>
-                        <div className="min-w-[220px] space-y-2">
+                        <div className="min-w-[180px] max-w-[220px] space-y-2">
                           <div>
                             <p className="font-semibold">#{stop.order} - {stop.client_name}</p>
                             <p className="text-xs text-slate-600">{stop.client_address || "-"}</p>

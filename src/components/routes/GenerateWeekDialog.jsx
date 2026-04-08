@@ -32,7 +32,7 @@ export default function GenerateWeekDialog({
         </DialogHeader>
 
         <div className="space-y-5 px-4 py-4 sm:px-6 sm:py-6">
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="weekStartDate">Inicio de semana</Label>
               <Input
@@ -63,7 +63,7 @@ export default function GenerateWeekDialog({
                 Comprobando si hay paradas existentes en la semana...
               </div>
             ) : hasExistingWeekStops ? (
-              <div className="flex items-start gap-3 rounded-2xl border border-border/80 bg-background/80 px-4 py-3">
+              <div className="flex items-start gap-3 rounded-2xl border border-border/80 bg-background/80 px-4 py-3 sm:p-4">
                 <Checkbox id="regenerate" checked={regenerate} onCheckedChange={(v) => onRegenerateChange?.(Boolean(v))} />
                 <div className="space-y-1 text-left">
                   <Label htmlFor="regenerate" className="text-sm font-medium">
@@ -80,7 +80,7 @@ export default function GenerateWeekDialog({
               </div>
             )}
 
-            <div className="flex items-start gap-3 rounded-2xl border border-border/80 bg-background/80 px-4 py-3">
+            <div className="flex items-start gap-3 rounded-2xl border border-border/80 bg-background/80 px-4 py-3 sm:p-4">
               <Checkbox
                 id="auto_estimate_without_contact"
                 checked={autoEstimateWithoutContact}

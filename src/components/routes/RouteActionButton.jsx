@@ -32,7 +32,7 @@ export default function RouteActionButton({
   return (
     <Button
       variant={config.variant}
-      className={cn("gap-2", config.className, className)}
+      className={cn("min-h-10 h-auto gap-2 whitespace-normal text-sm leading-tight", config.className, className)}
       {...props}
     >
       {Icon ? <Icon className="h-4 w-4" /> : null}

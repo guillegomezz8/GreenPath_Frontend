@@ -259,11 +259,11 @@ export default function RoutesList() {
                 className="pl-10"
               />
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
               <Button
                 size="sm"
                 variant={routeFilter === "ALL" ? "default" : "outline"}
-                className={routeFilterButtonClass}
+                className={`${routeFilterButtonClass} w-full`}
                 onClick={() => setRouteFilter("ALL")}
               >
                 Todas
@@ -271,7 +271,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITH_WORKERS" ? "default" : "outline"}
-                className={routeFilterButtonClass}
+                className={`${routeFilterButtonClass} w-full`}
                 onClick={() => setRouteFilter("WITH_WORKERS")}
               >
                 Con trabajador
@@ -279,7 +279,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITHOUT_WORKERS" ? "default" : "outline"}
-                className={routeFilterButtonClass}
+                className={`${routeFilterButtonClass} w-full`}
                 onClick={() => setRouteFilter("WITHOUT_WORKERS")}
               >
                 Sin trabajador
@@ -352,7 +352,7 @@ export default function RoutesList() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {loading ? (
           <Card className="lg:col-span-2">
             <CardContent className="py-12 text-center text-muted-foreground">Cargando rutas...</CardContent>

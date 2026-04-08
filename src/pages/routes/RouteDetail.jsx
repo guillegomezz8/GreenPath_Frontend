@@ -585,7 +585,7 @@ export default function RouteDetail() {
             </p>
           </div>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:gap-3 flex-shrink-0">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:w-auto xl:flex-wrap xl:gap-3 flex-shrink-0">
           <RouteActionButton tone="primary" size="sm" icon={Navigation2} className="w-full sm:w-auto" onClick={() => navigate(`/routes/${id}/execute`)} disabled={loading || deleting}>
             Realizar ruta
           </RouteActionButton>
@@ -608,7 +608,7 @@ export default function RouteDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -667,26 +667,26 @@ export default function RouteDetail() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-3 md:items-end md:justify-between">
-            <div className="space-y-2">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div className="w-full space-y-2 md:max-w-sm">
               <Label htmlFor="weekFilter">Filtrar por inicio de semana</Label>
-              <Input id="weekFilter" type="date" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
+              <Input id="weekFilter" type="date" className="min-w-0 max-w-full" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:flex">
-              <RouteActionButton tone="secondary" className={loading ? "opacity-70" : ""} onClick={fetchOverview} disabled={loading}>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex">
+              <RouteActionButton tone="secondary" className={`w-full xl:w-auto ${loading ? "opacity-70" : ""}`} onClick={fetchOverview} disabled={loading}>
                 <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
                 Refrescar
               </RouteActionButton>
-              <RouteActionButton tone="secondary" onClick={() => setWeekFilter("")}>
+              <RouteActionButton tone="secondary" className="w-full xl:w-auto" onClick={() => setWeekFilter("")}>
                 Semana actual
               </RouteActionButton>
-              <RouteActionButton tone="secondary" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
+              <RouteActionButton tone="secondary" className="w-full xl:w-auto" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
                 {allFilteredRouteDaysExpanded ? "Ocultar todos" : "Expandir todos"}
               </RouteActionButton>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
               <p className="text-xs uppercase tracking-wide text-muted-foreground">Dias operativos</p>
               <p className="mt-1 text-xl font-semibold">{routeDays.length}</p>
@@ -705,7 +705,7 @@ export default function RouteDetail() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
             {ROUTE_DAY_STATUS_FILTERS.map((statusOption) => {
               const count = statusOption.value === "ALL"
                 ? routeDays.length
@@ -716,7 +716,7 @@ export default function RouteDetail() {
                   key={statusOption.value}
                   size="sm"
                   variant={selected ? "default" : "outline"}
-                  className={`${routeFilterButtonClass} gap-1`}
+                  className={`${routeFilterButtonClass} w-full gap-1`}
                   onClick={() => setRouteDayStatusFilter(statusOption.value)}
                 >
                   {statusOption.label}
@@ -737,14 +737,14 @@ export default function RouteDetail() {
               <p className="mt-1 text-xs text-muted-foreground">
                 {isOwner ? "Genera la semana actual para poder iniciar la ruta de hoy." : "Aun no hay dias operativos generados para esta semana."}
               </p>
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <div className="mt-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:flex-wrap">
                 {isOwner && (
-                  <Button size="sm" className="gap-2" onClick={() => openGenerateModal(suggestedWeekStartDate)}>
+                  <Button size="sm" className="w-full gap-2 sm:w-auto" onClick={() => openGenerateModal(suggestedWeekStartDate)}>
                     <WandSparkles className="h-4 w-4" />
                     Generar semana actual
                   </Button>
                 )}
-                <Button size="sm" variant="outline" onClick={fetchOverview}>
+                <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={fetchOverview}>
                   Refrescar
                 </Button>
               </div>
@@ -953,7 +953,7 @@ export default function RouteDetail() {
                         ) : null}
 
                         <div className="mt-3 flex justify-end">
-                          <Button size="sm" variant="outline" className="gap-1" onClick={() => toggleRouteDayExpanded(routeDay.id)}>
+                          <Button size="sm" variant="outline" className="w-full gap-1 sm:w-auto" onClick={() => toggleRouteDayExpanded(routeDay.id)}>
                             {tableExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                             {tableExpanded ? "Ocultar tabla de paradas" : "Mostrar tabla de paradas"}
                           </Button>
@@ -1039,25 +1039,25 @@ export default function RouteDetail() {
       </Dialog>
 
       <Dialog open={completeModalOpen} onOpenChange={setCompleteModalOpen}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-3xl sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col overflow-hidden rounded-none border-0 p-0 sm:h-auto sm:max-h-[92vh] sm:w-[calc(100vw-1rem)] sm:max-w-lg sm:rounded-3xl sm:border">
+          <DialogHeader className="border-b border-border/70 bg-background px-4 py-4 text-left sm:px-6">
             <DialogTitle>Registrar parada</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="rounded-lg border border-border p-3 text-left space-y-1">
+          <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+            <div className="rounded-2xl border border-border p-3 text-left space-y-1 sm:p-4">
               <p className="font-medium">{activeStop?.stop?.client_name || "Cliente"}</p>
               <p className="text-xs text-muted-foreground">{activeStop?.stop?.client_address || "-"}</p>
               <div className="flex flex-wrap gap-2 pt-1">
                 {activeStop?.stop?.collection_request?.estimated_liters ? (
-                  <Badge variant="outline">Estimados: {activeStop.stop.collection_request.estimated_liters} L</Badge>
+                  <Badge variant="outline" className="w-fit max-w-full">Estimados: {activeStop.stop.collection_request.estimated_liters} L</Badge>
                 ) : (
-                  <Badge variant="outline">Estimados: -</Badge>
+                  <Badge variant="outline" className="w-fit">Estimados: -</Badge>
                 )}
-                <Badge variant="outline">Limite respuesta: {formatDateTime(activeStop?.stop?.collection_request?.expires_at)}</Badge>
+                <Badge variant="outline" className="w-fit max-w-full whitespace-normal text-left">Limite respuesta: {formatDateTime(activeStop?.stop?.collection_request?.expires_at)}</Badge>
               </div>
             </div>
-            <p className="text-xs text-muted-foreground text-left">
+            <p className="rounded-2xl border border-border/80 bg-primary/5 p-3 text-left text-xs text-muted-foreground">
               La medicion y el ajuste de litros se hace en nave, no en esta parada.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1102,30 +1102,38 @@ export default function RouteDetail() {
                 onChange={(e) => setCompletePayload((prev) => ({ ...prev, notes: e.target.value }))}
               />
             </div>
-            <div className="flex items-center space-x-2">
+            <label htmlFor="mark_as_canceled" className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/80 p-3 text-left">
               <Checkbox
                 id="mark_as_canceled"
                 checked={completePayload.mark_as_canceled}
                 onCheckedChange={(v) => setCompletePayload((prev) => ({ ...prev, mark_as_canceled: Boolean(v) }))}
               />
-              <Label htmlFor="mark_as_canceled" className="text-sm">Marcar parada como cancelada</Label>
-            </div>
-            <div className="flex items-center space-x-2">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Marcar parada como cancelada</p>
+                <p className="text-xs text-muted-foreground">Usalo si no se ha podido recoger en esta visita.</p>
+              </div>
+            </label>
+            <label htmlFor="force_stop" className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/80 p-3 text-left">
               <Checkbox
                 id="force_stop"
                 checked={completePayload.force}
                 onCheckedChange={(v) => setCompletePayload((prev) => ({ ...prev, force: Boolean(v) }))}
               />
-              <Label htmlFor="force_stop" className="text-sm">Forzar aunque haya paradas anteriores pendientes</Label>
-            </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">Forzar recogida fuera de orden</p>
+                <p className="text-xs text-muted-foreground">Solo para incidencias puntuales en campo.</p>
+              </div>
+            </label>
           </div>
 
-          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <DialogFooter className="border-t border-border/70 bg-background px-4 py-4 sm:px-6">
+            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCompleteModalOpen(false)}>Cancelar</Button>
             <Button onClick={handleCompleteStop} disabled={submittingStop} className="w-full gap-2 sm:w-auto">
               <CheckCircle className="w-4 h-4" />
               {submittingStop ? "Guardando..." : "Registrar"}
             </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>

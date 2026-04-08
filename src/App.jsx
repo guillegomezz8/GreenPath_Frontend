@@ -117,7 +117,14 @@ function AppContent() {
       </Route>
 
       {/* Fallback general */}
-      <Route path="/" element={<SocialLogin />} />
+      <Route
+        path="/"
+        element={(
+          <GuestRoute>
+            <SocialLogin />
+          </GuestRoute>
+        )}
+      />
       <Route path="*" element={<Error404 />} />
     </Routes>
 
