@@ -136,6 +136,11 @@ function getPlanLabel(stop) {
   return `${formatLiters(basePlanLiters)} L - ${containerNumber} x ${containerLabel}`;
 }
 
+function getOperationalPlan(routeDay) {
+  if (!routeDay || typeof routeDay !== "object") return { segments: [] };
+  return routeDay.operational_plan || { segments: [] };
+}
+
 export default function RouteDayMap({
   routeDays = [],
   selectedRouteDayId,
@@ -159,12 +164,35 @@ export default function RouteDayMap({
     return [...rows].sort((a, b) => Number(a.order || 0) - Number(b.order || 0));
   }, [selectedRouteDay]);
 
+  const operationalPlan = useMemo(() => getOperationalPlan(selectedRouteDay), [selectedRouteDay]);
+
   const mappedStops = useMemo(
     () => orderedStops.filter((stop) => isValidLocation(stop?.client_location)),
     [orderedStops]
   );
 
-  const collectableStops = useMemo(() => getCollectableStops(orderedStops), [orderedStops]);
+  const stopById = useMemo(
+    () =>
+      orderedStops.reduce((acc, stop) => {
+        acc[String(stop.route_day_client_id)] = stop;
+        return acc;
+      }, {}),
+    [orderedStops]
+  );
+
+  const allCollectableStops = useMemo(() => getCollectableStops(orderedStops), [orderedStops]);
+
+  const activeSegment = useMemo(() => {
+    const segments = Array.isArray(operationalPlan?.segments) ? operationalPlan.segments : [];
+    return segments.find((segment) => Number(segment.number) === Number(operationalPlan?.active_segment_number)) || segments[0] || null;
+  }, [operationalPlan]);
+
+  const collectableStops = useMemo(() => {
+    if (!activeSegment) return allCollectableStops;
+    const ids = new Set((activeSegment.stop_route_day_client_ids || []).map((value) => String(value)));
+    const collectableInSegment = allCollectableStops.filter((stop) => ids.has(String(stop.route_day_client_id)));
+    return collectableInSegment.length > 0 ? collectableInSegment : allCollectableStops;
+  }, [activeSegment, allCollectableStops]);
 
   const activeStop = useMemo(() => {
     if (!selectedStopId) return collectableStops[0] || null;
@@ -181,6 +209,32 @@ export default function RouteDayMap({
     });
     return points;
   }, [hub, mappedStops]);
+
+  const polylineSegments = useMemo(() => {
+    const segments = Array.isArray(operationalPlan?.segments) ? operationalPlan.segments : [];
+    const hasHub = isValidLocation(hub?.location);
+    const hubPoint = hasHub ? [Number(hub.location.lat), Number(hub.location.lng)] : null;
+
+    if (segments.length === 0) {
+      return mapPoints.length > 1 ? [mapPoints] : [];
+    }
+
+    const resolvedSegments = segments
+      .map((segment) => {
+        const ids = Array.isArray(segment?.stop_route_day_client_ids) ? segment.stop_route_day_client_ids : [];
+        const points = ids
+          .map((id) => stopById[String(id)])
+          .filter((stop) => isValidLocation(stop?.client_location))
+          .map((stop) => [Number(stop.client_location.lat), Number(stop.client_location.lng)]);
+
+        if (points.length === 0) return null;
+        if (!hubPoint) return points;
+        return [hubPoint, ...points, hubPoint];
+      })
+      .filter(Boolean);
+
+    return resolvedSegments.length > 0 ? resolvedSegments : (mapPoints.length > 1 ? [mapPoints] : []);
+  }, [hub, mapPoints, operationalPlan, stopById]);
 
   const daySummary = useMemo(() => {
     let completed = 0;
@@ -270,7 +324,7 @@ export default function RouteDayMap({
         </div>
 
         {selectedRouteDay ? (
-          <div className="grid items-start gap-3 2xl:grid-cols-[minmax(0,1.45fr)_360px] 2xl:gap-4">
+          <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,1.2fr)_340px] 2xl:grid-cols-[minmax(0,1.45fr)_360px] 2xl:gap-4">
             <div className="order-2 overflow-hidden rounded-3xl border border-border/80 bg-background/70 shadow-elegant 2xl:order-1">
               <div className="flex flex-col gap-2 border-b border-border/80 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent px-4 py-3 text-left">
                 <p className="text-sm font-semibold text-foreground">Recorrido del dia</p>
@@ -290,7 +344,7 @@ export default function RouteDayMap({
                   center={mapPoints[0]}
                   zoom={12}
                   scrollWheelZoom
-                  className="h-[320px] w-full sm:h-[420px] md:h-[480px] lg:h-[540px] xl:h-[620px]"
+                  className="h-[360px] w-full sm:h-[430px] md:h-[500px] lg:h-[560px] xl:h-[620px]"
                 >
                   <TileLayer
                     attribution="&copy; OpenStreetMap contributors"
@@ -310,9 +364,17 @@ export default function RouteDayMap({
                       </Popup>
                     </Marker>
                   ) : null}
-                  {mapPoints.length > 1 ? (
-                    <Polyline positions={mapPoints} pathOptions={{ color: "#10b981", weight: 5, opacity: 0.78 }} />
-                  ) : null}
+                  {polylineSegments.map((segmentPoints, index) => (
+                    <Polyline
+                      key={`segment-${index + 1}`}
+                      positions={segmentPoints}
+                      pathOptions={{
+                        color: "#10b981",
+                        weight: 4,
+                        opacity: 0.82,
+                      }}
+                    />
+                  ))}
                   {mappedStops.map((stop) => (
                     <Marker
                       key={stop.route_day_client_id}
@@ -320,7 +382,7 @@ export default function RouteDayMap({
                       icon={createStopIcon(stop.order, getStopVisualState(stop))}
                     >
                       <Popup>
-                        <div className="min-w-[180px] max-w-[220px] space-y-2">
+                        <div className="min-w-[170px] max-w-[220px] space-y-2">
                           <div>
                             <p className="font-semibold">#{stop.order} - {stop.client_name}</p>
                             <p className="text-xs text-slate-600">{stop.client_address || "-"}</p>
@@ -353,21 +415,21 @@ export default function RouteDayMap({
             <div className="order-1 space-y-3 2xl:order-2 2xl:sticky 2xl:top-24 2xl:space-y-4">
               <div className="rounded-3xl border border-border/80 bg-background/85 p-3 sm:p-4">
                 <div className="text-left">
-                  <p className="text-sm font-semibold text-foreground">Acciones del dia</p>
+                  <p className="text-sm font-semibold text-foreground">Jornada</p>
                 </div>
 
-                <div className="mt-4 flex flex-col gap-2">
+                <div className="mt-3 flex flex-col gap-2">
                   <RouteActionButton
                     size="sm"
                     tone="secondary"
                     icon={Navigation2}
-                    className="justify-start text-left"
+                    className="w-full justify-start text-left"
                     disabled={!selectedRouteDay?.id || workingRouteDayId === selectedRouteDay.id || orderedStops.length === 0}
                     onClick={() => onOpenGoogleNavigation?.(selectedRouteDay.id)}
                   >
                     {workingRouteDayId === selectedRouteDay.id ? "Preparando..." : (
                       <>
-                        <span className="sm:hidden">Abrir Google</span>
+                        <span className="sm:hidden">Abrir Google Maps</span>
                         <span className="hidden sm:inline">Abrir navegacion en Google</span>
                       </>
                     )}
@@ -378,7 +440,7 @@ export default function RouteDayMap({
                       size="sm"
                       tone="accent"
                       icon={Play}
-                      className="justify-start text-left"
+                      className="w-full justify-start text-left"
                       disabled={workingRouteDayId === selectedRouteDay.id}
                       onClick={() => onStartRouteDay?.(selectedRouteDay.id)}
                     >
@@ -391,7 +453,7 @@ export default function RouteDayMap({
                       size="sm"
                       tone="danger"
                       icon={Square}
-                      className="justify-start text-left"
+                      className="w-full justify-start text-left"
                       disabled={workingRouteDayId === selectedRouteDay.id}
                       onClick={() => onFinishRouteDay?.(selectedRouteDay.id)}
                     >
@@ -400,24 +462,14 @@ export default function RouteDayMap({
                   ) : null}
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="rounded-2xl border border-border/80 bg-primary/5 px-3 py-3 text-left">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Pend.</p>
-                    <p className="mt-1 text-lg font-semibold text-foreground">{daySummary.pending}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/80 bg-emerald-500/10 px-3 py-3 text-left">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Reg.</p>
-                    <p className="mt-1 text-lg font-semibold text-emerald-700">{daySummary.completed}</p>
-                  </div>
-                  <div className="rounded-2xl border border-border/80 bg-rose-500/10 px-3 py-3 text-left">
-                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Canc.</p>
-                    <p className="mt-1 text-lg font-semibold text-rose-700">{daySummary.canceled}</p>
-                  </div>
+                <div className="mt-3 rounded-2xl border border-border/70 bg-muted/10 p-3 text-left">
+                  <p className="text-sm font-medium text-foreground">
+                    {daySummary.pending} pendientes, {daySummary.completed} registradas y {daySummary.canceled} canceladas
+                  </p>
                   {daySummary.withoutLocation > 0 ? (
-                    <div className="rounded-2xl border border-border/80 bg-amber-500/10 px-3 py-3 text-left">
-                      <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Sin coord.</p>
-                      <p className="mt-1 text-lg font-semibold text-amber-700">{daySummary.withoutLocation}</p>
-                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {daySummary.withoutLocation} paradas no se muestran en el mapa porque no tienen coordenadas.
+                    </p>
                   ) : null}
                 </div>
               </div>
@@ -458,13 +510,15 @@ export default function RouteDayMap({
                             <p className="font-semibold text-foreground">#{activeStop.order} - {activeStop.client_name}</p>
                             <p className="text-xs text-muted-foreground">{activeStop.client_address || "-"}</p>
                           </div>
-                          {activeStop.collection_request?.status ? (
-                            <Badge className={getCollectionRequestStatusClass(activeStop.collection_request.status)}>
-                              {getCollectionRequestStatusLabel(activeStop.collection_request.status)}
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Sin solicitud</Badge>
-                          )}
+                          <div className="flex flex-wrap gap-2">
+                            {activeStop.collection_request?.status ? (
+                              <Badge className={getCollectionRequestStatusClass(activeStop.collection_request.status)}>
+                                {getCollectionRequestStatusLabel(activeStop.collection_request.status)}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline">Sin solicitud</Badge>
+                            )}
+                          </div>
                         </div>
 
                         <div className="mt-3 grid gap-1 text-xs text-muted-foreground">

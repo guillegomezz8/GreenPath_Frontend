@@ -26,6 +26,23 @@ function formatDate(dateStr) {
   return date.toLocaleDateString("es-ES");
 }
 
+function toDateInputValue(dateObj) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getOperationalWeekStartDate(weekStart, referenceDate = new Date()) {
+  const startWeekday = Number.isInteger(Number(weekStart)) ? Number(weekStart) : 0;
+  const date = new Date(referenceDate);
+  date.setHours(12, 0, 0, 0);
+  const currentWeekday = (date.getDay() + 6) % 7;
+  const shift = (currentWeekday - startWeekday + 7) % 7;
+  date.setDate(date.getDate() - shift);
+  return date;
+}
+
 function formatDateTime(dateTime) {
   if (!dateTime) return "-";
   const date = new Date(dateTime);
@@ -108,6 +125,14 @@ export default function RouteExecution() {
   }, [fetchOverview]);
 
   const routeDays = useMemo(() => (Array.isArray(overview.route_days) ? overview.route_days : []), [overview.route_days]);
+  const currentOperationalWeekStart = useMemo(() => {
+    return toDateInputValue(getOperationalWeekStartDate(overview.route?.week_start ?? 0));
+  }, [overview.route?.week_start]);
+
+  useEffect(() => {
+    if (!overview.route || weekFilter) return;
+    setWeekFilter(currentOperationalWeekStart);
+  }, [currentOperationalWeekStart, overview.route, weekFilter]);
 
   const executionRouteDays = useMemo(() => {
     return routeDays.filter((routeDay) => {
@@ -149,7 +174,10 @@ export default function RouteExecution() {
         const currentValue = next[routeDay.id];
         const stillValid = collectableStops.some((stop) => String(stop.route_day_client_id) === String(currentValue));
         if (!stillValid) {
-          const first = collectableStops[0];
+          const suggestedStopId = routeDay?.operational_plan?.active_segment_route_day_client_id;
+          const first =
+            collectableStops.find((stop) => String(stop.route_day_client_id) === String(suggestedStopId)) ||
+            collectableStops[0];
           const newValue = first ? String(first.route_day_client_id) : "";
           if ((currentValue || "") !== newValue) {
             next[routeDay.id] = newValue;
@@ -309,11 +337,7 @@ export default function RouteExecution() {
             <Label htmlFor="weekFilter">Semana</Label>
             <Input id="weekFilter" type="date" className="min-w-0 max-w-full" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
           </div>
-          <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={fetchOverview} disabled={loading}>
-            <RefreshCcw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-            Refrescar
-          </RouteActionButton>
-          <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={() => setWeekFilter("")}>Semana actual</RouteActionButton>
+          <RouteActionButton tone="secondary" className="w-full md:w-auto" onClick={() => setWeekFilter(currentOperationalWeekStart)}>Semana actual</RouteActionButton>
         </div>
       </div>
 
@@ -332,7 +356,6 @@ export default function RouteExecution() {
           </p>
           <div className="mt-4 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:flex-wrap">
             <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={() => navigate(`/routes/${id}`)}>Ir al detalle</Button>
-            <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={fetchOverview}>Refrescar</Button>
           </div>
         </div>
       ) : executionRouteDays.length === 0 ? (
@@ -385,7 +408,6 @@ export default function RouteExecution() {
           </div>
 
           <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-between">
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setFinishDecisionModalOpen(false)}>Volver</Button>
             <div className="flex flex-col gap-2 sm:flex-row">
               <Button className="w-full sm:w-auto" variant="secondary" disabled={workingRouteDayId === finishDecisionContext.routeDayId} onClick={() => handleFinishWithDecision("PARTIAL")}>
                 {workingRouteDayId === finishDecisionContext.routeDayId ? "Guardando..." : "Cerrar parcial"}

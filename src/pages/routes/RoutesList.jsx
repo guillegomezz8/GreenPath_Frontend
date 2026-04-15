@@ -50,8 +50,6 @@ export default function RoutesList() {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [routeFilter, setRouteFilter] = useState("ALL");
-  const [generatedByRoute, setGeneratedByRoute] = useState({});
-
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [weekStartDate, setWeekStartDate] = useState("");
@@ -127,7 +125,13 @@ export default function RoutesList() {
   const askGenerateWeek = (route) => {
     setSelectedRoute(route);
     setWeekStartDate("");
-    setDailyCapacityLiters("0");
+    setDailyCapacityLiters(
+      route?.default_daily_capacity_liters !== null &&
+      route?.default_daily_capacity_liters !== undefined &&
+      route?.default_daily_capacity_liters !== ""
+        ? String(route.default_daily_capacity_liters)
+        : "0"
+    );
     setRegenerate(false);
     setAutoEstimateWithoutContact(false);
     setCheckingWeekGenerationContext(false);
@@ -151,13 +155,7 @@ export default function RoutesList() {
         regenerate: hasExistingWeekStops ? regenerate : false,
         auto_estimate_without_contact: autoEstimateWithoutContact,
       };
-      const res = await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
-      const routeDays = Array.isArray(res.data?.route_days) ? res.data.route_days : [];
-
-      setGeneratedByRoute((prev) => ({
-        ...prev,
-        [selectedRoute.id]: routeDays,
-      }));
+      await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
       showSnackbar("Semana operativa generada correctamente.", "success");
       setGenerateModalOpen(false);
     } catch (e) {
@@ -367,7 +365,6 @@ export default function RoutesList() {
           filteredRoutes.map((route) => {
             const assignedWorkerId = route.worker || null;
             const assignedWorkerLabel = assignedWorkerId ? (workersMap[assignedWorkerId] || `Trabajador ${assignedWorkerId}`) : null;
-            const generatedDays = generatedByRoute[route.id] || [];
 
             return (
               <Card key={route.id} className="hover:shadow-elegant transition-shadow">
@@ -380,9 +377,20 @@ export default function RoutesList() {
                       </CardTitle>
                       <CardDescription className="flex items-center gap-2 mt-1">
                         <MapPin className="w-4 h-4" />
-                        Empresa #{route.company}
+                        {route.company_name || `Empresa #${route.company}`}
                       </CardDescription>
                     </div>
+                    {canManageRoutes && (
+                      <RouteActionButton
+                        size="sm"
+                        tone="danger"
+                        className="h-10 w-10 flex-shrink-0 rounded-full p-0"
+                        onClick={() => askDelete(route)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        <span className="sr-only">Eliminar ruta</span>
+                      </RouteActionButton>
+                    )}
                   </div>
                 </CardHeader>
 
@@ -423,20 +431,6 @@ export default function RoutesList() {
                     </div>
                   </div>
 
-                  {generatedDays.length > 0 && (
-                    <div className="pt-2 border-t border-border">
-                      <p className="text-sm font-medium mb-2 text-left">Ultima generacion semanal:</p>
-                      <div className="space-y-1">
-                        {generatedDays.slice(0, 7).map((day) => (
-                          <div key={day.id} className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{formatDate(day.date)}</span>
-                            <span>{day.stops} paradas</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
                   <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
                     <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
                       Ver detalle
@@ -447,16 +441,12 @@ export default function RoutesList() {
                   </div>
 
                   {canManageRoutes && (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                       <RouteActionButton size="sm" tone="secondary" icon={Edit} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/edit`)}>
                         Editar
                       </RouteActionButton>
                       <RouteActionButton size="sm" tone="accent" icon={WandSparkles} className="w-full justify-start sm:justify-center" onClick={() => askGenerateWeek(route)}>
                         Generar semana
-                      </RouteActionButton>
-                      <RouteActionButton size="sm" tone="danger" className="sm:w-10 sm:px-0" onClick={() => askDelete(route)}>
-                        <Trash2 className="w-4 h-4" />
-                        <span className="sm:hidden">Eliminar</span>
                       </RouteActionButton>
                     </div>
                   )}

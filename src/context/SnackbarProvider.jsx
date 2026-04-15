@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import Snackbar from '@mui/material/Snackbar';
 import MuiAlert from '@mui/material/Alert';
 
@@ -14,21 +14,23 @@ export const SnackbarProvider = ({ children }) => {
     const [severity, setSeverity] = useState('success');
     const [duration, setDuration] = useState(6000);
 
-    const handleClose = (event, reason) => {
+    const handleClose = useCallback((event, reason) => {
         if (reason === 'clickaway') return;
         setOpen(false);
-    };
+    }, []);
 
-    const showSnackbar = (msg, severity = 'success', durationMs = 6000) => {
+    const showSnackbar = useCallback((msg, severity = 'success', durationMs = 6000) => {
         if (!msg) return;
         setMessage(msg);
         setSeverity(severity);
         setDuration(durationMs);
         setOpen(true);
-    };
+    }, []);
+
+    const providerValue = useMemo(() => showSnackbar, [showSnackbar]);
 
     return (
-        <SnackbarContext.Provider value={showSnackbar}>
+        <SnackbarContext.Provider value={providerValue}>
             {children}
             <Snackbar open={open} autoHideDuration={duration} onClose={handleClose}>
                 <Alert onClose={handleClose} severity={severity} sx={{ width: '100%' }}>

@@ -107,6 +107,24 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  button,
+  [role="button"],
+  a,
+  summary {
+    user-select: none;
+    caret-color: transparent;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select,
+  [contenteditable="true"],
+  [data-allow-caret="true"] {
+    user-select: text;
+    caret-color: auto;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: "Manrope", "Segoe UI", "Helvetica Neue", sans-serif;
@@ -116,6 +134,21 @@ All colors MUST be HSL.
       linear-gradient(180deg, hsl(var(--background)), hsl(154 28% 93%));
     background-attachment: fixed;
     min-height: 100vh;
+  }
+
+  input[type="date"] {
+    width: 100%;
+    min-width: 0;
+  }
+
+  input[type="date"]::-webkit-date-and-time-value {
+    text-align: left;
+  }
+
+  input[type="date"]::-webkit-datetime-edit,
+  input[type="date"]::-webkit-datetime-edit-fields-wrapper {
+    min-width: 0;
+    width: 100%;
   }
 
   ::selection {

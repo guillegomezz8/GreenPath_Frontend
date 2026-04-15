@@ -146,10 +146,6 @@ export default function CollectionRequestsPage() {
           </h1>
           <p className="text-muted-foreground">Consulta tus proximas recogidas y responde los litros previstos antes del limite.</p>
         </div>
-        <Button variant="outline" onClick={fetchRequests} disabled={loading} className="w-full gap-2 md:w-auto">
-          <RefreshCcw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
-          Refrescar
-        </Button>
       </div>
 
       <div className="md:hidden">

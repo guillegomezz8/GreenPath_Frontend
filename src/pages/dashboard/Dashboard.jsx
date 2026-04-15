@@ -248,7 +248,7 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
           <ActionButton variant="outline" icon={Calendar} disabled>
             Hoy
           </ActionButton>
@@ -326,8 +326,8 @@ export default function Dashboard() {
                       </p>
                     </div>
 
-                    <div className="flex items-center justify-between gap-3 sm:ml-3 sm:min-w-[118px] sm:flex-col sm:items-end sm:justify-center">
-                      <Badge className={`${getCollectionStatusClass(collection.status)} shrink-0 whitespace-nowrap px-2.5 py-1 text-[11px] leading-none sm:text-xs`}>
+                    <div className="flex flex-col items-start gap-2 sm:ml-3 sm:min-w-[132px] sm:items-end sm:justify-center">
+                      <Badge className={`${getCollectionStatusClass(collection.status)} max-w-full shrink-0 whitespace-normal break-words px-2.5 py-1 text-center text-[11px] leading-tight sm:text-xs`}>
                         {getCollectionStatusLabel(collection.status)}
                       </Badge>
                       <span className="shrink-0 text-xs text-muted-foreground">{formatDate(collection.collection_date)}</span>

@@ -1,4 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
+﻿import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, ChevronDown, Sparkles } from "lucide-react";
@@ -118,7 +118,7 @@ export default function PaginatedScaffold({
   return (
     <div className={className}>
       {(title || rightAction) && (
-        <div className="flex flex-col gap-4 sm:gap-3 lg:flex-row lg:justify-between lg:items-start">
+        <div className="flex flex-col gap-4 sm:gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1 space-y-1 sm:space-y-2">
             {!!title && (
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground flex flex-wrap items-center gap-2 lg:gap-3 leading-tight">
@@ -133,15 +133,15 @@ export default function PaginatedScaffold({
           </div>
 
           {!!rightAction && (
-            <div className="flex justify-start sm:justify-end lg:justify-start">
+            <div className="flex w-full justify-start sm:w-auto sm:justify-end lg:justify-start">
               <Button
-                className={`gap-2 text-sm font-medium shadow-sm transition-all hover:shadow-green ${rightAction.className || ""}`}
+                className={`w-full gap-2 text-sm font-medium shadow-sm transition-all hover:shadow-green sm:w-auto ${rightAction.className || ""}`}
                 onClick={rightAction.onClick}
                 size="sm"
               >
                 {rightAction.icon && <span className="flex-shrink-0">{rightAction.icon}</span>}
-                <span className="hidden xs:inline sm:hidden md:inline">{rightAction.label}</span>
-                <span className="xs:hidden sm:inline md:hidden">
+                <span className="hidden sm:inline md:inline">{rightAction.label}</span>
+                <span className="sm:hidden md:hidden">
                   {rightAction.shortLabel || rightAction.label?.split(" ")[0] || rightAction.label}
                 </span>
               </Button>
@@ -157,7 +157,7 @@ export default function PaginatedScaffold({
 
             {filters.length > 0 && (
               <div className="space-y-2">
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
+                <div className={`grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
                   {filters.map((opt) => {
                     const isActive = selectedFilter === opt;
                     const onClick = () => onFilterChange?.(opt);

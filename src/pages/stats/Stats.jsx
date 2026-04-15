@@ -41,6 +41,32 @@ function getHeight(value, maxValue, minPercent = 6) {
   return Math.max(minPercent, Math.min(100, (value / maxValue) * 100));
 }
 
+function getChartContainerClass(size = "compact") {
+  const minWidthClass = size === "wide" ? "min-w-[520px]" : "min-w-[420px]";
+  return `flex h-64 ${minWidthClass} items-end gap-3 p-3 sm:h-72 sm:gap-4 sm:p-4 md:min-w-0`;
+}
+
+function ColorLegend({ items = [] }) {
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item) => (
+        <div
+          key={`${item.label}-${item.color}`}
+          className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs text-muted-foreground"
+        >
+          <span
+            className="h-2.5 w-2.5 rounded-full"
+            style={{ backgroundColor: item.color }}
+            aria-hidden="true"
+          />
+          <span>{item.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Stats() {
   const { api } = useAuth();
   const showSnackbar = useSnackbar();
@@ -169,14 +195,22 @@ export default function Stats() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader className="text-left">
-                <CardTitle className="flex items-center gap-2">
-                  <Euro className="h-5 w-5 text-primary" />
-                  Ingresos vs costes
-                </CardTitle>
+                <div className="flex flex-col gap-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Euro className="h-5 w-5 text-primary" />
+                    Ingresos vs costes
+                  </CardTitle>
+                  <ColorLegend
+                    items={[
+                      { label: "Ingresos", color: "#10b981" },
+                      { label: "Costes", color: "#ef4444" },
+                    ]}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <div className="flex h-72 min-w-[560px] items-end gap-4 p-4 sm:min-w-0">
+                  <div className={getChartContainerClass()}>
                     {monthlyData.map((item, index) => {
                       const incomeHeight = getHeight(item.income, maxFinance);
                       const costHeight = getHeight(item.cost, maxFinance);
@@ -211,14 +245,22 @@ export default function Stats() {
 
             <Card>
               <CardHeader className="text-left">
-                <CardTitle className="flex items-center gap-2">
-                  <Wallet className="h-5 w-5 text-primary" />
-                  Beneficio mensual
-                </CardTitle>
+                <div className="flex flex-col gap-3">
+                  <CardTitle className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-primary" />
+                    Beneficio mensual
+                  </CardTitle>
+                  <ColorLegend
+                    items={[
+                      { label: "Beneficio positivo", color: "#22c55e" },
+                      { label: "Beneficio negativo", color: "#ef4444" },
+                    ]}
+                  />
+                </div>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <div className="flex h-72 min-w-[560px] items-end gap-4 p-4 sm:min-w-0">
+                  <div className={getChartContainerClass()}>
                     {monthlyData.map((item, index) => {
                       const profitHeight = getHeight(Math.abs(item.profit), maxFinance);
                       const barClass = item.profit >= 0 ? "bg-primary" : "bg-red-500";
@@ -245,14 +287,22 @@ export default function Stats() {
 
           <Card>
             <CardHeader className="text-left">
-              <CardTitle className="flex items-center gap-2">
-                <Droplets className="h-5 w-5 text-primary" />
-                Volumen comprado vs vendido
-              </CardTitle>
+              <div className="flex flex-col gap-3">
+                <CardTitle className="flex items-center gap-2">
+                  <Droplets className="h-5 w-5 text-primary" />
+                  Volumen comprado vs vendido
+                </CardTitle>
+                <ColorLegend
+                  items={[
+                    { label: "Volumen comprado", color: "#3b82f6" },
+                    { label: "Volumen vendido", color: "#f97316" },
+                  ]}
+                />
+              </div>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <div className="flex h-72 min-w-[720px] items-end gap-4 p-4 sm:min-w-0">
+                <div className={getChartContainerClass("wide")}>
                   {monthlyData.map((item, index) => {
                     const boughtHeight = getHeight(item.bought_volume, maxVolume);
                     const soldHeight = getHeight(item.sold_volume, maxVolume);
@@ -297,7 +347,7 @@ export default function Stats() {
                 <p className="text-sm text-muted-foreground">Sin movimientos economicos registrados.</p>
               ) : (
                 monthlyData.map((item) => (
-                  <div key={`${item.year}-${item.month}-row`} className="grid grid-cols-1 gap-3 rounded-xl border border-border/80 p-4 text-left md:grid-cols-5">
+                  <div key={`${item.year}-${item.month}-row`} className="grid grid-cols-1 gap-3 rounded-xl border border-border/80 p-4 text-left sm:grid-cols-2 xl:grid-cols-5">
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground">Mes</p>
                       <p className="font-semibold text-foreground">{item.label} {item.year}</p>

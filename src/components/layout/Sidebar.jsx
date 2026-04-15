@@ -68,7 +68,7 @@ const Sidebar = ({ onItemClick }) => {
       <button
         type="button"
         onClick={() => handleNavigation("/profile")}
-        className={`mb-6 w-full rounded-lg px-2 py-2 text-left transition-colors ${
+        className={`mb-6 w-full select-none caret-transparent rounded-lg px-2 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
           isProfileActive ? "bg-green-100" : "hover:bg-green-50"
         }`}
       >
@@ -88,10 +88,12 @@ const Sidebar = ({ onItemClick }) => {
 
       <nav className="px-2">
         {menuItems.map(({ id, label, icon: Icon, path }) => (
-          <div
+          <button
             key={id}
+            type="button"
             onClick={() => handleNavigation(path)}
-            className={`group cursor-pointer w-full flex items-center gap-3 px-4 py-3 text-left rounded-lg mb-1 transition-all text-sidebar-foreground/85 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground ${
+            aria-current={location.pathname.startsWith(path) ? "page" : undefined}
+            className={`group mb-1 flex w-full select-none caret-transparent items-center gap-3 rounded-lg px-4 py-3 text-left text-sidebar-foreground/85 transition-all hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 ${
               location.pathname.startsWith(path)
                 ? "bg-gradient-hero text-white font-semibold shadow-green"
                 : ""
@@ -102,7 +104,7 @@ const Sidebar = ({ onItemClick }) => {
               className={`flex-shrink-0 transition-transform ${location.pathname.startsWith(path) ? "" : "group-hover:-translate-y-0.5"}`}
             />
             <span className="text-sm truncate">{label}</span>
-          </div>
+          </button>
         ))}
       </nav>
     </div>

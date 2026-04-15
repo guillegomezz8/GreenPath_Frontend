@@ -13,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Map, Plus } from "lucide-react";
+import { Map, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
 import { handleApiError } from "@/components/Utils";
@@ -21,10 +21,12 @@ import { handleApiError } from "@/components/Utils";
 export default function CollectionZonesList() {
   const mapRef = useRef(null);
   const drawnItemsRef = useRef(null);
+  const clientMarkersLayerRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const [zones, setZones] = useState([]);
   const { api } = useAuth();
   const { toast } = useToast();
+  const [showZoneClients, setShowZoneClients] = useState(false);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [newZoneName, setNewZoneName] = useState("");
@@ -62,6 +64,10 @@ export default function CollectionZonesList() {
     const drawnItems = new L.FeatureGroup();
     drawnItemsRef.current = drawnItems;
     map.addLayer(drawnItems);
+
+    const clientMarkersLayer = new L.LayerGroup();
+    clientMarkersLayerRef.current = clientMarkersLayer;
+    map.addLayer(clientMarkersLayer);
 
     const drawControl = new L.Control.Draw({
       draw: {
@@ -144,9 +150,11 @@ export default function CollectionZonesList() {
   useEffect(() => {
     const map = mapRef.current;
     const drawnItems = drawnItemsRef.current;
-    if (!map || !zones.length) return;
+    const clientMarkersLayer = clientMarkersLayerRef.current;
+    if (!map || !drawnItems || !clientMarkersLayer) return;
 
     drawnItems.clearLayers();
+    clientMarkersLayer.clearLayers();
 
     zones.forEach((zone) => {
       try {
@@ -158,8 +166,38 @@ export default function CollectionZonesList() {
           weight: 2,
         }).addTo(drawnItems);
 
-        polygon.bindPopup(`<strong>${zone.name}</strong>`);
+        const clientsPreview = zone.clients_count
+          ? `<div style="margin-top:6px;font-size:12px;color:#475569;">${zone.clients_count} cliente${zone.clients_count === 1 ? "" : "s"} en esta zona</div>`
+          : `<div style="margin-top:6px;font-size:12px;color:#94a3b8;">Sin clientes asignados</div>`;
+
+        polygon.bindPopup(`<strong>${zone.name}</strong>${clientsPreview}`);
         polygon.zoneId = zone.id;
+
+        if (showZoneClients && Array.isArray(zone.clients)) {
+          zone.clients.forEach((client) => {
+            if (client.latitude == null || client.longitude == null) return;
+
+            const marker = L.circleMarker([client.latitude, client.longitude], {
+              radius: 7,
+              color: "#065f46",
+              fillColor: "#10b981",
+              fillOpacity: 0.95,
+              weight: 2,
+            });
+
+            marker.bindPopup(`
+              <div style="min-width:220px;">
+                <strong>${client.name}</strong>
+                <div style="margin-top:4px;font-size:12px;color:#475569;">${client.address}</div>
+                <div style="font-size:12px;color:#475569;">${client.postal_code} ${client.city}</div>
+                <div style="margin-top:6px;font-size:12px;color:#047857;font-weight:600;">${client.frequency}</div>
+                <div style="margin-top:6px;font-size:11px;color:#64748b;">Zona: ${zone.name}</div>
+              </div>
+            `);
+
+            marker.addTo(clientMarkersLayer);
+          });
+        }
       } catch (err) {
         console.warn("Error parsing polygon:", zone.name, err);
       }
@@ -168,7 +206,7 @@ export default function CollectionZonesList() {
     if (drawnItems.getLayers().length > 0) {
       map.fitBounds(drawnItems.getBounds());
     }
-  }, [zones]);
+  }, [zones, showZoneClients]);
 
   const parsePolygonWKT = (wkt) => {
     const match = wkt.match(/\(\((.*)\)\)/);
@@ -234,6 +272,15 @@ export default function CollectionZonesList() {
               Visualiza, crea y edita las zonas de recogida de aceite.
             </p>
           </div>
+          <Button
+            type="button"
+            variant={showZoneClients ? "default" : "outline"}
+            className="w-full md:w-auto"
+            onClick={() => setShowZoneClients((prev) => !prev)}
+          >
+            <Users className="w-4 h-4 mr-2" />
+            {showZoneClients ? "Ocultar clientes" : "Mostrar clientes"}
+          </Button>
         </div>
 
         {/* Mapa */}
@@ -248,6 +295,7 @@ export default function CollectionZonesList() {
             />
           </CardContent>
         </Card>
+
       </div>
 
       {/* Modal para crear nueva zona */}

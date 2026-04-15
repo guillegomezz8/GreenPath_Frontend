@@ -40,6 +40,28 @@ const ROUTE_DAY_STATUS_FILTERS = [
   { value: "CANCELED", label: "Canceladas" },
 ];
 
+function getRouteDayStatusFilterClasses(statusValue, selected) {
+  const base = "group flex w-full items-center justify-between gap-3 rounded-2xl border px-3 py-3 text-left transition-all duration-200";
+  if (selected) {
+    switch (statusValue) {
+      case "PLANNED":
+        return `${base} border-slate-300 bg-slate-100 text-slate-800 shadow-sm`;
+      case "IN_PROGRESS":
+        return `${base} border-sky-200 bg-sky-50 text-sky-800 shadow-sm`;
+      case "PARTIAL":
+        return `${base} border-amber-200 bg-amber-50 text-amber-800 shadow-sm`;
+      case "COMPLETED":
+        return `${base} border-emerald-200 bg-emerald-50 text-emerald-800 shadow-sm`;
+      case "CANCELED":
+        return `${base} border-rose-200 bg-rose-50 text-rose-800 shadow-sm`;
+      default:
+        return `${base} border-primary/25 bg-primary/10 text-primary shadow-sm`;
+    }
+  }
+
+  return `${base} border-border/80 bg-background/75 text-foreground hover:border-primary/25 hover:bg-primary/5`;
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return "-";
   const d = new Date(`${dateStr}T00:00:00`);
@@ -136,7 +158,6 @@ export default function RouteDetail() {
     mark_as_canceled: false,
     force: false,
   });
-  const routeFilterButtonClass = "h-9 rounded-full px-4";
 
   const fetchWorkers = useCallback(async () => {
     try {
@@ -199,12 +220,12 @@ export default function RouteDetail() {
     return toDateInputValue(getOperationalWeekStartDate(weekStart));
   }, [overview.route?.week_start]);
 
+  useEffect(() => {
+    if (!overview.route || weekFilter) return;
+    setWeekFilter(suggestedWeekStartDate);
+  }, [overview.route, suggestedWeekStartDate, weekFilter]);
+
   const suggestedDailyCapacityLiters = useMemo(() => {
-    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
-    const routeDayWithCapacity = routeDays.find(
-      (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
-    );
-    if (routeDayWithCapacity) return String(routeDayWithCapacity.daily_capacity_liters);
     if (
       overview.route?.default_daily_capacity_liters !== null &&
       overview.route?.default_daily_capacity_liters !== undefined &&
@@ -212,6 +233,11 @@ export default function RouteDetail() {
     ) {
       return String(overview.route.default_daily_capacity_liters);
     }
+    const routeDays = Array.isArray(overview.route_days) ? overview.route_days : [];
+    const routeDayWithCapacity = routeDays.find(
+      (routeDay) => routeDay?.daily_capacity_liters !== null && routeDay?.daily_capacity_liters !== undefined && routeDay?.daily_capacity_liters !== ""
+    );
+    if (routeDayWithCapacity) return String(routeDayWithCapacity.daily_capacity_liters);
     return "0";
   }, [overview.route?.default_daily_capacity_liters, overview.route_days]);
 
@@ -673,11 +699,7 @@ export default function RouteDetail() {
               <Input id="weekFilter" type="date" className="min-w-0 max-w-full" value={weekFilter} onChange={(e) => setWeekFilter(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex">
-              <RouteActionButton tone="secondary" className={`w-full xl:w-auto ${loading ? "opacity-70" : ""}`} onClick={fetchOverview} disabled={loading}>
-                <RefreshCcw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-                Refrescar
-              </RouteActionButton>
-              <RouteActionButton tone="secondary" className="w-full xl:w-auto" onClick={() => setWeekFilter("")}>
+              <RouteActionButton tone="secondary" className="w-full xl:w-auto" onClick={() => setWeekFilter(suggestedWeekStartDate)}>
                 Semana actual
               </RouteActionButton>
               <RouteActionButton tone="secondary" className="w-full xl:w-auto" onClick={toggleAllRouteDaysExpanded} disabled={filteredRouteDays.length === 0}>
@@ -705,23 +727,29 @@ export default function RouteDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
             {ROUTE_DAY_STATUS_FILTERS.map((statusOption) => {
               const count = statusOption.value === "ALL"
                 ? routeDays.length
                 : routeDayOverview.statusCounts[statusOption.value] || 0;
               const selected = routeDayStatusFilter === statusOption.value;
               return (
-                <Button
+                <button
                   key={statusOption.value}
-                  size="sm"
-                  variant={selected ? "default" : "outline"}
-                  className={`${routeFilterButtonClass} w-full gap-1`}
+                  type="button"
+                  className={getRouteDayStatusFilterClasses(statusOption.value, selected)}
                   onClick={() => setRouteDayStatusFilter(statusOption.value)}
                 >
-                  {statusOption.label}
-                  <span className="text-xs opacity-80">({count})</span>
-                </Button>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium">{statusOption.label}</p>
+                    <p className="text-[11px] opacity-70">
+                      {selected ? "Filtro activo" : "Pulsa para filtrar"}
+                    </p>
+                  </div>
+                  <span className={`inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-semibold ${selected ? "bg-white/80 text-current" : "bg-muted text-muted-foreground"}`}>
+                    {count}
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -744,9 +772,6 @@ export default function RouteDetail() {
                     Generar semana actual
                   </Button>
                 )}
-                <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={fetchOverview}>
-                  Refrescar
-                </Button>
               </div>
             </div>
           ) : filteredRouteDays.length === 0 ? (
