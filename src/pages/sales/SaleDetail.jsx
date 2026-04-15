@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Edit, FileText, Receipt, RefreshCcw, Trash2, UserRound } from "lucide-react";
+import { ArrowLeft, Edit, FileText, Receipt, Trash2, UserRound } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
@@ -8,7 +8,6 @@ import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 import PdfDownloader from "@/components/common/PdfDownloader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 
 function toNumber(value) {
   const parsed = Number(value);
@@ -26,13 +25,6 @@ function formatDate(value) {
   return parsed.toLocaleDateString("es-ES");
 }
 
-function formatDateTime(value) {
-  if (!value) return "-";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString("es-ES");
-}
-
 export default function SaleDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -41,7 +33,6 @@ export default function SaleDetail() {
 
   const [sale, setSale] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [regenerating, setRegenerating] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -66,25 +57,6 @@ export default function SaleDetail() {
     }
     fetchSale();
   }, [fetchSale, id, navigate]);
-
-  const handleRegenerateInvoice = async () => {
-    if (!sale?.id) return;
-    try {
-      setRegenerating(true);
-      const res = await api().post(`sales/${encodeURIComponent(sale.id)}/invoice/regenerate/`, {});
-      if (res.data?.sale) {
-        setSale(res.data.sale);
-      } else {
-        await fetchSale();
-      }
-      showSnackbar("Factura regenerada correctamente.", "success");
-    } catch (e) {
-      const msg = handleApiError(e, "No se pudo regenerar la factura.");
-      showSnackbar(msg, "error");
-    } finally {
-      setRegenerating(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (!sale?.id) return;
@@ -123,7 +95,7 @@ export default function SaleDetail() {
           </div>
         </div>
 
-        <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2 xl:grid-cols-3">
           <PdfDownloader
             url={`sales/${id}/invoice/download/`}
             filename={`${sale?.invoice_number || `venta-${id}`}.pdf`}
@@ -131,10 +103,6 @@ export default function SaleDetail() {
             className="h-10 w-full justify-center"
             disabled={loading || !sale}
           />
-          <Button variant="outline" className="gap-2" disabled={loading || !sale || regenerating} onClick={handleRegenerateInvoice}>
-            <RefreshCcw className="h-4 w-4" />
-            {regenerating ? "Regenerando..." : "Regenerar PDF"}
-          </Button>
           <Button variant="outline" className="gap-2" disabled={loading || !sale} onClick={() => navigate(`/sales/${id}/edit`)}>
             <Edit className="h-4 w-4" />
             Editar
@@ -177,20 +145,16 @@ export default function SaleDetail() {
                     <p className="text-sm text-muted-foreground">Numero de factura</p>
                     <p className="mt-2 font-semibold text-foreground">{sale.invoice_number || "-"}</p>
                   </div>
-                  <div className="rounded-xl border border-border/80 p-4">
-                    <p className="text-sm text-muted-foreground">Moneda</p>
-                    <p className="mt-2 font-semibold text-foreground">{sale.currency || "EUR"}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/80 p-4">
-                    <p className="text-sm text-muted-foreground">Fecha de factura</p>
-                    <p className="mt-2 font-semibold text-foreground">{formatDate(sale.invoice_date)}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/80 p-4">
-                    <p className="text-sm text-muted-foreground">Factura generada</p>
-                    <p className="mt-2 font-semibold text-foreground">{formatDateTime(sale.invoice_generated_at)}</p>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className="rounded-xl border border-border/80 p-4">
+                  <p className="text-sm text-muted-foreground">Moneda</p>
+                  <p className="mt-2 font-semibold text-foreground">{sale.currency || "EUR"}</p>
+                </div>
+                <div className="rounded-xl border border-border/80 p-4">
+                  <p className="text-sm text-muted-foreground">Fecha de factura</p>
+                  <p className="mt-2 font-semibold text-foreground">{formatDate(sale.invoice_date)}</p>
+                </div>
+              </CardContent>
+            </Card>
 
               <Card>
                 <CardHeader className="text-left">
