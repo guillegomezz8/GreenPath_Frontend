@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError } from "@/components/Utils";
+import { handleApiError, normalizeZoneName } from "@/components/Utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,6 +166,12 @@ export default function RouteForm({ mode = "create", routeId = null }) {
     return payload;
   };
 
+  const resolveCreatedRouteId = (responseData) => {
+    const rawId = responseData?.id ?? responseData?.route?.id ?? null;
+    const parsedId = Number(rawId);
+    return Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -197,7 +203,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
         await api().put(`routes/${encodeURIComponent(routeId)}/`, payload);
       } else {
         const created = await api().post("routes/", payload);
-        targetRouteId = created.data?.id;
+        targetRouteId = resolveCreatedRouteId(created.data);
       }
 
       if (!targetRouteId) {
@@ -384,7 +390,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
                           className="cursor-pointer"
                           onClick={() => toggleZoneForWeekday(day.value, zone.id)}
                         >
-                          {zone.name}
+                          {normalizeZoneName(zone.name)}
                         </Badge>
                       );
                     })}

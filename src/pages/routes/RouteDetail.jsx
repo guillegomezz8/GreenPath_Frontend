@@ -4,6 +4,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import {
   handleApiError,
+  normalizeZoneName,
   getRouteStatusClass,
   getRouteStatusLabel,
   getCollectionRequestStatusClass,
@@ -113,6 +114,30 @@ function formatLiters(value) {
 function formatCapacityLiters(value) {
   if (value === null || value === undefined || value === "") return "Sin definir";
   return `${formatLiters(value)} L`;
+}
+
+function getRequestFinalSourceLabel(source) {
+  if (source === "CLIENT") return "Cliente";
+  if (source === "MANUAL") return "Manual";
+  if (source === "AUTO") return "Auto";
+  return "Estimado";
+}
+
+function getRequestPlanDetails(requestObj = {}) {
+  const containerType = requestObj.container_type || "BIDONES";
+  const containerNumber = getContainerNumber(requestObj.container_number);
+  const basePlanLiters = containerNumber * getContainerCapacity(containerType);
+  const finalPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
+  const finalDiffers = finalPlanLiters !== null && Number(finalPlanLiters) !== Number(basePlanLiters);
+  const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
+  return {
+    basePlanLiters,
+    containerNumber,
+    containerLabel,
+    finalPlanLiters,
+    finalDiffers,
+    finalSourceLabel: getRequestFinalSourceLabel(requestObj.final_source),
+  };
 }
 
 export default function RouteDetail() {
@@ -528,12 +553,17 @@ export default function RouteDetail() {
     try {
       setWorkingRouteDayId(routeDayId);
       const res = await api().get(`routes/${encodeURIComponent(id)}/route-days/${encodeURIComponent(routeDayId)}/google-navigation/`);
-      const navigationUrl = res.data?.url;
-      if (!navigationUrl) {
+      const navigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
+      if (navigationUrls.length === 0) {
         showSnackbar("No se pudo generar el enlace de navegacion.", "error");
         return;
       }
-      window.open(navigationUrl, "_blank", "noopener,noreferrer");
+      if (navigationUrls.length > 1) {
+        showSnackbar(`La ruta se ha dividido en ${navigationUrls.length} enlaces de navegacion.`, "info");
+      }
+      navigationUrls.forEach((navigationUrl) => {
+        window.open(navigationUrl, "_blank", "noopener,noreferrer");
+      });
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la navegacion de Google.");
       showSnackbar(msg, "error");
@@ -676,7 +706,7 @@ export default function RouteDetail() {
                 <div key={`zone-day-${item.weekday}`} className="border rounded-lg p-2">
                   <p className="text-sm font-medium">{WEEKDAY_LABELS[item.weekday] || `Dia ${item.weekday}`}</p>
                   <div className="flex flex-wrap gap-2 mt-1">
-                    {item.zones.map((zone) => <Badge key={`${item.weekday}-${zone.id}`} variant="outline">{zone.name}</Badge>)}
+                    {item.zones.map((zone) => <Badge key={`${item.weekday}-${zone.id}`} variant="outline">{normalizeZoneName(zone.name)}</Badge>)}
                   </div>
                 </div>
               ))
@@ -851,13 +881,7 @@ export default function RouteDetail() {
                             <>
                               <div className="mt-3 space-y-2 md:hidden">
                                 {routeDay.clients.map((clientRow) => {
-                                  const requestObj = clientRow.collection_request || {};
-                                  const containerType = requestObj.container_type || "BIDONES";
-                                  const containerNumber = getContainerNumber(requestObj.container_number);
-                                  const basePlanLiters = containerNumber * getContainerCapacity(containerType);
-                                  const autoPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
-                                  const autoDiffers = autoPlanLiters !== null && Number(autoPlanLiters) !== Number(basePlanLiters);
-                                  const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
+                                  const plan = getRequestPlanDetails(clientRow.collection_request || {});
                                   return (
                                     <div key={clientRow.route_day_client_id} className="rounded-lg border border-border bg-background p-3 text-left">
                                       <div className="flex items-start justify-between gap-2">
@@ -877,8 +901,8 @@ export default function RouteDetail() {
                                       <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
                                         <p><span className="text-muted-foreground">Solicitud:</span> {clientRow.collection_request?.status ? getCollectionRequestStatusLabel(clientRow.collection_request.status) : "-"}</p>
                                         <p><span className="text-muted-foreground">Limite:</span> {formatDateTime(clientRow.collection_request?.expires_at)}</p>
-                                        <p><span className="text-muted-foreground">Plan:</span> {formatLiters(basePlanLiters)} L ({containerNumber} x {containerLabel})</p>
-                                        {autoDiffers && <p><span className="text-muted-foreground">Auto:</span> {formatLiters(autoPlanLiters)} L</p>}
+                                        <p><span className="text-muted-foreground">Plan:</span> {formatLiters(plan.basePlanLiters)} L ({plan.containerNumber} x {plan.containerLabel})</p>
+                                        {plan.finalDiffers && <p><span className="text-muted-foreground">{plan.finalSourceLabel}:</span> {formatLiters(plan.finalPlanLiters)} L</p>}
                                       </div>
                                       <div className="mt-3">
                                         {clientRow.collection?.id && normalizeCollectionStatus(clientRow.collection.status) !== "CANCELED" ? (
@@ -945,18 +969,12 @@ export default function RouteDetail() {
                                         </td>
                                         <td className="px-3 py-2 text-xs align-middle">
                                           {(() => {
-                                            const requestObj = clientRow.collection_request || {};
-                                            const containerType = requestObj.container_type || "BIDONES";
-                                            const containerNumber = getContainerNumber(requestObj.container_number);
-                                            const basePlanLiters = containerNumber * getContainerCapacity(containerType);
-                                            const autoPlanLiters = requestObj.final_liters ?? requestObj.estimated_liters ?? null;
-                                            const autoDiffers = autoPlanLiters !== null && Number(autoPlanLiters) !== Number(basePlanLiters);
-                                            const containerLabel = containerType === "IBC" ? "IBC" : "Bidones";
+                                            const plan = getRequestPlanDetails(clientRow.collection_request || {});
                                             return (
                                               <div className="space-y-0.5">
-                                                <p className="font-medium">{formatLiters(basePlanLiters)} L</p>
-                                                <p className="text-muted-foreground">{containerNumber} x {containerLabel}</p>
-                                                {autoDiffers && <p className="text-muted-foreground">Auto: {formatLiters(autoPlanLiters)} L</p>}
+                                                <p className="font-medium">{formatLiters(plan.basePlanLiters)} L</p>
+                                                <p className="text-muted-foreground">{plan.containerNumber} x {plan.containerLabel}</p>
+                                                {plan.finalDiffers && <p className="text-muted-foreground">{plan.finalSourceLabel}: {formatLiters(plan.finalPlanLiters)} L</p>}
                                               </div>
                                             );
                                           })()}

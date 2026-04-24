@@ -135,6 +135,52 @@ export function formatCurrency(n) {
   return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(value);
 }
 
+export function getDisplayValue(value, fallback = "-") {
+  if (value === null || value === undefined) return fallback;
+  if (typeof value === "string") return value.trim() || fallback;
+  if (typeof value === "number") return Number.isFinite(value) ? `${value}` : fallback;
+
+  const normalizedValue = `${value}`.trim();
+  return normalizedValue || fallback;
+}
+
+export function joinDisplayValues(values, separator = " · ", fallback = "-") {
+  if (!Array.isArray(values)) return fallback;
+
+  const normalizedValues = values
+    .map((value) => {
+      if (value === null || value === undefined) return "";
+      if (typeof value === "string") return value.trim();
+      if (typeof value === "number" && Number.isFinite(value)) return `${value}`;
+      return `${value}`.trim();
+    })
+    .filter(Boolean);
+
+  return normalizedValues.length ? normalizedValues.join(separator) : fallback;
+}
+
+export function normalizeZoneName(value, fallback = "Zona") {
+  let cleanedValue = String(value ?? "").trim();
+  const suffixPatterns = [
+    /\s*Sin clientes asignados$/i,
+    /\s*\d+\s+clientes?\s+en\s+esta\s+zona$/i,
+  ];
+
+  let changed = true;
+  while (changed && cleanedValue) {
+    changed = false;
+    suffixPatterns.forEach((pattern) => {
+      const nextValue = cleanedValue.replace(pattern, "").trim();
+      if (nextValue !== cleanedValue) {
+        cleanedValue = nextValue;
+        changed = true;
+      }
+    });
+  }
+
+  return cleanedValue || fallback;
+}
+
 export function normalizeCollectionStatus(status) {
   const normalized = (status || "")
     .toString()

@@ -202,7 +202,7 @@ export default function CollectionsList() {
 
       <Card className="overflow-hidden">
         <CardContent className="pt-6">
-          <div className="flex flex-col gap-4 xl:flex-row">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
               <Input
@@ -213,7 +213,7 @@ export default function CollectionsList() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:justify-end">
+            <div className="grid grid-cols-2 gap-2 md:flex md:max-w-[38rem] md:flex-wrap md:justify-end">
               {STATUS_OPTIONS.map((status) => (
                 <Button
                   key={status}

@@ -27,7 +27,7 @@ export default function ClientCreate() {
     address: "",
     city: "",
     postal_code: "",
-    country: "Espaa",
+    country: "Espana",
     frequency: "WEEKLY",
   });
 
@@ -35,23 +35,31 @@ export default function ClientCreate() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const requiresEmailForAccess = formData.get_access;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (requiresEmailForAccess && !formData.email.trim()) {
+      showSnackbar("Debes indicar un email si quieres enviar acceso a la plataforma.", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
         get_access: formData.get_access,
         user: {
-          username: formData.username,
-          email: formData.email,
+          username: formData.username.trim(),
+          email: formData.email.trim(),
         },
-        name: formData.name,
-        address: formData.address,
-        phone: formData.phone,
-        cif: formData.cif,
-        city: formData.city,
-        postal_code: formData.postal_code,
-        country: formData.country,
+        name: formData.name.trim(),
+        address: formData.address.trim(),
+        phone: formData.phone.trim(),
+        cif: formData.cif.trim(),
+        city: formData.city.trim(),
+        postal_code: formData.postal_code.trim(),
+        country: formData.country.trim(),
         frequency: formData.frequency,
       };
 
@@ -99,25 +107,31 @@ export default function ClientCreate() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username *</Label>
+              <Label htmlFor="username">Username</Label>
               <Input
                 id="username"
                 value={formData.username}
                 onChange={(e) => update("username", e.target.value)}
-                required
+                placeholder="Se generara automaticamente si lo dejas vacio"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">{requiresEmailForAccess ? "Email *" : "Email"}</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => update("email", e.target.value)}
-                required
+                placeholder={requiresEmailForAccess ? "Necesario para enviar acceso" : "Opcional si no das acceso"}
               />
             </div>
           </div>
+
+          <p className="text-sm text-muted-foreground text-left">
+            {requiresEmailForAccess
+              ? "Si das acceso a la plataforma, el email es obligatorio. El username puede dejarse vacio y se generara automaticamente con el nombre."
+              : "Si no das acceso a la plataforma, puedes dejar username y email vacios. Se generaran automaticamente a partir del nombre del cliente."}
+          </p>
 
           <div className="flex items-center space-x-2">
             <Checkbox
@@ -152,12 +166,12 @@ export default function ClientCreate() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="cif">CIF *</Label>
+                <Label htmlFor="cif">CIF</Label>
                 <Input
                   id="cif"
                   value={formData.cif}
                   onChange={(e) => update("cif", e.target.value)}
-                  required
+                  placeholder="Opcional"
                 />
               </div>
             </div>

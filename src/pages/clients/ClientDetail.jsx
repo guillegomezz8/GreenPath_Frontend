@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, formatNumber, formatCurrency, normalizeCollectionStatus, getCollectionStatusClass, getCollectionStatusLabel, getPickupFrequencyClass, getPickupFrequencyLabel } from "@/components/Utils";
+import { handleApiError, formatNumber, formatCurrency, getDisplayValue, joinDisplayValues, normalizeCollectionStatus, getCollectionStatusClass, getCollectionStatusLabel, getPickupFrequencyClass, getPickupFrequencyLabel } from "@/components/Utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft, MapPin, Phone, Mail, Calendar, Truck,
@@ -127,17 +127,18 @@ export default function ClientDetail() {
   };
 
   const asNum = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const hasFrequency = typeof client?.frequency === "string" ? Boolean(client.frequency.trim()) : Boolean(client?.frequency);
 
-  const name = client?.name ?? "";
-  const email = client?.email ?? "";
-  const phone = client?.phone ?? "";
-  const cif = client?.cif ?? "";
-  const address = client?.address ?? "";
-  const city = client?.city ?? "";
-  const postalCode = client?.postal_code ?? "";
-  const country = client?.country ?? "";
+  const name = getDisplayValue(client?.name);
+  const email = getDisplayValue(client?.email);
+  const phone = getDisplayValue(client?.phone);
+  const cif = getDisplayValue(client?.cif);
+  const address = getDisplayValue(client?.address);
+  const cityPostalCountry = joinDisplayValues([client?.city, client?.postal_code, client?.country]);
   const frequency = client?.frequency ?? "";
-  const lastCollection = client?.last_pick_up ?? "";
+  const frequencyLabel = hasFrequency ? getPickupFrequencyLabel(frequency) : "-";
+  const frequencyBadgeClass = hasFrequency ? getPickupFrequencyClass(frequency) : "bg-slate-500 text-white";
+  const lastCollection = getDisplayValue(client?.last_pick_up);
   const companiesCount = Array.isArray(client?.companies) ? client.companies.length : 0;
 
   const totalPaid = asNum(historyStats.total_paid || client?.total_paid);
@@ -263,8 +264,8 @@ export default function ClientDetail() {
         </Card>
         <Card>
           <CardContent className="pt-6 text-center">
-            <Badge className={getPickupFrequencyClass(frequency)}>
-              {loading ? "" : getPickupFrequencyLabel(frequency)}
+            <Badge className={frequencyBadgeClass}>
+              {loading ? "" : frequencyLabel}
             </Badge>
             <p className="text-sm text-muted-foreground mt-2">Frecuencia</p>
           </CardContent>
@@ -327,7 +328,7 @@ export default function ClientDetail() {
                     <div>
                       <p className="font-medium">Ciudad / CP / Pais</p>
                       <p className="text-sm text-muted-foreground">
-                        {loading ? "-" : `${city} · ${postalCode} · ${country}`}
+                        {loading ? "-" : cityPostalCountry}
                       </p>
                     </div>
                   </div>
@@ -516,7 +517,7 @@ export default function ClientDetail() {
                     <div className="rounded-lg border p-3 flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Ultima recogida completada</span>
                       <span className="text-sm font-semibold">
-                        {client?.last_completed_pick_up ?? "-"}
+                        {getDisplayValue(client?.last_completed_pick_up)}
                       </span>
                     </div>
                   </div>

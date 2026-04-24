@@ -63,7 +63,6 @@ export default function RoutesList() {
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [isStatsOpen, setIsStatsOpen] = useState(false);
-  const routeFilterButtonClass = "h-9 rounded-full px-4";
 
   const fetchWorkers = useCallback(async () => {
     try {
@@ -261,7 +260,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "ALL" ? "default" : "outline"}
-                className={`${routeFilterButtonClass} w-full`}
+                className="h-8 w-full justify-center px-3 text-xs sm:text-sm md:w-auto"
                 onClick={() => setRouteFilter("ALL")}
               >
                 Todas
@@ -269,7 +268,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITH_WORKERS" ? "default" : "outline"}
-                className={`${routeFilterButtonClass} w-full`}
+                className="h-8 w-full justify-center px-3 text-xs sm:text-sm md:w-auto"
                 onClick={() => setRouteFilter("WITH_WORKERS")}
               >
                 Con trabajador
@@ -277,7 +276,7 @@ export default function RoutesList() {
               <Button
                 size="sm"
                 variant={routeFilter === "WITHOUT_WORKERS" ? "default" : "outline"}
-                className={`${routeFilterButtonClass} w-full`}
+                className="h-8 w-full justify-center px-3 text-xs sm:text-sm md:w-auto"
                 onClick={() => setRouteFilter("WITHOUT_WORKERS")}
               >
                 Sin trabajador
@@ -432,11 +431,11 @@ export default function RoutesList() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
-                    <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
-                      Ver detalle
-                    </RouteActionButton>
                     <RouteActionButton size="sm" tone="primary" icon={Route} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/execute`)}>
                       Realizar ruta
+                    </RouteActionButton>
+                    <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
+                      Ver detalle
                     </RouteActionButton>
                   </div>
 

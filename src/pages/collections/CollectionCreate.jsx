@@ -300,7 +300,7 @@ export default function CollectionCreate() {
                   placeholder="Se usara el precio global"
                 />
                 <p className="text-left text-xs text-muted-foreground">
-                  Se rellena con el precio global de la empresa y puedes ajustarlo si hace falta.
+                  Se rellena con el precio global de la empresa por defecto.
                 </p>
               </div>
             </div>

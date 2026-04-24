@@ -16,7 +16,31 @@ import {
 import { Map, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
-import { handleApiError } from "@/components/Utils";
+import { handleApiError, normalizeZoneName } from "@/components/Utils";
+
+function escapePopupText(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildZonePopupContent(zone) {
+  const zoneName = normalizeZoneName(zone.name);
+  const clientsText = zone.clients_count
+    ? `${zone.clients_count} cliente${zone.clients_count === 1 ? "" : "s"} en esta zona`
+    : "Sin clientes asignados";
+  const clientsColor = zone.clients_count ? "#475569" : "#94a3b8";
+
+  return `
+    <div style="min-width:220px;">
+      <div style="font-weight:700;color:#0f172a;">${escapePopupText(zoneName)}</div>
+      <div style="margin-top:6px;font-size:12px;color:${clientsColor};">${escapePopupText(clientsText)}</div>
+    </div>
+  `;
+}
 
 export default function CollectionZonesList() {
   const mapRef = useRef(null);
@@ -101,8 +125,7 @@ export default function CollectionZonesList() {
     map.on(L.Draw.Event.EDITED, async (e) => {
       const layers = e.layers.getLayers();
       for (const layer of layers) {
-        const popup = layer.getPopup();
-        const zoneName = popup ? popup.getContent().replace(/<[^>]+>/g, "") : "Zona";
+        const zoneName = layer.zoneName || "Zona";
         const coords = layer
           .toGeoJSON()
           .geometry.coordinates[0]
@@ -166,12 +189,9 @@ export default function CollectionZonesList() {
           weight: 2,
         }).addTo(drawnItems);
 
-        const clientsPreview = zone.clients_count
-          ? `<div style="margin-top:6px;font-size:12px;color:#475569;">${zone.clients_count} cliente${zone.clients_count === 1 ? "" : "s"} en esta zona</div>`
-          : `<div style="margin-top:6px;font-size:12px;color:#94a3b8;">Sin clientes asignados</div>`;
-
-        polygon.bindPopup(`<strong>${zone.name}</strong>${clientsPreview}`);
+        polygon.bindPopup(buildZonePopupContent(zone));
         polygon.zoneId = zone.id;
+        polygon.zoneName = normalizeZoneName(zone.name);
 
         if (showZoneClients && Array.isArray(zone.clients)) {
           zone.clients.forEach((client) => {
@@ -191,7 +211,7 @@ export default function CollectionZonesList() {
                 <div style="margin-top:4px;font-size:12px;color:#475569;">${client.address}</div>
                 <div style="font-size:12px;color:#475569;">${client.postal_code} ${client.city}</div>
                 <div style="margin-top:6px;font-size:12px;color:#047857;font-weight:600;">${client.frequency}</div>
-                <div style="margin-top:6px;font-size:11px;color:#64748b;">Zona: ${zone.name}</div>
+                <div style="margin-top:6px;font-size:11px;color:#64748b;">Zona: ${normalizeZoneName(zone.name)}</div>
               </div>
             `);
 

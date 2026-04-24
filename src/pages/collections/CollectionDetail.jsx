@@ -33,6 +33,7 @@ export default function CollectionDetail() {
   const [deleting, setDeleting] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collection, setCollection] = useState(null);
+  const billableLabel = collection?.billable_label || (collection?.billable ? "Facturable" : "No facturable");
 
   const fetchCollection = useCallback(async () => {
     if (!id) return;
@@ -152,7 +153,7 @@ export default function CollectionDetail() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-muted-foreground">Facturable:</span>
             <Badge variant="outline" className={collection?.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
-              {collection?.billable ? "Si" : "No"}
+              {billableLabel}
             </Badge>
           </div>
           <div className="md:col-span-2"><span className="text-muted-foreground">Notas:</span> {collection?.notes || "-"}</div>

@@ -250,17 +250,22 @@ export default function RouteExecution() {
     try {
       setWorkingRouteDayId(routeDayId);
       const res = await api().get(`routes/${encodeURIComponent(id)}/route-days/${encodeURIComponent(routeDayId)}/google-navigation/`);
-      const navigationUrl = res.data?.url;
-      if (!navigationUrl) {
+      const navigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
+      if (navigationUrls.length === 0) {
         showSnackbar("No se pudo generar el enlace de navegacion.", "error");
         return;
       }
       const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent || "");
+      if (navigationUrls.length > 1) {
+        showSnackbar(`La ruta se ha dividido en ${navigationUrls.length} enlaces de navegacion.`, "info");
+      }
       if (isMobileDevice) {
-        window.location.assign(navigationUrl);
+        window.location.assign(navigationUrls[0]);
         return;
       }
-      window.open(navigationUrl, "_blank", "noopener,noreferrer");
+      navigationUrls.forEach((navigationUrl) => {
+        window.open(navigationUrl, "_blank", "noopener,noreferrer");
+      });
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la navegacion de Google.");
       showSnackbar(msg, "error");

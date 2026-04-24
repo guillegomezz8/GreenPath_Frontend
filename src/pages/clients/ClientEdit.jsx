@@ -40,7 +40,7 @@ export default function EditarCliente() {
     address: "",
     city: "",
     postal_code: "",
-    country: "Espaa",
+    country: "Espana",
     phone: "",
     frequency: "WEEKLY",
   });
@@ -65,7 +65,7 @@ export default function EditarCliente() {
           address: data?.address || "",
           city: data?.city || "",
           postal_code: data?.postal_code || "",
-          country: data?.country || "Espaa",
+          country: data?.country || "Espana",
           phone: data?.phone || "",
           frequency: freqCode,
         });
@@ -150,15 +150,14 @@ export default function EditarCliente() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => update("email", e.target.value)}
-                required
                 disabled={fetching}
-                placeholder="contacto@ejemplo.com"
+                placeholder="Opcional"
               />
             </div>
           </div>
@@ -189,13 +188,13 @@ export default function EditarCliente() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cif">CIF *</Label>
+                <Label htmlFor="cif">CIF</Label>
                 <Input
                   id="cif"
                   value={formData.cif}
                   onChange={(e) => update("cif", e.target.value)}
-                  required
                   disabled={fetching}
+                  placeholder="Opcional"
                 />
               </div>
             </div>

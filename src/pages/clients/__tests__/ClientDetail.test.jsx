@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ClientDetail from "../ClientDetail";
 
@@ -111,5 +111,53 @@ describe("ClientDetail", () => {
 
     expect(await screen.findByText("Facturable")).toBeInTheDocument();
     expect(screen.getByText("No facturable")).toBeInTheDocument();
+  });
+
+  it("muestra guiones cuando faltan datos opcionales del cliente", async () => {
+    mocks.get
+      .mockResolvedValueOnce({
+        data: {
+          id: 6,
+          name: "Cliente Incompleto",
+          email: "",
+          phone: "",
+          cif: "",
+          address: "",
+          city: "",
+          postal_code: "",
+          country: "",
+          frequency: "",
+          last_pick_up: "",
+          last_completed_pick_up: "",
+          companies: [],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          historial: [],
+          total_liters: 0,
+          stats: {
+            total_collections: 0,
+            effective_collections: 0,
+            confirmed_collections: 0,
+            pending_collections: 0,
+            canceled_collections: 0,
+            total_liters: 0,
+            avg_liters: 0,
+            total_paid: 0,
+          },
+        },
+      });
+
+    render(<ClientDetail />);
+
+    await screen.findByText("Cliente Incompleto");
+
+    expect(within(screen.getByText("Direccion").parentElement).getByText("-")).toBeInTheDocument();
+    expect(within(screen.getByText("Telefono").parentElement).getByText("-")).toBeInTheDocument();
+    expect(within(screen.getByText("Email").parentElement).getByText("-")).toBeInTheDocument();
+    expect(within(screen.getByText("CIF").parentElement).getByText("-")).toBeInTheDocument();
+    expect(within(screen.getByText("Ciudad / CP / Pais").parentElement).getByText("-")).toBeInTheDocument();
+    expect(screen.getAllByText("-").length).toBeGreaterThanOrEqual(6);
   });
 });

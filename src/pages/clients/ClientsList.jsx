@@ -6,13 +6,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useSnackbar } from '@/context/SnackbarProvider';
-import { handleApiError, getPickupFrequencyClass, getPickupFrequencyLabel } from '@/components/Utils';
+import { handleApiError, getDisplayValue, getPickupFrequencyClass, getPickupFrequencyLabel } from '@/components/Utils';
 import { Users, Plus, MoreVertical, Edit, Trash2, MapPin, Phone, Mail } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 
 const FREQUENCIES = ["Todos", "Cada semana", "Cada 2 semanas", "Cada 3 semanas", "Cada 4 semanas"];
 const FREQ_MAP = { "Todos": undefined, "Cada semana": "WEEKLY", "Cada 2 semanas": "2_WEEKS", "Cada 3 semanas": "3_WEEKS", "Cada 4 semanas": "4_WEEKS" };
+const hasClientFrequency = (frequency) => (typeof frequency === "string" ? Boolean(frequency.trim()) : Boolean(frequency));
+const getClientFrequencyLabel = (frequency) => (hasClientFrequency(frequency) ? getPickupFrequencyLabel(frequency) : "-");
+const getClientFrequencyBadgeClass = (frequency) => (hasClientFrequency(frequency) ? getPickupFrequencyClass(frequency) : "bg-slate-500 text-white");
 
 export default function ClientsList() {
   const { api } = useAuth();
@@ -130,10 +133,10 @@ export default function ClientsList() {
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <CardTitle className="text-lg text-left">{client.name}</CardTitle>
+                  <CardTitle className="text-lg text-left">{getDisplayValue(client.name)}</CardTitle>
                   <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                    <Badge variant="outline">{client.city}</Badge>
-                    <Badge className={getPickupFrequencyClass(client.frequency)}>{getPickupFrequencyLabel(client.frequency)}</Badge>
+                    <Badge variant="outline">{getDisplayValue(client.city)}</Badge>
+                    <Badge className={getClientFrequencyBadgeClass(client.frequency)}>{getClientFrequencyLabel(client.frequency)}</Badge>
                   </div>
                 </div>
 
@@ -158,23 +161,23 @@ export default function ClientsList() {
 
             <CardContent className="space-y-3">
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" /> {client.address}
+                <MapPin className="w-4 h-4" /> {getDisplayValue(client.address)}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4" /> {client.phone}
+                <Phone className="w-4 h-4" /> {getDisplayValue(client.phone)}
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Mail className="w-4 h-4" /> {client.email}
+                <Mail className="w-4 h-4" /> {getDisplayValue(client.email)}
               </div>
 
               <div className="pt-3 border-t border-border">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Ultima recogida:</span>
-                  <span className="font-medium">{client.last_pick_up}</span>
+                  <span className="font-medium">{getDisplayValue(client.last_pick_up)}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
                   <span className="text-muted-foreground">Total recogidas:</span>
-                  <span className="font-medium text-primary">{client.total_pick_ups}</span>
+                  <span className="font-medium text-primary">{getDisplayValue(client.total_pick_ups)}</span>
                 </div>
               </div>
 

@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { BarChart3, Building2, Droplets, Euro, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { BarChart3, Building2, CalendarRange, ChevronDown, Droplets, Euro, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+const EMPTY_DATE_RANGE = { startDate: "", endDate: "" };
 
 function toNumber(value) {
   const parsed = Number(value);
@@ -18,6 +23,30 @@ function formatCurrency(value) {
 
 function formatLiters(value) {
   return `${Math.round(toNumber(value)).toLocaleString("es-ES")} L`;
+}
+
+function formatBusinessDate(value) {
+  if (!value) return "";
+  const parsed = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString("es-ES");
+}
+
+function getDateRangeLabel(dateRange = EMPTY_DATE_RANGE) {
+  if (dateRange.startDate && dateRange.endDate) {
+    return `${formatBusinessDate(dateRange.startDate)} - ${formatBusinessDate(dateRange.endDate)}`;
+  }
+  return "Todo el historico";
+}
+
+function buildDateRangeParams(dateRange = EMPTY_DATE_RANGE) {
+  if (!dateRange.startDate || !dateRange.endDate) {
+    return {};
+  }
+  return {
+    start_date: dateRange.startDate,
+    end_date: dateRange.endDate,
+  };
 }
 
 function buildMonthlyRows(rawRows = []) {
@@ -76,15 +105,23 @@ export default function Stats() {
   const [buyersCount, setBuyersCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
   const [confirmedCollectionsCount, setConfirmedCollectionsCount] = useState(0);
+  const [dateRange, setDateRange] = useState(EMPTY_DATE_RANGE);
+  const [appliedDateRange, setAppliedDateRange] = useState(EMPTY_DATE_RANGE);
+  const [isCountersOpen, setIsCountersOpen] = useState(false);
+
+  const dateRangeParams = useMemo(() => buildDateRangeParams(appliedDateRange), [appliedDateRange]);
+  const appliedDateRangeLabel = useMemo(() => getDateRangeLabel(appliedDateRange), [appliedDateRange]);
+  const hasAppliedDateRange = Boolean(appliedDateRange.startDate && appliedDateRange.endDate);
+  const hasPendingDateChanges = dateRange.startDate !== appliedDateRange.startDate || dateRange.endDate !== appliedDateRange.endDate;
 
   const fetchStatsData = useCallback(async () => {
     try {
       setLoading(true);
       const [summaryRes, buyersRes, salesRes, collectionsRes] = await Promise.all([
-        api().get("sales/economic-summary/"),
+        api().get("sales/economic-summary/", { params: dateRangeParams }),
         api().get("buyers/", { params: { page: 1, page_size: 1 } }),
-        api().get("sales/", { params: { page: 1, page_size: 1 } }),
-        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED", billable: true } }),
+        api().get("sales/", { params: { page: 1, page_size: 1, ...dateRangeParams } }),
+        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED", billable: true, ...dateRangeParams } }),
       ]);
 
       setSummary(summaryRes.data || null);
@@ -97,11 +134,40 @@ export default function Stats() {
     } finally {
       setLoading(false);
     }
-  }, [api, showSnackbar]);
+  }, [api, dateRangeParams, showSnackbar]);
 
   useEffect(() => {
     fetchStatsData();
   }, [fetchStatsData]);
+
+  const handleDateRangeChange = useCallback((field) => (event) => {
+    const { value } = event.target;
+    setDateRange((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }, []);
+
+  const applyDateRange = useCallback(() => {
+    const { startDate, endDate } = dateRange;
+
+    if ((startDate && !endDate) || (!startDate && endDate)) {
+      showSnackbar("Debes indicar fecha inicial y fecha final.", "error");
+      return;
+    }
+
+    if (startDate && endDate && startDate > endDate) {
+      showSnackbar("La fecha inicial no puede ser posterior a la final.", "error");
+      return;
+    }
+
+    setAppliedDateRange({ startDate, endDate });
+  }, [dateRange, showSnackbar]);
+
+  const clearDateRange = useCallback(() => {
+    setDateRange(EMPTY_DATE_RANGE);
+    setAppliedDateRange(EMPTY_DATE_RANGE);
+  }, []);
 
   const monthlyData = useMemo(() => buildMonthlyRows(summary?.monthly || []), [summary?.monthly]);
   const totals = useMemo(() => {
@@ -137,6 +203,15 @@ export default function Stats() {
     [totals.boughtVolume, totals.margin, totals.netProfit, totals.soldVolume, totals.totalCost, totals.totalIncome]
   );
 
+  const countCards = useMemo(
+    () => [
+      { title: "Compradores", value: buyersCount, className: "text-primary" },
+      { title: "Ventas registradas", value: salesCount, className: "text-foreground" },
+      { title: "Compras facturables", value: confirmedCollectionsCount, className: "text-blue-600" },
+    ],
+    [buyersCount, confirmedCollectionsCount, salesCount]
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -146,10 +221,63 @@ export default function Stats() {
             Estadisticas
           </h1>
         </div>
-        <Badge variant="outline" className="w-fit border-border/70 bg-background/80 text-muted-foreground">
-          Resumen economico
-        </Badge>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="w-fit border-border/70 bg-background/80 text-muted-foreground">
+            Resumen economico
+          </Badge>
+          <Badge variant="outline" className="w-fit border-border/70 bg-background/80 text-muted-foreground">
+            Periodo: {appliedDateRangeLabel}
+          </Badge>
+        </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-4 text-left">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <CalendarRange className="h-5 w-5 text-primary" />
+            Filtrar por rango de fechas
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <div className="space-y-2">
+              <Label htmlFor="stats-start-date">Fecha inicial</Label>
+              <Input
+                id="stats-start-date"
+                type="date"
+                value={dateRange.startDate}
+                onChange={handleDateRangeChange("startDate")}
+                max={dateRange.endDate || undefined}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="stats-end-date">Fecha final</Label>
+              <Input
+                id="stats-end-date"
+                type="date"
+                value={dateRange.endDate}
+                onChange={handleDateRangeChange("endDate")}
+                min={dateRange.startDate || undefined}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 xl:self-end">
+              <Button type="button" onClick={applyDateRange} disabled={loading || !hasPendingDateChanges}>
+                Aplicar rango
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={clearDateRange}
+                disabled={loading || (!hasAppliedDateRange && !hasPendingDateChanges)}
+              >
+                Limpiar
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {loading ? (
         <Card>
@@ -157,7 +285,33 @@ export default function Stats() {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="md:hidden">
+            <Card>
+              <CardContent className="p-0">
+                <button
+                  type="button"
+                  onClick={() => setIsCountersOpen((prev) => !prev)}
+                  className="flex w-full items-center justify-between p-4 text-left transition-colors hover:bg-muted/40"
+                >
+                  <span className="text-sm font-medium text-foreground">Ver contadores</span>
+                  <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${isCountersOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {isCountersOpen && (
+                  <div className="space-y-3 border-t px-4 py-3">
+                    {[...kpiCards, ...countCards].map((card) => (
+                      <div key={card.title} className="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0">
+                        <span className="text-sm text-muted-foreground">{card.title}</span>
+                        <span className={`text-lg font-bold ${card.className}`}>{card.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {kpiCards.map((card) => (
               <Card key={card.title} className="transition-shadow hover:shadow-elegant">
                 <CardContent className="pt-6 text-left">
@@ -171,25 +325,15 @@ export default function Stats() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-2xl font-bold text-primary">{buyersCount}</div>
-                <p className="text-sm text-muted-foreground">Compradores</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-2xl font-bold text-foreground">{salesCount}</div>
-                <p className="text-sm text-muted-foreground">Ventas registradas</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <div className="text-2xl font-bold text-blue-600">{confirmedCollectionsCount}</div>
-                <p className="text-sm text-muted-foreground">Compras facturables</p>
-              </CardContent>
-            </Card>
+          <div className="hidden grid-cols-1 gap-4 md:grid xl:grid-cols-3">
+            {countCards.map((card) => (
+              <Card key={card.title}>
+                <CardContent className="pt-6 text-center">
+                  <div className={`text-2xl font-bold ${card.className}`}>{card.value}</div>
+                  <p className="text-sm text-muted-foreground">{card.title}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
@@ -209,37 +353,41 @@ export default function Stats() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <div className={getChartContainerClass()}>
-                    {monthlyData.map((item, index) => {
-                      const incomeHeight = getHeight(item.income, maxFinance);
-                      const costHeight = getHeight(item.cost, maxFinance);
-                      return (
-                        <div key={`${item.year}-${item.month}`} className="flex flex-1 flex-col items-center gap-2">
-                          <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                            <span className="text-center">{item.income.toFixed(0)}</span>
-                            <span className="text-center">{item.cost.toFixed(0)}</span>
+                {monthlyData.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">Sin movimientos economicos en el periodo seleccionado.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className={getChartContainerClass()}>
+                      {monthlyData.map((item, index) => {
+                        const incomeHeight = getHeight(item.income, maxFinance);
+                        const costHeight = getHeight(item.cost, maxFinance);
+                        return (
+                          <div key={`${item.year}-${item.month}`} className="flex flex-1 flex-col items-center gap-2">
+                            <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                              <span className="text-center">{item.income.toFixed(0)}</span>
+                              <span className="text-center">{item.cost.toFixed(0)}</span>
+                            </div>
+                            <div className="flex h-44 w-full items-end gap-2">
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${incomeHeight}%` }}
+                                transition={{ duration: 0.45, delay: index * 0.04 }}
+                                className="w-full rounded-t-md bg-emerald-500"
+                              />
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${costHeight}%` }}
+                                transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
+                                className="w-full rounded-t-md bg-red-500"
+                              />
+                            </div>
+                            <div className="text-xs font-medium text-foreground">{item.label}</div>
                           </div>
-                          <div className="flex h-44 w-full items-end gap-2">
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: `${incomeHeight}%` }}
-                              transition={{ duration: 0.45, delay: index * 0.04 }}
-                              className="w-full rounded-t-md bg-emerald-500"
-                            />
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: `${costHeight}%` }}
-                              transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
-                              className="w-full rounded-t-md bg-red-500"
-                            />
-                          </div>
-                          <div className="text-xs font-medium text-foreground">{item.label}</div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -259,28 +407,32 @@ export default function Stats() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <div className={getChartContainerClass()}>
-                    {monthlyData.map((item, index) => {
-                      const profitHeight = getHeight(Math.abs(item.profit), maxFinance);
-                      const barClass = item.profit >= 0 ? "bg-primary" : "bg-red-500";
-                      return (
-                        <div key={`${item.year}-${item.month}-profit`} className="flex flex-1 flex-col items-center gap-2">
-                          <div className="text-xs text-muted-foreground">{item.profit.toFixed(0)}</div>
-                          <div className="flex h-44 w-full items-end">
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: `${profitHeight}%` }}
-                              transition={{ duration: 0.45, delay: index * 0.04 }}
-                              className={`w-full rounded-t-md ${barClass}`}
-                            />
+                {monthlyData.length === 0 ? (
+                  <div className="py-12 text-center text-sm text-muted-foreground">Sin beneficios ni costes registrados en el periodo seleccionado.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className={getChartContainerClass()}>
+                      {monthlyData.map((item, index) => {
+                        const profitHeight = getHeight(Math.abs(item.profit), maxFinance);
+                        const barClass = item.profit >= 0 ? "bg-primary" : "bg-red-500";
+                        return (
+                          <div key={`${item.year}-${item.month}-profit`} className="flex flex-1 flex-col items-center gap-2">
+                            <div className="text-xs text-muted-foreground">{item.profit.toFixed(0)}</div>
+                            <div className="flex h-44 w-full items-end">
+                              <motion.div
+                                initial={{ height: 0 }}
+                                animate={{ height: `${profitHeight}%` }}
+                                transition={{ duration: 0.45, delay: index * 0.04 }}
+                                className={`w-full rounded-t-md ${barClass}`}
+                              />
+                            </div>
+                            <div className="text-xs font-medium text-foreground">{item.label}</div>
                           </div>
-                          <div className="text-xs font-medium text-foreground">{item.label}</div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -301,37 +453,41 @@ export default function Stats() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <div className={getChartContainerClass("wide")}>
-                  {monthlyData.map((item, index) => {
-                    const boughtHeight = getHeight(item.bought_volume, maxVolume);
-                    const soldHeight = getHeight(item.sold_volume, maxVolume);
-                    return (
-                      <div key={`${item.year}-${item.month}-volume`} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                          <span className="text-center">{Math.round(item.bought_volume)}</span>
-                          <span className="text-center">{Math.round(item.sold_volume)}</span>
+              {monthlyData.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">Sin volumen registrado en el periodo seleccionado.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <div className={getChartContainerClass("wide")}>
+                    {monthlyData.map((item, index) => {
+                      const boughtHeight = getHeight(item.bought_volume, maxVolume);
+                      const soldHeight = getHeight(item.sold_volume, maxVolume);
+                      return (
+                        <div key={`${item.year}-${item.month}-volume`} className="flex flex-1 flex-col items-center gap-2">
+                          <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                            <span className="text-center">{Math.round(item.bought_volume)}</span>
+                            <span className="text-center">{Math.round(item.sold_volume)}</span>
+                          </div>
+                          <div className="flex h-44 w-full items-end gap-2">
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${boughtHeight}%` }}
+                              transition={{ duration: 0.45, delay: index * 0.04 }}
+                              className="w-full rounded-t-md bg-blue-500"
+                            />
+                            <motion.div
+                              initial={{ height: 0 }}
+                              animate={{ height: `${soldHeight}%` }}
+                              transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
+                              className="w-full rounded-t-md bg-orange-500"
+                            />
+                          </div>
+                          <div className="text-xs font-medium text-foreground">{item.label}</div>
                         </div>
-                        <div className="flex h-44 w-full items-end gap-2">
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${boughtHeight}%` }}
-                            transition={{ duration: 0.45, delay: index * 0.04 }}
-                            className="w-full rounded-t-md bg-blue-500"
-                          />
-                          <motion.div
-                            initial={{ height: 0 }}
-                            animate={{ height: `${soldHeight}%` }}
-                            transition={{ duration: 0.45, delay: index * 0.04 + 0.03 }}
-                            className="w-full rounded-t-md bg-orange-500"
-                          />
-                        </div>
-                        <div className="text-xs font-medium text-foreground">{item.label}</div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
 

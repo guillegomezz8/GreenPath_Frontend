@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -13,15 +13,19 @@ import {
   getCollectionRequestStatusLabel,
   handleApiError,
 } from "@/components/Utils";
-import { CalendarClock, CheckCircle, ChevronDown, Clock3, RefreshCcw } from "lucide-react";
+import { CalendarClock, CheckCircle, ChevronDown, Clock3, Inbox, PackageCheck } from "lucide-react";
 
 const FILTER_OPTIONS = [
-  { value: "OPEN", label: "Abiertas" },
+  { value: "ALL", label: "Todas" },
   { value: "PENDING", label: "Pendientes" },
   { value: "AUTO_ESTIMATED", label: "Autoestimadas" },
   { value: "ANSWERED", label: "Respondidas" },
   { value: "MANUAL", label: "Manuales" },
-  { value: "ALL", label: "Todas" },
+];
+
+const CONTAINER_TYPES = [
+  { value: "BIDONES", label: "Bidones", capacity: 60 },
+  { value: "IBC", label: "IBC", capacity: 1000 },
 ];
 
 function formatDate(dateStr) {
@@ -38,6 +42,12 @@ function formatDateTime(dateTime) {
   return d.toLocaleString("es-ES");
 }
 
+function formatLiters(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "-";
+  return parsed.toLocaleString("es-ES", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
 function isExpired(expiresAt) {
   if (!expiresAt) return false;
   const d = new Date(expiresAt);
@@ -51,40 +61,77 @@ function getRequestRows(payload) {
   return [];
 }
 
+function getContainerConfig(containerType) {
+  return CONTAINER_TYPES.find((item) => item.value === containerType) || CONTAINER_TYPES[0];
+}
+
+function getContainerNumber(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return Math.floor(parsed);
+}
+
+function getContainerSummary(containerType, containerNumber) {
+  const config = getContainerConfig(containerType);
+  const number = getContainerNumber(containerNumber);
+  return {
+    label: `${number} x ${config.label}`,
+    liters: number * config.capacity,
+  };
+}
+
+function inferContainerDraft(row) {
+  const rawLiters = Number(row?.final_liters ?? row?.estimated_liters);
+  if (Number.isFinite(rawLiters) && rawLiters > 0) {
+    if (rawLiters >= 1000 && rawLiters % 1000 === 0) {
+      return { container_type: "IBC", container_number: String(rawLiters / 1000) };
+    }
+    if (rawLiters % 60 === 0) {
+      return { container_type: "BIDONES", container_number: String(rawLiters / 60) };
+    }
+  }
+
+  return {
+    container_type: row?.container_type || "BIDONES",
+    container_number: String(row?.container_number || 1),
+  };
+}
+
+function sortRequests(rows) {
+  return [...rows].sort((a, b) => {
+    const dateA = new Date(a?.created_date || 0).getTime();
+    const dateB = new Date(b?.created_date || 0).getTime();
+    if (dateA !== dateB) return dateB - dateA;
+    return Number(b?.id || 0) - Number(a?.id || 0);
+  });
+}
+
+function getFinalSourceLabel(source) {
+  if (source === "CLIENT") return "Respuesta del cliente";
+  if (source === "AUTO") return "Autoestimada";
+  if (source === "MANUAL") return "Ajuste manual";
+  return "Sin respuesta";
+}
+
 export default function CollectionRequestsPage() {
   const { api } = useAuth();
   const showSnackbar = useSnackbar();
 
   const [loading, setLoading] = useState(false);
-  const [filterStatus, setFilterStatus] = useState("OPEN");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [requests, setRequests] = useState([]);
   const [answerModalOpen, setAnswerModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState(null);
-  const [finalLiters, setFinalLiters] = useState("");
+  const [containerDraft, setContainerDraft] = useState({ container_type: "BIDONES", container_number: "1" });
   const [isStatsOpen, setIsStatsOpen] = useState(false);
 
   const fetchRequests = useCallback(async () => {
     try {
       setLoading(true);
-      if (filterStatus === "ALL") {
-        const statuses = ["PENDING", "AUTO_ESTIMATED", "ANSWERED", "MANUAL"];
-        const responses = await Promise.all(
-          statuses.map((status) =>
-            api().get("collections/requests/me/", { params: { page: 1, page_size: 100, status } })
-          )
-        );
-        const allRows = responses.flatMap((res) => getRequestRows(res.data));
-        const deduped = [...new Map(allRows.map((row) => [row.id, row])).values()];
-        setRequests(deduped.sort((a, b) => String(b.route_day_date || "").localeCompare(String(a.route_day_date || ""))));
-        return;
-      }
-
-      const params = { page: 1, page_size: 100 };
-      if (filterStatus !== "OPEN") params.status = filterStatus;
+      const params = { page: 1, page_size: 100, status: filterStatus };
       const res = await api().get("collections/requests/me/", { params });
-      const rows = getRequestRows(res.data);
-      setRequests(rows.sort((a, b) => String(b.route_day_date || "").localeCompare(String(a.route_day_date || ""))));
+      setRequests(sortRequests(getRequestRows(res.data)));
     } catch (e) {
       const msg = handleApiError(e, "No se pudieron cargar las solicitudes.");
       showSnackbar(msg, "error");
@@ -105,28 +152,35 @@ export default function CollectionRequestsPage() {
     return { total, pending, answered, expired };
   }, [requests]);
 
+  const selectedSummary = useMemo(
+    () => getContainerSummary(containerDraft.container_type, containerDraft.container_number),
+    [containerDraft]
+  );
+
   const openAnswerModal = (row) => {
     setSelectedRequest(row);
-    setFinalLiters(row?.final_liters || row?.estimated_liters || "");
+    setContainerDraft(inferContainerDraft(row));
     setAnswerModalOpen(true);
   };
 
   const handleSubmitAnswer = async () => {
     if (!selectedRequest?.id) return;
-    const litersValue = Number(finalLiters);
-    if (!Number.isFinite(litersValue) || litersValue <= 0) {
-      showSnackbar("Debes introducir litros validos mayores que cero.", "error");
+    const containerNumber = getContainerNumber(containerDraft.container_number);
+    if (!Number.isFinite(containerNumber) || containerNumber <= 0) {
+      showSnackbar("Debes indicar un numero de envases valido.", "error");
       return;
     }
+
     try {
       setSubmitting(true);
       await api().post(`collections/requests/${encodeURIComponent(selectedRequest.id)}/answer/`, {
-        final_liters: String(litersValue),
+        container_type: containerDraft.container_type,
+        container_number: containerNumber,
       });
       showSnackbar("Solicitud respondida correctamente.", "success");
       setAnswerModalOpen(false);
       setSelectedRequest(null);
-      setFinalLiters("");
+      setContainerDraft({ container_type: "BIDONES", container_number: "1" });
       await fetchRequests();
     } catch (e) {
       const msg = handleApiError(e, "No se pudo responder la solicitud.");
@@ -136,15 +190,99 @@ export default function CollectionRequestsPage() {
     }
   };
 
+  const renderRequestCard = (row) => {
+    const canAnswer = (row.status === "PENDING" || row.status === "AUTO_ESTIMATED") && !isExpired(row.expires_at);
+    const summary = getContainerSummary(row.container_type, row.container_number || 1);
+    const finalLabel = row.final_liters ? `${formatLiters(row.final_liters)} L` : "-";
+
+    return (
+      <Card key={row.id} className="transition-shadow hover:shadow-elegant">
+        <CardContent className="pt-6">
+          <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
+            <div className="flex-1 space-y-3">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    {row.route_name || "Ruta planificada"}
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Solicitud #{row.id} - {formatDate(row.route_day_date)}</p>
+                </div>
+
+                <Badge className={`${getCollectionRequestStatusClass(row.status)} w-fit self-start`}>
+                  {getCollectionRequestStatusLabel(row.status)}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
+                <div>
+                  <span className="text-muted-foreground">Creada:</span>{" "}
+                  <span className="font-medium">{formatDateTime(row.created_date)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Limite:</span>{" "}
+                  <span className="font-medium">{formatDateTime(row.expires_at)}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Respuesta:</span>{" "}
+                  <span className="font-medium">{getFinalSourceLabel(row.final_source)}</span>
+                </div>
+              </div>
+
+              {isExpired(row.expires_at) && (row.status === "PENDING" || row.status === "AUTO_ESTIMATED") && (
+                <Badge variant="outline" className="w-fit border-red-300 text-red-700">
+                  <Clock3 className="mr-1 h-3 w-3" />
+                  Expirada
+                </Badge>
+              )}
+            </div>
+
+            <div className="w-full space-y-3 xl:w-80">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-lg bg-accent/50 p-3">
+                  <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+                    <PackageCheck className="h-4 w-4" />
+                    Envases
+                  </div>
+                  <div className="font-semibold">{summary.label}</div>
+                  <p className="text-xs text-muted-foreground">{formatLiters(summary.liters)} L aprox.</p>
+                </div>
+
+                <div className="rounded-lg bg-primary/10 p-3">
+                  <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+                    <CheckCircle className="h-4 w-4" />
+                    Final
+                  </div>
+                  <div className="font-semibold text-primary">{finalLabel}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end">
+            {canAnswer ? (
+              <Button size="sm" className="w-full gap-1 sm:w-auto" onClick={() => openAnswerModal(row)}>
+                <CheckCircle className="h-4 w-4" />
+                Responder
+              </Button>
+            ) : (
+              <Badge variant="outline" className="w-fit">Sin accion pendiente</Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="text-left">
-          <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-            <CalendarClock className="w-8 h-8 text-primary" />
-            Mis solicitudes de recogida
+      <div className="text-left">
+        <div>
+          <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
+            <CalendarClock className="h-8 w-8 text-primary" />
+            Solicitudes de Recogida
           </h1>
-          <p className="text-muted-foreground">Consulta tus proximas recogidas y responde los litros previstos antes del limite.</p>
+          <p className="text-left text-muted-foreground">Responde tus proximas recogidas indicando bidones o IBC.</p>
         </div>
       </div>
 
@@ -161,22 +299,22 @@ export default function CollectionRequestsPage() {
             </button>
 
             {isStatsOpen && (
-              <div className="space-y-3 border-t px-4 py-3">
-                <div className="flex items-center justify-between border-b pb-2">
-                  <span className="text-sm text-muted-foreground">Total</span>
-                  <span className="text-lg font-bold text-primary">{stats.total}</span>
+              <div className="grid grid-cols-2 gap-3 border-t px-4 py-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                  <p className="text-xl font-bold text-primary">{stats.total}</p>
                 </div>
-                <div className="flex items-center justify-between border-b pb-2">
-                  <span className="text-sm text-muted-foreground">Pendientes</span>
-                  <span className="text-lg font-bold text-blue-500">{stats.pending}</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pendientes</p>
+                  <p className="text-xl font-bold text-blue-500">{stats.pending}</p>
                 </div>
-                <div className="flex items-center justify-between border-b pb-2">
-                  <span className="text-sm text-muted-foreground">Respondidas</span>
-                  <span className="text-lg font-bold text-success">{stats.answered}</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Respondidas</p>
+                  <p className="text-xl font-bold text-success">{stats.answered}</p>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Expiradas</span>
-                  <span className="text-lg font-bold text-destructive">{stats.expired}</span>
+                <div>
+                  <p className="text-xs text-muted-foreground">Expiradas</p>
+                  <p className="text-xl font-bold text-destructive">{stats.expired}</p>
                 </div>
               </div>
             )}
@@ -184,167 +322,60 @@ export default function CollectionRequestsPage() {
         </Card>
       </div>
 
-      <div className="hidden gap-4 md:grid md:grid-cols-2 xl:grid-cols-4">
-        <Card>
-          <CardContent className="pt-6 text-left">
-            <p className="text-xs text-muted-foreground">Total</p>
-            <p className="text-2xl font-semibold">{stats.total}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-left">
-            <p className="text-xs text-muted-foreground">Pendientes</p>
-            <p className="text-2xl font-semibold">{stats.pending}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-left">
-            <p className="text-xs text-muted-foreground">Respondidas</p>
-            <p className="text-2xl font-semibold">{stats.answered}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-left">
-            <p className="text-xs text-muted-foreground">Expiradas</p>
-            <p className="text-2xl font-semibold">{stats.expired}</p>
-          </CardContent>
-        </Card>
+      <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
+        {[
+          ["Total", stats.total, "text-primary"],
+          ["Pendientes", stats.pending, "text-blue-500"],
+          ["Respondidas", stats.answered, "text-success"],
+          ["Expiradas", stats.expired, "text-destructive"],
+        ].map(([label, value, colorClass]) => (
+          <Card key={label}>
+            <CardContent className="pt-6 text-center">
+              <div className={`text-2xl font-bold ${colorClass}`}>{value}</div>
+              <p className="text-sm text-muted-foreground">{label}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Listado</CardTitle>
-          <CardDescription className="text-left">Puedes filtrar por estado y registrar tu respuesta de litros.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="w-full space-y-2 md:max-w-sm">
-            <Label htmlFor="request_status_filter">Estado</Label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger id="request_status_filter">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                {FILTER_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        <CardContent className="pt-6">
+          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
+            <div className="hidden sm:block" />
+
+            <h2 className="flex items-center justify-center gap-2 text-center text-lg font-semibold text-foreground">
+              <PackageCheck className="h-5 w-5 text-primary" />
+              Solicitudes
+            </h2>
+
+            <div className="w-full space-y-2 sm:w-56 sm:justify-self-end">
+              <Label htmlFor="request_status_filter">Estado</Label>
+              <Select value={filterStatus} onValueChange={setFilterStatus}>
+                <SelectTrigger id="request_status_filter">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FILTER_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground text-left">Cargando solicitudes...</p>
+            <div className="py-12 text-center text-muted-foreground">Cargando solicitudes...</div>
           ) : requests.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-left">No hay solicitudes para el filtro seleccionado.</p>
+            <div className="py-12 text-center">
+              <Inbox className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
+              <p className="text-muted-foreground">No hay solicitudes para este filtro</p>
+            </div>
           ) : (
-            <>
-            <div className="space-y-3 md:hidden">
-              {requests.map((row) => {
-                const canAnswer = (row.status === "PENDING" || row.status === "AUTO_ESTIMATED") && !isExpired(row.expires_at);
-                return (
-                  <div key={row.id} className="rounded-2xl border border-border/80 bg-background/80 p-4 text-left shadow-sm">
-                    <div className="flex flex-col gap-3">
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-foreground">{row.route_name || "-"}</p>
-                          <p className="text-xs text-muted-foreground">Recogida prevista para {formatDate(row.route_day_date)}</p>
-                        </div>
-                        <Badge className={getCollectionRequestStatusClass(row.status)}>
-                          {getCollectionRequestStatusLabel(row.status)}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-1 gap-2 text-xs text-muted-foreground sm:grid-cols-2">
-                        <p><span className="font-medium text-foreground">Fecha:</span> {formatDate(row.route_day_date)}</p>
-                        <p><span className="font-medium text-foreground">Plan:</span> {row.estimated_liters || "-"} L</p>
-                        <p><span className="font-medium text-foreground">Final:</span> {row.final_liters ? `${row.final_liters} L` : "-"}</p>
-                        <p><span className="font-medium text-foreground">Envases:</span> {row.container_number || 0} x {row.container_type === "IBC" ? "IBC" : "Bidones"}</p>
-                      </div>
-
-                      <div className="rounded-xl bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                        <p><span className="font-medium text-foreground">Limite:</span> {formatDateTime(row.expires_at)}</p>
-                        {isExpired(row.expires_at) ? (
-                          <Badge variant="outline" className="mt-2 border-red-300 text-red-700">
-                            <Clock3 className="w-3 h-3 mr-1" />
-                            Expirada
-                          </Badge>
-                        ) : null}
-                      </div>
-
-                      {canAnswer ? (
-                        <Button size="sm" className="w-full gap-1" onClick={() => openAnswerModal(row)}>
-                          <CheckCircle className="w-4 h-4" />
-                          Responder
-                        </Button>
-                      ) : (
-                        <Badge variant="outline" className="w-fit">Sin accion</Badge>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div className="space-y-4">
+              {requests.map(renderRequestCard)}
             </div>
-            <div className="hidden overflow-x-auto rounded-lg border border-border md:block">
-              <table className="min-w-[980px] w-full text-left">
-                <thead className="bg-muted/30 border-b">
-                  <tr>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ruta</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Fecha</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Estado</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Limite</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Final</th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground text-right">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((row) => {
-                    const canAnswer = (row.status === "PENDING" || row.status === "AUTO_ESTIMATED") && !isExpired(row.expires_at);
-                    return (
-                      <tr key={row.id} className="border-b border-border last:border-0">
-                        <td className="px-3 py-2 align-middle">
-                          <p className="font-medium">{row.route_name || "-"}</p>
-                        </td>
-                        <td className="px-3 py-2 text-sm align-middle">{formatDate(row.route_day_date)}</td>
-                        <td className="px-3 py-2 align-middle">
-                          <Badge className={getCollectionRequestStatusClass(row.status)}>
-                            {getCollectionRequestStatusLabel(row.status)}
-                          </Badge>
-                        </td>
-                        <td className="px-3 py-2 text-xs align-middle">
-                          <div className="space-y-1">
-                            <p>{formatDateTime(row.expires_at)}</p>
-                            {isExpired(row.expires_at) && (
-                              <Badge variant="outline" className="border-red-300 text-red-700">
-                                <Clock3 className="w-3 h-3 mr-1" />
-                                Expirada
-                              </Badge>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-xs align-middle">
-                          {row.container_number || 0} x {row.container_type === "IBC" ? "IBC" : "Bidones"}
-                          <p className="text-muted-foreground">{row.estimated_liters || "-"} L</p>
-                        </td>
-                        <td className="px-3 py-2 text-sm align-middle">{row.final_liters ? `${row.final_liters} L` : "-"}</td>
-                        <td className="px-3 py-2 text-right align-middle">
-                          {canAnswer ? (
-                            <Button size="sm" className="gap-1" onClick={() => openAnswerModal(row)}>
-                              <CheckCircle className="w-4 h-4" />
-                              Responder
-                            </Button>
-                          ) : (
-                            <Badge variant="outline">Sin accion</Badge>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-            </>
           )}
         </CardContent>
       </Card>
@@ -354,24 +385,51 @@ export default function CollectionRequestsPage() {
           <DialogHeader>
             <DialogTitle>Responder solicitud</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-lg border border-border p-3 text-left">
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-muted/20 p-3 text-left">
               <p className="font-medium">{selectedRequest?.route_name || "-"}</p>
               <p className="text-xs text-muted-foreground">
                 Fecha: {formatDate(selectedRequest?.route_day_date)} | Limite: {formatDateTime(selectedRequest?.expires_at)}
               </p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="final_liters">Litros finales</Label>
-              <Input
-                id="final_liters"
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={finalLiters}
-                onChange={(e) => setFinalLiters(e.target.value)}
-                placeholder="Ejemplo: 180"
-              />
+
+            <div className="grid gap-3 sm:grid-cols-[1fr_120px]">
+              <div className="space-y-2">
+                <Label htmlFor="container_type">Tipo de envase</Label>
+                <Select
+                  value={containerDraft.container_type}
+                  onValueChange={(value) => setContainerDraft((prev) => ({ ...prev, container_type: value }))}
+                >
+                  <SelectTrigger id="container_type">
+                    <SelectValue placeholder="Selecciona envase" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CONTAINER_TYPES.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label} ({type.capacity} L)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="container_number">Cantidad</Label>
+                <Input
+                  id="container_number"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={containerDraft.container_number}
+                  onChange={(e) => setContainerDraft((prev) => ({ ...prev, container_number: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3 text-left">
+              <p className="text-xs text-muted-foreground">Litros calculados automaticamente</p>
+              <p className="text-xl font-semibold text-foreground">{formatLiters(selectedSummary.liters)} L</p>
+              <p className="text-xs text-muted-foreground">{selectedSummary.label}</p>
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -385,4 +443,3 @@ export default function CollectionRequestsPage() {
     </div>
   );
 }
-

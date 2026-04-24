@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const CONTACT_FILTERS = ["Todos", "Con email", "Con telefono", "Con contacto"];
+const CONTACT_FILTERS = [];
 
 export default function BuyersList() {
   const navigate = useNavigate();
@@ -136,12 +136,7 @@ export default function BuyersList() {
         selectedFilter={contactFilter}
         onFilterChange={setContactFilter}
         counts={visibleStats}
-        countDefs={[
-          { key: "total", label: "En pagina", className: "text-primary" },
-          { key: "with_email", label: "Con email", className: "text-blue-600" },
-          { key: "with_phone", label: "Con telefono", className: "text-emerald-600" },
-          { key: "with_contact", label: "Con contacto", className: "text-orange-500" },
-        ]}
+        countDefs={[]}
         loading={loading}
         total={total}
         page={page}

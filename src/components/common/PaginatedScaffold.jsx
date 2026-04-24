@@ -98,7 +98,7 @@ export default function PaginatedScaffold({
       variant={isActive ? "default" : "outline"}
       size="sm"
       onClick={onClick}
-      className="text-xs sm:text-sm h-8 px-3 justify-center"
+      className="h-8 w-full justify-center px-3 text-xs sm:text-sm md:w-auto"
     >
       <span className="truncate">{opt}</span>
     </Button>
@@ -152,18 +152,16 @@ export default function PaginatedScaffold({
 
       <Card>
         <CardContent className="pt-4 pb-4 px-4 md:pt-6 md:pb-6 md:px-6">
-          <div className={`space-y-4 ${searchClassName}`}>
-            <div className="w-full">{renderSearch ? renderSearch(defaultSearch) : defaultSearch}</div>
+          <div className={`flex flex-col gap-4 md:flex-row md:items-end ${searchClassName}`}>
+            <div className="min-w-0 flex-1">{renderSearch ? renderSearch(defaultSearch) : defaultSearch}</div>
 
             {filters.length > 0 && (
-              <div className="space-y-2">
-                <div className={`grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-2 ${filtersClassName}`}>
-                  {filters.map((opt) => {
-                    const isActive = selectedFilter === opt;
-                    const onClick = () => onFilterChange?.(opt);
-                    return renderFilter ? renderFilter(opt, isActive, onClick) : defaultFilter(opt, isActive, onClick);
-                  })}
-                </div>
+              <div className={`grid grid-cols-1 gap-2 sm:grid-cols-2 md:flex md:max-w-[52rem] md:flex-wrap md:justify-end ${filtersClassName}`}>
+                {filters.map((opt) => {
+                  const isActive = selectedFilter === opt;
+                  const onClick = () => onFilterChange?.(opt);
+                  return renderFilter ? renderFilter(opt, isActive, onClick) : defaultFilter(opt, isActive, onClick);
+                })}
               </div>
             )}
           </div>
