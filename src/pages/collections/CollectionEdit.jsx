@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import SearchableEntitySelect, { getWorkerLabel, mergeById } from "@/components/common/SearchableEntitySelect";
 import { ArrowLeft, Save, Package, FlaskConical, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -18,7 +19,10 @@ const STATUS_OPTIONS = [
   { value: "CANCELED", label: "Cancelada" },
 ];
 
+const EMPTY_DEDUCTION_REASON = "__none__";
+
 const DEDUCTION_OPTIONS = [
+  { value: EMPTY_DEDUCTION_REASON, label: "Sin motivo" },
   { value: "WATER", label: "Agua" },
   { value: "RESIDUE", label: "Residuo" },
   { value: "MIXED", label: "Mezcla" },
@@ -36,6 +40,11 @@ function toOptionalNumber(value) {
   return Number.isFinite(n) ? n : null;
 }
 
+function formatDecimal(value, decimals = 2) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(decimals) : "-";
+}
+
 export default function CollectionEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -46,6 +55,10 @@ export default function CollectionEdit() {
   const [submitting, setSubmitting] = useState(false);
   const [clients, setClients] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [workerSearch, setWorkerSearch] = useState("");
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
   const [formData, setFormData] = useState({
     client: "",
     worker: "",
@@ -55,9 +68,10 @@ export default function CollectionEdit() {
     container_number: "1",
     measured_liters: "",
     deduction_liters: "0",
-    deduction_reason: "RESIDUE",
+    deduction_reason: "",
     deduction_notes: "",
     price_per_liter: "0.000",
+    total_price: "0.00",
     billable: true,
     status: "PENDING_MEASUREMENT",
     notes: "",
@@ -75,17 +89,35 @@ export default function CollectionEdit() {
     navigate("/collections");
   }, [navigate]);
 
-  const fetchBase = useCallback(async () => {
+  const fetchClients = useCallback(async (search = "") => {
     try {
-      const [clientsRes, workersRes] = await Promise.all([
-        api().get("clients", { params: { page: 1, page_size: 300 } }),
-        api().get("workers", { params: { page: 1, page_size: 300 } }),
-      ]);
-      setClients(Array.isArray(clientsRes.data?.results) ? clientsRes.data.results : []);
-      setWorkers(Array.isArray(workersRes.data?.results) ? workersRes.data.results : []);
+      setLoadingClients(true);
+      const params = { page: 1, page_size: 50 };
+      if (search.trim()) params.search = search.trim();
+      const res = await api().get("clients", { params });
+      const results = Array.isArray(res.data?.results) ? res.data.results : [];
+      setClients((prev) => mergeById(prev, results));
     } catch (e) {
-      const msg = handleApiError(e, "No se pudieron cargar clientes o trabajadores.");
+      const msg = handleApiError(e, "No se pudieron cargar clientes.");
       showSnackbar(msg, "error");
+    } finally {
+      setLoadingClients(false);
+    }
+  }, [api, showSnackbar]);
+
+  const fetchWorkers = useCallback(async (search = "") => {
+    try {
+      setLoadingWorkers(true);
+      const params = { page: 1, page_size: 50 };
+      if (search.trim()) params.search = search.trim();
+      const res = await api().get("workers", { params });
+      const results = Array.isArray(res.data?.results) ? res.data.results : [];
+      setWorkers((prev) => mergeById(prev, results));
+    } catch (e) {
+      const msg = handleApiError(e, "No se pudieron cargar trabajadores.");
+      showSnackbar(msg, "error");
+    } finally {
+      setLoadingWorkers(false);
     }
   }, [api, showSnackbar]);
 
@@ -105,9 +137,10 @@ export default function CollectionEdit() {
         container_number: String(item.container_number ?? "1"),
         measured_liters: item.measured_liters ?? "",
         deduction_liters: item.deduction_liters ?? "0",
-        deduction_reason: item.deduction_reason || "RESIDUE",
+        deduction_reason: item.deduction_reason || "",
         deduction_notes: item.deduction_notes || "",
         price_per_liter: item.price_per_liter ?? "0.000",
+        total_price: item.total_price ?? "0.00",
         billable: item.billable !== false,
         status: item.status_code || statusCode,
         notes: item.notes || "",
@@ -117,7 +150,7 @@ export default function CollectionEdit() {
         setClients((prev) => (
           prev.some((client) => String(client.id) === String(item.client))
             ? prev
-            : [{ id: item.client, name: item.client_name || `Cliente #${item.client}` }, ...prev]
+            : mergeById(prev, [{ id: item.client, name: item.client_name || `Cliente #${item.client}` }])
         ));
       }
 
@@ -125,7 +158,7 @@ export default function CollectionEdit() {
         setWorkers((prev) => (
           prev.some((worker) => String(worker.id) === String(item.worker))
             ? prev
-            : [{ id: item.worker, display_name: item.worker_name || `Trabajador #${item.worker}` }, ...prev]
+            : mergeById(prev, [{ id: item.worker, display_name: item.worker_name || `Trabajador #${item.worker}` }])
         ));
       }
     } catch (e) {
@@ -138,8 +171,18 @@ export default function CollectionEdit() {
   }, [api, id, navigate, showSnackbar]);
 
   useEffect(() => {
-    fetchBase();
-  }, [fetchBase]);
+    const timeoutId = window.setTimeout(() => {
+      fetchClients(clientSearch);
+    }, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [clientSearch, fetchClients]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchWorkers(workerSearch);
+    }, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchWorkers, workerSearch]);
 
   useEffect(() => {
     fetchCollection();
@@ -149,22 +192,23 @@ export default function CollectionEdit() {
     setFormData((prev) => {
       const next = { ...prev, [field]: value };
 
-      if (field === "measured_liters") {
-        if (toOptionalNumber(value) === null) {
-          next.status = next.status === "CANCELED" ? "CANCELED" : "PENDING_MEASUREMENT";
-          next.deduction_liters = "0";
-        } else if (next.status !== "CANCELED") {
-          next.status = "CONFIRMED";
-        }
+      if (field === "client" && String(value) !== String(prev.client)) {
+        next.route_day_client = "";
       }
 
       if (field === "status" && value === "CANCELED") {
         next.measured_liters = "";
         next.deduction_liters = "0";
+        next.deduction_reason = "";
       }
 
-      if (field === "status" && value !== "CANCELED" && toOptionalNumber(next.measured_liters) !== null) {
-        next.status = "CONFIRMED";
+      if (field === "measured_liters" && toOptionalNumber(value) === null) {
+        next.deduction_liters = "0";
+        next.deduction_reason = "";
+      }
+
+      if (field === "deduction_liters" && (toOptionalNumber(value) || 0) <= 0) {
+        next.deduction_reason = "";
       }
 
       return next;
@@ -187,7 +231,16 @@ export default function CollectionEdit() {
 
     try {
       setSubmitting(true);
-      const normalizedStatus = isCanceled ? "CANCELED" : (measuredValue !== null ? "CONFIRMED" : "PENDING_MEASUREMENT");
+      const normalizedStatus = formData.status || "PENDING_MEASUREMENT";
+      if (normalizedStatus === "CONFIRMED" && measuredValue === null) {
+        showSnackbar("Para confirmar la recogida debes indicar los litros medidos.", "error");
+        return;
+      }
+      const deductionValue = normalizedStatus === "CANCELED" ? 0 : Number(formData.deduction_liters || 0);
+      if (deductionValue > 0 && !formData.deduction_reason) {
+        showSnackbar("Indica el motivo de deduccion cuando hay litros descontados.", "error");
+        return;
+      }
       const payload = {
         client: Number(formData.client),
         worker: formData.worker ? Number(formData.worker) : null,
@@ -196,8 +249,8 @@ export default function CollectionEdit() {
         container_type: formData.container_type,
         container_number: Number(formData.container_number || 1),
         measured_liters: normalizedStatus === "CANCELED" ? null : measuredValue,
-        deduction_liters: normalizedStatus === "CANCELED" ? 0 : Number(formData.deduction_liters || 0),
-        deduction_reason: formData.deduction_reason,
+        deduction_liters: deductionValue,
+        deduction_reason: deductionValue > 0 ? formData.deduction_reason : "",
         deduction_notes: formData.deduction_notes || "",
         price_per_liter: Number(formData.price_per_liter || 0),
         billable: !!formData.billable,
@@ -236,7 +289,7 @@ export default function CollectionEdit() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className={`rounded-2xl border px-4 py-4 text-left ${
+            <div className={`rounded-xl border px-4 py-4 text-left ${
               isCanceled
                 ? "border-destructive/20 bg-destructive/5"
                 : isPendingMeasurement
@@ -255,14 +308,14 @@ export default function CollectionEdit() {
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-foreground">
-                    {isCanceled ? "Recogida cancelada" : isPendingMeasurement ? "Pendiente de medicion en nave" : "Recogida lista para confirmar"}
+                    {isCanceled ? "Recogida cancelada" : isPendingMeasurement ? "Pendiente de medicion en nave" : "Recogida confirmada"}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {isCanceled
                       ? "Esta recogida queda cerrada sin medicion. Si fue un error, cambia el estado antes de guardar."
                       : isPendingMeasurement
-                        ? "Introduce los litros medidos para confirmar la recogida. Al informar medicion pasara a confirmada."
-                        : "Puedes ajustar deducciones, precio y notas antes de guardar la medicion final."}
+                        ? "Puedes ajustar datos de medicion y mantener la recogida pendiente hasta confirmarla manualmente."
+                        : "Puedes ajustar datos operativos sin recalcular el importe abonado."}
                   </p>
                 </div>
               </div>
@@ -271,28 +324,54 @@ export default function CollectionEdit() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <Label>Cliente *</Label>
-                <Select value={formData.client} onValueChange={(v) => handleChange("client", v)} disabled={loading || submitting}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar cliente" /></SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={String(client.id)}>{client.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableEntitySelect
+                  value={formData.client}
+                  items={clients}
+                  placeholder="Seleccionar cliente"
+                  searchPlaceholder="Buscar cliente"
+                  emptyMessage="No hay clientes"
+                  loading={loadingClients}
+                  disabled={loading || submitting}
+                  searchValue={clientSearch}
+                  onSearchChange={setClientSearch}
+                  onValueChange={(v) => handleChange("client", v)}
+                  getLabel={(client) => client.name || client.user?.username || `Cliente #${client.id}`}
+                  getDescription={(client) => client.cif || client.address || client.phone || ""}
+                  getSearchText={(client) => [
+                    client.name,
+                    client.cif,
+                    client.phone,
+                    client.address,
+                    client.user?.username,
+                    client.user?.email,
+                  ].filter(Boolean).join(" ")}
+                />
               </div>
               <div className="space-y-2">
                 <Label>Trabajador</Label>
-                <Select value={formData.worker || ""} onValueChange={(v) => handleChange("worker", v === "__none__" ? "" : v)} disabled={loading || submitting}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar trabajador" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Sin trabajador</SelectItem>
-                    {workers.map((worker) => (
-                      <SelectItem key={worker.id} value={String(worker.id)}>
-                        {worker.display_name || `${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchableEntitySelect
+                  value={formData.worker || ""}
+                  items={workers}
+                  placeholder="Seleccionar trabajador"
+                  searchPlaceholder="Buscar trabajador"
+                  emptyMessage="No hay trabajadores"
+                  loading={loadingWorkers}
+                  disabled={loading || submitting}
+                  searchValue={workerSearch}
+                  onSearchChange={setWorkerSearch}
+                  onValueChange={(v) => handleChange("worker", v)}
+                  getLabel={getWorkerLabel}
+                  getDescription={(worker) => worker.dni || worker.phone || worker.user?.email || ""}
+                  getSearchText={(worker) => [
+                    getWorkerLabel(worker),
+                    worker.dni,
+                    worker.phone,
+                    worker.user?.username,
+                    worker.user?.email,
+                  ].filter(Boolean).join(" ")}
+                  allowEmpty
+                  emptyLabel="Sin trabajador"
+                />
               </div>
             </div>
 
@@ -333,11 +412,15 @@ export default function CollectionEdit() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div className="space-y-2">
                 <Label>Motivo deduccion</Label>
-                <Select value={formData.deduction_reason} onValueChange={(v) => handleChange("deduction_reason", v)} disabled={loading || submitting || isCanceled || measuredValue === null}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={formData.deduction_reason || EMPTY_DEDUCTION_REASON}
+                  onValueChange={(v) => handleChange("deduction_reason", v === EMPTY_DEDUCTION_REASON ? "" : v)}
+                  disabled={loading || submitting || isCanceled || measuredValue === null}
+                >
+                  <SelectTrigger><SelectValue placeholder="Sin motivo" /></SelectTrigger>
                   <SelectContent>
                     {DEDUCTION_OPTIONS.map((item) => (
                       <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>
@@ -347,7 +430,11 @@ export default function CollectionEdit() {
               </div>
               <div className="space-y-2">
                 <Label>Precio por litro</Label>
-                <Input type="number" min="0" step="0.001" value={formData.price_per_liter} onChange={(e) => handleChange("price_per_liter", e.target.value)} disabled={loading || submitting || isCanceled} />
+                <Input type="number" min="0" step="0.001" value={formData.price_per_liter} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label>Importe abonado</Label>
+                <Input value={`${formatDecimal(formData.total_price, 2)} EUR`} disabled />
               </div>
               <div className="space-y-2">
                 <Label>Estado</Label>

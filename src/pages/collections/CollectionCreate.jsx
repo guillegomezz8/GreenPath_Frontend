@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import SearchableEntitySelect, { getWorkerLabel, mergeById } from "@/components/common/SearchableEntitySelect";
 import { ArrowLeft, Save, MapPin, Calculator, Package } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +23,10 @@ export default function CollectionCreate() {
   const [loading, setLoading] = useState(false);
   const [clients, setClients] = useState([]);
   const [workers, setWorkers] = useState([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [workerSearch, setWorkerSearch] = useState("");
+  const [loadingClients, setLoadingClients] = useState(false);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
 
   const [formData, setFormData] = useState({
     client: id ?? "",
@@ -39,19 +44,64 @@ export default function CollectionCreate() {
     { value: "IBC", label: "IBC (1000L cada uno)" },
   ];
 
-  const fetchClients = useCallback(async () => {
-    const res = await api().get("clients", { params: { page: 1, page_size: 300 } });
-    setClients(res.data.results || []);
-  }, [api]);
+  const fetchClients = useCallback(async (search = "") => {
+    try {
+      setLoadingClients(true);
+      const params = { page: 1, page_size: 50 };
+      if (search.trim()) params.search = search.trim();
+      const res = await api().get("clients", { params });
+      setClients((prev) => mergeById(prev, res.data.results || []));
+    } catch (err) {
+      const msg = handleApiError(err, "No se pudieron cargar clientes.");
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingClients(false);
+    }
+  }, [api, toast]);
 
-  const fetchWorkers = useCallback(async () => {
+  const fetchSelectedClient = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await api().get(`clients/${encodeURIComponent(id)}/`);
+      if (res.data?.id) {
+        setClients((prev) => mergeById(prev, [res.data]));
+      }
+    } catch (err) {
+      const msg = handleApiError(err, "No se pudo cargar el cliente seleccionado.");
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    }
+  }, [api, id, toast]);
+
+  const fetchWorkers = useCallback(async (search = "") => {
     if (isWorker) {
       setWorkers([]);
       return;
     }
-    const res = await api().get("workers", { params: { page: 1, page_size: 300 } });
-    setWorkers(res.data.results || []);
-  }, [api, isWorker]);
+    try {
+      setLoadingWorkers(true);
+      const params = { page: 1, page_size: 50 };
+      if (search.trim()) params.search = search.trim();
+      const res = await api().get("workers", { params });
+      setWorkers((prev) => mergeById(prev, res.data.results || []));
+    } catch (err) {
+      const msg = handleApiError(err, "No se pudieron cargar trabajadores.");
+      toast({
+        title: "Error",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingWorkers(false);
+    }
+  }, [api, isWorker, toast]);
 
   const fetchCompanySettings = useCallback(async () => {
     const res = await api().get("companies/settings/");
@@ -65,11 +115,29 @@ export default function CollectionCreate() {
   }, [api]);
 
   useEffect(() => {
-    const loadData = async () => {
+    const timeoutId = window.setTimeout(() => {
+      fetchClients(clientSearch);
+    }, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [clientSearch, fetchClients]);
+
+  useEffect(() => {
+    fetchSelectedClient();
+  }, [fetchSelectedClient]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      fetchWorkers(workerSearch);
+    }, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [fetchWorkers, workerSearch]);
+
+  useEffect(() => {
+    const loadSettings = async () => {
       try {
-        await Promise.all([fetchClients(), fetchWorkers(), fetchCompanySettings()]);
+        await fetchCompanySettings();
       } catch (err) {
-        const msg = handleApiError(err, "No se pudieron cargar clientes o trabajadores.");
+        const msg = handleApiError(err, "No se pudo cargar el precio global.");
         toast({
           title: "Error",
           description: msg,
@@ -77,8 +145,8 @@ export default function CollectionCreate() {
         });
       }
     };
-    loadData();
-  }, [fetchClients, fetchWorkers, fetchCompanySettings, toast]);
+    loadSettings();
+  }, [fetchCompanySettings, toast]);
 
   const calculateTotals = () => {
     const containerNumber = parseInt(formData.container_number, 10) || 0;
@@ -200,39 +268,56 @@ export default function CollectionCreate() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="client">Cliente *</Label>
-                <Select
+                <SearchableEntitySelect
                   value={formData.client}
+                  items={clients}
+                  placeholder="Seleccionar cliente"
+                  searchPlaceholder="Buscar cliente"
+                  emptyMessage="No hay clientes"
+                  loading={loadingClients}
+                  disabled={!!id || loading}
+                  searchValue={clientSearch}
+                  onSearchChange={setClientSearch}
                   onValueChange={(value) => handleChange("client", value)}
-                  disabled={!!id}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={String(client.id)}>
-                        {client.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  getLabel={(client) => client.name || client.user?.username || `Cliente #${client.id}`}
+                  getDescription={(client) => client.cif || client.address || client.phone || ""}
+                  getSearchText={(client) => [
+                    client.name,
+                    client.cif,
+                    client.phone,
+                    client.address,
+                    client.user?.username,
+                    client.user?.email,
+                  ].filter(Boolean).join(" ")}
+                />
               </div>
 
               {!isWorker && (
                 <div className="space-y-2">
                   <Label htmlFor="worker">Trabajador</Label>
-                  <Select value={formData.worker} onValueChange={(value) => handleChange("worker", value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar trabajador" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {workers.map((worker) => (
-                        <SelectItem key={worker.id} value={String(worker.id)}>
-                          {`${worker.name || ""} ${worker.surname || ""}`.trim() || worker.username}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableEntitySelect
+                    value={formData.worker}
+                    items={workers}
+                    placeholder="Seleccionar trabajador"
+                    searchPlaceholder="Buscar trabajador"
+                    emptyMessage="No hay trabajadores"
+                    loading={loadingWorkers}
+                    disabled={loading}
+                    searchValue={workerSearch}
+                    onSearchChange={setWorkerSearch}
+                    onValueChange={(value) => handleChange("worker", value)}
+                    getLabel={getWorkerLabel}
+                    getDescription={(worker) => worker.dni || worker.phone || worker.user?.email || ""}
+                    getSearchText={(worker) => [
+                      getWorkerLabel(worker),
+                      worker.dni,
+                      worker.phone,
+                      worker.user?.username,
+                      worker.user?.email,
+                    ].filter(Boolean).join(" ")}
+                    allowEmpty
+                    emptyLabel="Sin trabajador"
+                  />
                 </div>
               )}
 

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react"; //  aadido UserCog y IdCard
+import { ArrowLeft, Save, Users, UserPen, IdCard } from "lucide-react";
 import { useSnackbar } from '@/context/SnackbarProvider';
 import { handleApiError } from '@/components/Utils';
 import { useAuth } from "@/context/AuthProvider";
@@ -126,12 +126,6 @@ export default function ClientCreate() {
               />
             </div>
           </div>
-
-          <p className="text-sm text-muted-foreground text-left">
-            {requiresEmailForAccess
-              ? "Si das acceso a la plataforma, el email es obligatorio. El username puede dejarse vacio y se generara automaticamente con el nombre."
-              : "Si no das acceso a la plataforma, puedes dejar username y email vacios. Se generaran automaticamente a partir del nombre del cliente."}
-          </p>
 
           <div className="flex items-center space-x-2">
             <Checkbox
