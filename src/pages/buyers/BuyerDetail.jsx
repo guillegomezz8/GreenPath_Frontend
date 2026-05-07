@@ -189,7 +189,7 @@ export default function BuyerDetail() {
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
         title="Eliminar comprador"
-        description={buyer ? `Se eliminara ${buyer.fiscal_name}. Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+        description={buyer ? `Se eliminará ${buyer.fiscal_name}. Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
         confirmLabel="Eliminar"
         onConfirm={handleDelete}
         loading={deleting}

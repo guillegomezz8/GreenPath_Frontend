@@ -40,7 +40,7 @@ export default function EditarCliente() {
     address: "",
     city: "",
     postal_code: "",
-    country: "Espana",
+    country: "España",
     phone: "",
     frequency: "WEEKLY",
   });
@@ -65,7 +65,7 @@ export default function EditarCliente() {
           address: data?.address || "",
           city: data?.city || "",
           postal_code: data?.postal_code || "",
-          country: data?.country || "Espana",
+          country: data?.country || "España",
           phone: data?.phone || "",
           frequency: freqCode,
         });

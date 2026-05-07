@@ -27,7 +27,7 @@ export default function ClientCreate() {
     address: "",
     city: "",
     postal_code: "",
-    country: "Espana",
+    country: "España",
     frequency: "WEEKLY",
   });
 
@@ -91,7 +91,7 @@ export default function ClientCreate() {
             <span>Crear Cliente</span>
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1 leading-relaxed text-left">
-            Rellena la informacion para registrar un nuevo cliente
+            Rellena la información para registrar un nuevo cliente
           </p>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function ClientCreate() {
                 id="username"
                 value={formData.username}
                 onChange={(e) => update("username", e.target.value)}
-                placeholder="Se generara automaticamente si lo dejas vacio"
+                placeholder="Se generará automáticamente si lo dejas vacío"
               />
             </div>
             <div className="space-y-2">

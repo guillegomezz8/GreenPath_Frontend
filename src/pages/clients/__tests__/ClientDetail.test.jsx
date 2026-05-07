@@ -57,7 +57,7 @@ describe("ClientDetail", () => {
           address: "Calle Demo 1",
           city: "Sevilla",
           postal_code: "41001",
-          country: "Espana",
+          country: "España",
           frequency: "WEEKLY",
           last_pick_up: "2026-03-20",
           companies: [1],

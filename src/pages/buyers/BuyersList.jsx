@@ -65,7 +65,7 @@ export default function BuyersList() {
     if (contactFilter === "Con email") {
       return buyers.filter((item) => !!item.email);
     }
-    if (contactFilter === "Con telefono") {
+    if (contactFilter === "Con teléfono") {
       return buyers.filter((item) => !!item.phone);
     }
     if (contactFilter === "Con contacto") {
@@ -114,7 +114,7 @@ export default function BuyersList() {
         title={<><Building2 className="h-8 w-8 text-primary" /> Gestion de Compradores</>}
         subtitle="Controla los datos fiscales y de contacto de los compradores internos."
         rightAction={{ label: "Nuevo comprador", onClick: () => navigate("/buyers/new"), icon: <Plus className="h-4 w-4" /> }}
-        searchPlaceholder="Buscar por razon social, CIF, ciudad o contacto..."
+        searchPlaceholder="Buscar por razón social, CIF, ciudad o contacto..."
         searchValue={search}
         onSearchChange={setSearch}
         renderSearch={(defaultSearch) => (
@@ -181,7 +181,7 @@ export default function BuyersList() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 shrink-0" />
-                    <span>{buyer.phone || "Sin telefono"}</span>
+                    <span>{buyer.phone || "Sin teléfono"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -216,7 +216,7 @@ export default function BuyersList() {
           if (!open) setToDelete(null);
         }}
         title="Eliminar comprador"
-        description={toDelete ? `Se eliminara ${toDelete.fiscal_name}. Esta accion no se puede deshacer.` : "Esta accion no se puede deshacer."}
+        description={toDelete ? `Se eliminará ${toDelete.fiscal_name}. Esta acción no se puede deshacer.` : "Esta acción no se puede deshacer."}
         confirmLabel="Eliminar"
         onConfirm={confirmDelete}
         loading={deleting}

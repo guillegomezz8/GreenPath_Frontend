@@ -59,7 +59,7 @@ describe("ClientCreate", () => {
     await user.type(screen.getByLabelText(/ciudad \*/i), "Sevilla");
     await user.type(screen.getByLabelText(/codigo postal \*/i), "41001");
     await user.clear(screen.getByLabelText(/pais \*/i));
-    await user.type(screen.getByLabelText(/pais \*/i), "Espana");
+    await user.type(screen.getByLabelText(/pais \*/i), "España");
     await user.type(screen.getByLabelText(/telefono \*/i), "600123123");
 
     await user.click(screen.getByRole("button", { name: /crear cliente/i }));
@@ -80,7 +80,7 @@ describe("ClientCreate", () => {
       cif: "",
       city: "Sevilla",
       postal_code: "41001",
-      country: "Espana",
+      country: "España",
       frequency: "WEEKLY",
     });
     expect(mocks.navigate).toHaveBeenCalledWith("/clients");
@@ -97,7 +97,7 @@ describe("ClientCreate", () => {
     await user.type(screen.getByLabelText(/ciudad \*/i), "Sevilla");
     await user.type(screen.getByLabelText(/codigo postal \*/i), "41002");
     await user.clear(screen.getByLabelText(/pais \*/i));
-    await user.type(screen.getByLabelText(/pais \*/i), "Espana");
+    await user.type(screen.getByLabelText(/pais \*/i), "España");
     await user.type(screen.getByLabelText(/telefono \*/i), "600123124");
     await user.click(screen.getByRole("button", { name: /crear cliente/i }));
 

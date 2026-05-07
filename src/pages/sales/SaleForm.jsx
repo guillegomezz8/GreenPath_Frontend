@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const INITIAL_FORM = {
   buyer: "",
@@ -17,7 +18,7 @@ const INITIAL_FORM = {
   invoice_date: "",
   product_description: "",
   quantity: "",
-  unit: "L",
+  unit: "kg",
   unit_price: "",
   tax_rate: "21.00",
   currency: "EUR",
@@ -25,7 +26,7 @@ const INITIAL_FORM = {
 };
 
 const CURRENCY_OPTIONS = ["EUR", "USD"];
-const UNIT_OPTIONS = ["L", "kg", "ud", "m3"];
+const UNIT_OPTIONS = ["kg", "L", "ud", "m3"];
 
 function normalizeSalePayload(payload = {}) {
   return {
@@ -34,7 +35,7 @@ function normalizeSalePayload(payload = {}) {
     invoice_date: payload.invoice_date || payload.sale_date || "",
     product_description: payload.product_description || "",
     quantity: payload.quantity !== undefined && payload.quantity !== null ? String(payload.quantity) : "",
-    unit: payload.unit || "L",
+    unit: payload.unit || "kg",
     unit_price: payload.unit_price !== undefined && payload.unit_price !== null ? String(payload.unit_price) : "",
     tax_rate: payload.tax_rate !== undefined && payload.tax_rate !== null ? String(payload.tax_rate) : "21.00",
     currency: payload.currency || "EUR",
@@ -55,11 +56,18 @@ export default function SaleForm({ mode = "create", saleId = null }) {
   const isEdit = mode === "edit";
   const [buyers, setBuyers] = useState([]);
   const [formData, setFormData] = useState(INITIAL_FORM);
+  const [latestInvoiceNumber, setLatestInvoiceNumber] = useState("");
+  const [recentSales, setRecentSales] = useState([]);
+  const [conceptDialogOpen, setConceptDialogOpen] = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [submitting, setSubmitting] = useState(false);
 
   const pageTitle = useMemo(() => (isEdit ? "Editar venta" : "Nueva venta"), [isEdit]);
   const submitLabel = useMemo(() => (isEdit ? "Guardar cambios" : "Registrar venta"), [isEdit]);
+  const invoiceNumberPlaceholder = useMemo(
+    () => (latestInvoiceNumber ? `Ultima factura: ${latestInvoiceNumber}` : "Ej: 004/2026"),
+    [latestInvoiceNumber],
+  );
 
   const totals = useMemo(() => {
     const quantity = toNumber(formData.quantity);
@@ -70,6 +78,28 @@ export default function SaleForm({ mode = "create", saleId = null }) {
     const total = subtotal + taxAmount;
     return { subtotal, taxAmount, total };
   }, [formData.quantity, formData.tax_rate, formData.unit_price]);
+
+  const productDescriptionOptions = useMemo(() => {
+    const seen = new Set();
+
+    return recentSales.reduce((options, sale) => {
+      if (saleId && String(sale.id) === String(saleId)) return options;
+
+      const description = sale.product_description?.trim();
+      if (!description) return options;
+
+      const key = description.toLowerCase();
+      if (seen.has(key)) return options;
+
+      seen.add(key);
+      options.push({
+        key,
+        description,
+      });
+
+      return options;
+    }, []);
+  }, [recentSales, saleId]);
 
   const fetchBuyers = useCallback(async () => {
     const res = await api().get("buyers/", { params: { page: 1, page_size: 300 } });
@@ -82,12 +112,31 @@ export default function SaleForm({ mode = "create", saleId = null }) {
     return res.data || null;
   }, [api, isEdit, saleId]);
 
+  const fetchRecentSales = useCallback(async () => {
+    try {
+      const res = await api().get("sales/", { params: { page: 1, page_size: 50 } });
+      return Array.isArray(res.data?.results)
+        ? res.data.results
+        : Array.isArray(res.data)
+          ? res.data
+          : [];
+    } catch {
+      return [];
+    }
+  }, [api]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [buyersRows, saleRow] = await Promise.all([fetchBuyers(), fetchSale()]);
+        const [buyersRows, saleRow, recentSalesRows] = await Promise.all([
+          fetchBuyers(),
+          fetchSale(),
+          fetchRecentSales(),
+        ]);
         setBuyers(buyersRows);
+        setRecentSales(recentSalesRows);
+        setLatestInvoiceNumber(isEdit ? "" : recentSalesRows[0]?.invoice_number || "");
         if (saleRow) {
           setFormData(normalizeSalePayload(saleRow));
         }
@@ -101,10 +150,21 @@ export default function SaleForm({ mode = "create", saleId = null }) {
     };
 
     loadData();
-  }, [fetchBuyers, fetchSale, isEdit, navigate, showSnackbar]);
+  }, [fetchBuyers, fetchRecentSales, fetchSale, isEdit, navigate, showSnackbar]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleReuseProductDescription = (key) => {
+    const option = productDescriptionOptions.find((item) => item.key === key);
+    if (!option) return;
+
+    setFormData((prev) => ({
+      ...prev,
+      product_description: option.description,
+    }));
+    setConceptDialogOpen(false);
   };
 
   const handleSubmit = async (e) => {
@@ -201,7 +261,7 @@ export default function SaleForm({ mode = "create", saleId = null }) {
                     id="invoice_number"
                     value={formData.invoice_number}
                     onChange={(e) => handleChange("invoice_number", e.target.value)}
-                    placeholder="Ej: 004/2026"
+                    placeholder={invoiceNumberPlaceholder}
                     disabled={submitting}
                   />
                 </div>
@@ -222,7 +282,22 @@ export default function SaleForm({ mode = "create", saleId = null }) {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2 text-left">
-                <Label htmlFor="product_description">Producto o descripcion *</Label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <Label htmlFor="product_description">Producto o descripcion *</Label>
+                  {productDescriptionOptions.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2 sm:w-auto"
+                      disabled={submitting}
+                      onClick={() => setConceptDialogOpen(true)}
+                    >
+                      <FileText className="h-4 w-4" />
+                      Reusar concepto
+                    </Button>
+                  )}
+                </div>
                 <Textarea id="product_description" rows={4} value={formData.product_description} onChange={(e) => handleChange("product_description", e.target.value)} disabled={submitting} />
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -309,6 +384,34 @@ export default function SaleForm({ mode = "create", saleId = null }) {
               </div>
             </CardContent>
           </Card>
+
+          <Dialog open={conceptDialogOpen} onOpenChange={setConceptDialogOpen}>
+            <DialogContent
+              className="max-w-2xl overflow-hidden rounded-3xl border border-primary/10 bg-card p-0 shadow-2xl sm:w-[calc(100vw-2rem)]"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+            >
+              <DialogHeader className="border-b border-border/70 px-5 pb-4 pr-12 pt-5 text-left sm:px-6 sm:pr-12">
+                <DialogTitle>Reusar concepto</DialogTitle>
+                <DialogDescription>
+                  Selecciona una descripcion usada en facturas anteriores.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className={`space-y-3 px-5 py-4 sm:px-6 ${productDescriptionOptions.length >= 5 ? "max-h-72 overflow-y-auto pr-3 sm:pr-4" : ""}`}>
+                {productDescriptionOptions.map((option) => (
+                  <button
+                    key={option.key}
+                    type="button"
+                    className="w-full rounded-2xl border border-border/80 bg-background px-4 py-3 text-left transition hover:border-primary/35 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35"
+                    onClick={() => handleReuseProductDescription(option.key)}
+                  >
+                    <span className="block text-sm font-semibold text-foreground">{option.description}</span>
+                  </button>
+                ))}
+              </div>
+
+            </DialogContent>
+          </Dialog>
         </form>
       )}
     </div>
