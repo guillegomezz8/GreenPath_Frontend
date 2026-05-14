@@ -93,7 +93,6 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      setIsLoading(true);
       const url = `${apiUrl}/login/`;
       const response = await axios.post(url, { username, password });
       const data = response.data;
@@ -133,9 +132,16 @@ export const AuthProvider = ({ children }) => {
 
     } catch (error) {
       console.error('Error al iniciar sesión:', error);
-      handleLogout();
-    } finally {
-      setIsLoading(false);
+      clearExistingInterval();
+      localStorage.removeItem("AccessToken");
+      localStorage.removeItem("RefreshToken");
+      localStorage.removeItem("UserData");
+      setAuthenticated(false);
+      setUser(null);
+      setModalOpen(false);
+      setTimeLeft(null);
+      modalShownRef.current = false;
+      throw error;
     }
   };
 

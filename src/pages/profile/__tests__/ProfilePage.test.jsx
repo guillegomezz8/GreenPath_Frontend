@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ProfilePage from "../ProfilePage";
 
 const mocks = vi.hoisted(() => {
@@ -79,5 +79,56 @@ describe("ProfilePage", () => {
     const emailMatches = await screen.findAllByText("owner@example.com");
     expect(emailMatches.length).toBeGreaterThan(0);
     expect(screen.queryByText("Frecuencia")).not.toBeInTheDocument();
+  });
+
+  it("permite subir imagen cuando el perfil incluye foto", async () => {
+    mocks.get.mockResolvedValue({
+      data: {
+        username: "cliente",
+        email: "cliente@example.com",
+        is_active: true,
+        is_staff: false,
+        role_type: "client",
+        profile: {
+          name: "Cliente Demo",
+          phone: "600123123",
+          photo: "",
+        },
+      },
+    });
+    mocks.put.mockResolvedValue({
+      data: {
+        username: "cliente",
+        email: "cliente@example.com",
+        is_active: true,
+        is_staff: false,
+        role_type: "client",
+        profile: {
+          name: "Cliente Demo",
+          phone: "600123123",
+          photo: "/media/clients/avatar.png",
+        },
+      },
+    });
+
+    render(<ProfilePage />);
+
+    expect(await screen.findByRole("button", { name: /cambiar imagen/i })).toBeInTheDocument();
+
+    const file = new File(["avatar"], "avatar.png", { type: "image/png" });
+    const input = document.querySelector('input[type="file"]');
+    fireEvent.change(input, { target: { files: [file] } });
+
+    await waitFor(() => {
+      expect(mocks.put).toHaveBeenCalledWith(
+        "users/profile/",
+        expect.any(FormData),
+        expect.objectContaining({
+          headers: { "Content-Type": "multipart/form-data" },
+        })
+      );
+    });
+    expect(mocks.put.mock.calls[0][1].get("photo")).toBe(file);
+    expect(mocks.updateAuthUser).toHaveBeenCalledWith(expect.objectContaining({ photo: "/media/clients/avatar.png" }));
   });
 });

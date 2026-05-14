@@ -14,9 +14,7 @@ import {
   Clock,
   Weight,
   CheckCircle,
-  AlertTriangle,
   BarChart3,
-  Euro,
   Eye,
   Edit,
   Trash2,
@@ -61,6 +59,7 @@ export default function CollectionsList() {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDate, setSelectedDate] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Todas");
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
@@ -71,7 +70,7 @@ export default function CollectionsList() {
   const [deleting, setDeleting] = useState(false);
   const [isCountsOpen, setIsCountsOpen] = useState(false);
   const searchPlaceholder = isClient
-    ? "Buscar por ruta, trabajador o notas..."
+    ? "Buscar por trabajador..."
     : "Buscar por cliente, ruta, trabajador o notas...";
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize]);
@@ -81,7 +80,11 @@ export default function CollectionsList() {
       setLoading(true);
       const params = { page, page_size: pageSize, ordering: "-collection_date" };
       if (searchTerm) params.search = searchTerm;
-      if (selectedStatus !== "Todas") params.status = STATUS_MAP[selectedStatus];
+      if (selectedDate) {
+        params.start_date = selectedDate;
+        params.end_date = selectedDate;
+      }
+      if (!isClient && selectedStatus !== "Todas") params.status = STATUS_MAP[selectedStatus];
 
       const res = await api().get("collections", { params });
       const payload = res.data || {};
@@ -94,12 +97,18 @@ export default function CollectionsList() {
     } finally {
       setLoading(false);
     }
-  }, [api, page, pageSize, searchTerm, selectedStatus, showSnackbar]);
+  }, [api, isClient, page, pageSize, searchTerm, selectedDate, selectedStatus, showSnackbar]);
 
   const fetchCounts = useCallback(async () => {
+    if (isClient) return;
+
     try {
       const base = { page: 1, page_size: 1 };
       if (searchTerm) base.search = searchTerm;
+      if (selectedDate) {
+        base.start_date = selectedDate;
+        base.end_date = selectedDate;
+      }
 
       const [allRes, pendingRes, confirmedRes, canceledRes] = await Promise.all([
         api().get("collections", { params: base }),
@@ -117,7 +126,7 @@ export default function CollectionsList() {
     } catch {
       setCounts((prev) => ({ ...prev }));
     }
-  }, [api, searchTerm]);
+  }, [api, isClient, searchTerm, selectedDate]);
 
   useEffect(() => {
     fetchCollections();
@@ -129,7 +138,7 @@ export default function CollectionsList() {
 
   useEffect(() => {
     setPage(1);
-  }, [searchTerm, selectedStatus]);
+  }, [searchTerm, selectedDate, selectedStatus]);
 
   const totalNetLiters = useMemo(
     () => collections.filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED").reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
@@ -140,13 +149,6 @@ export default function CollectionsList() {
     () => collections.filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED" && item.billable !== false).reduce((acc, item) => acc + normalizeNumber(item.total_price), 0),
     [collections]
   );
-
-  const getStatusIcon = (status) => {
-    const normalized = normalizeCollectionStatus(status);
-    if (normalized === "CONFIRMED") return <CheckCircle className="h-4 w-4" />;
-    if (normalized === "CANCELED") return <AlertTriangle className="h-4 w-4" />;
-    return <Truck className="h-4 w-4" />;
-  };
 
   const askDelete = (collection) => {
     setToDelete(collection);
@@ -179,8 +181,8 @@ export default function CollectionsList() {
             <Package className="h-8 w-8 text-primary" />
             {isClient ? "Historial de Recogidas" : "Gestion de Recogidas"}
           </h1>
-          <p className="text-muted-foreground">
-            {isClient ? "Consulta tus recogidas pasadas y su estado" : "Supervisa y registra las recogidas de aceite usado"}
+          <p className="text-left text-muted-foreground">
+            {isClient ? "Consulta tus recogidas pasadas." : "Supervisa y registra las recogidas de aceite usado"}
           </p>
         </div>
 
@@ -188,7 +190,7 @@ export default function CollectionsList() {
           {isOwner && (
             <Button variant="outline" className="w-full gap-2 md:w-auto" onClick={() => navigate("/stats")}>
               <BarChart3 className="h-4 w-4" />
-              Reportes
+              Ver Estadísticas
             </Button>
           )}
           {canCreateCollection && (
@@ -200,8 +202,8 @@ export default function CollectionsList() {
         </div>
       </div>
 
-      <Card className="overflow-hidden">
-        <CardContent className="pt-6">
+      <Card className="overflow-hidden border-border/70 bg-card/95 shadow-sm">
+        <CardContent className="p-4 sm:p-5">
           <div className="flex flex-col gap-4 md:flex-row md:items-end">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
@@ -213,23 +215,35 @@ export default function CollectionsList() {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 md:flex md:max-w-[38rem] md:flex-wrap md:justify-end">
-              {STATUS_OPTIONS.map((status) => (
-                <Button
-                  key={status}
-                  variant={selectedStatus === status ? "default" : "outline"}
-                  size="sm"
-                  className="w-full text-xs sm:text-sm md:w-auto"
-                  onClick={() => setSelectedStatus(status)}
-                >
-                  {status}
-                </Button>
-              ))}
+            <div className="grid gap-1 md:w-56">
+              <Input
+                aria-label="Filtrar por fecha"
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+              />
             </div>
+
+            {!isClient && (
+              <div className="grid grid-cols-2 gap-2 md:flex md:max-w-[38rem] md:flex-wrap md:justify-end">
+                {STATUS_OPTIONS.map((status) => (
+                  <Button
+                    key={status}
+                    variant={selectedStatus === status ? "default" : "outline"}
+                    size="sm"
+                    className="w-full text-xs sm:text-sm md:w-auto"
+                    onClick={() => setSelectedStatus(status)}
+                  >
+                    {status}
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {!isClient && (
       <div className="md:hidden">
         <Card>
           <CardContent className="p-0">
@@ -269,7 +283,9 @@ export default function CollectionsList() {
           </CardContent>
         </Card>
       </div>
+      )}
 
+      {!isClient && (
       <div className="hidden gap-3 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{counts.total}</div><p className="text-sm text-muted-foreground">Total</p></CardContent></Card>
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-blue-500">{counts.pending}</div><p className="text-sm text-muted-foreground">Pendientes</p></CardContent></Card>
@@ -277,6 +293,7 @@ export default function CollectionsList() {
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-destructive">{counts.canceled}</div><p className="text-sm text-muted-foreground">Canceladas</p></CardContent></Card>
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{Math.round(totalNetLiters)}L</div><p className="text-sm text-muted-foreground">Litros (pagina)</p></CardContent></Card>
       </div>
+      )}
 
       {loading ? (
         <Card>
@@ -291,111 +308,178 @@ export default function CollectionsList() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {collections.map((collection) => (
-            <Card key={collection.id} className="transition-shadow hover:shadow-elegant">
-              <CardContent className="pt-6">
-                <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
-                  <div className="flex-1 space-y-3">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div>
+          {collections.map((collection) => {
+            if (!isClient) {
+              return (
+                <Card key={collection.id} className="overflow-hidden border-border/70 bg-card/95 shadow-sm transition-shadow hover:shadow-elegant">
+                  <CardContent className="p-0">
+                    <div className="grid lg:grid-cols-[minmax(0,1fr)_16rem]">
+                      <div className="p-4 sm:p-5">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div className="min-w-0 text-left">
+                            <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
+                              <Package className="h-5 w-5 text-primary" />
+                              <span>Recogida #{collection.id}</span>
+                            </h3>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                            {collection.billable === false && (
+                              <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
+                                No facturable
+                              </Badge>
+                            )}
+                            <Badge className={`${getCollectionStatusClass(collection.status)} w-fit`}>
+                              {getCollectionStatusLabel(collection.status)}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 xl:grid-cols-3">
+                          <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              Cliente
+                            </div>
+                            <p className="truncate font-semibold text-foreground">{collection.client_name || "-"}</p>
+                          </div>
+
+                          <div className="hidden min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left sm:block">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <MapPin className="h-4 w-4" />
+                              Ruta
+                            </div>
+                            <p className="truncate font-semibold text-foreground">{collection.route_name || "-"}</p>
+                          </div>
+
+                          <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <Clock className="h-4 w-4" />
+                              Fecha
+                            </div>
+                            <p className="font-semibold text-foreground">{formatDate(collection.collection_date)}</p>
+                          </div>
+
+                          <div className="hidden min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left sm:block">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <Users className="h-4 w-4" />
+                              Trabajador
+                            </div>
+                            <p className="truncate font-semibold text-foreground">{collection.worker_name || "-"}</p>
+                          </div>
+
+                          <div className="hidden min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left sm:block">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <Weight className="h-4 w-4" />
+                              Envases
+                            </div>
+                            <p className="font-semibold text-foreground">{collection.container_number || 0} ({collection.container_type || "-"})</p>
+                          </div>
+
+                          <div className="min-w-0 rounded-2xl border border-border/60 bg-primary/5 px-4 py-3 text-left">
+                            <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                              <CheckCircle className="h-4 w-4" />
+                              Litros
+                            </div>
+                            <p className="font-semibold text-foreground">{normalizeNumber(collection.net_liters).toFixed(2)} L</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-between gap-4 border-t border-border/70 bg-primary/5 p-4 sm:p-5 lg:border-l lg:border-t-0">
+                        <div className="text-left lg:text-right">
+                          <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Importe total</div>
+                          <p className="text-2xl font-bold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
+                            <Eye className="h-4 w-4" />
+                            Ver
+                          </Button>
+                          {canManageCollection && (
+                            <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
+                              <Edit className="h-4 w-4" />
+                              Editar
+                            </Button>
+                          )}
+                          {canManageCollection && (
+                            <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
+                              <Trash2 className="h-4 w-4" />
+                              Eliminar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            return (
+              <Card key={collection.id} className="overflow-hidden border-border/70 bg-card/95 shadow-sm transition-shadow hover:shadow-elegant">
+                <CardContent className="p-0">
+                  <div className="grid lg:grid-cols-[minmax(0,1fr)_16rem]">
+                    <div className="p-4 sm:p-5">
+                      <div className="min-w-0 text-left">
                         <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                          {getStatusIcon(collection.status)}
-                          {collection.client_name || "Cliente"}
+                          <Package className="h-5 w-5 text-primary" />
+                          <span>Recogida #{collection.id}</span>
                         </h3>
-                        <p className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          {collection.route_name || "Sin ruta planificada"}
-                        </p>
                       </div>
 
-                      <Badge className={`${getCollectionStatusClass(collection.status)} w-fit self-start`}>
-                        {getCollectionStatusLabel(collection.status)}
-                      </Badge>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <Badge variant="outline" className={collection.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
-                        {collection.billable ? "Facturable" : "No facturable"}
-                      </Badge>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">{isClient ? "Registrada por:" : "Trabajador:"}</span>
-                        <span className="font-medium">{collection.worker_name || "-"}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Fecha:</span>
-                        <span className="font-medium">{formatDate(collection.collection_date)}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Weight className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Envases:</span>
-                        <span className="font-medium">{collection.container_number || 0} ({collection.container_type || "-"})</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="w-full space-y-3 xl:w-80">
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-2">
-                      <div className="rounded-lg bg-accent/50 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-                          <Weight className="h-4 w-4" />
-                          Estimados
+                      <div className="mt-5 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left">
+                          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Clock className="h-4 w-4" />
+                            Fecha
+                          </div>
+                          <p className="font-semibold text-foreground">{formatDate(collection.collection_date)}</p>
                         </div>
-                        <div className="font-semibold">{normalizeNumber(collection.estimated_liters).toFixed(2)} L</div>
-                      </div>
 
-                      <div className="rounded-lg bg-accent/50 p-3">
-                        <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-                          <CheckCircle className="h-4 w-4" />
-                          Netos
+                        <div className="hidden min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left sm:block">
+                          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Users className="h-4 w-4" />
+                            Registrada por
+                          </div>
+                          <p className="truncate font-semibold text-foreground">{collection.worker_name || "-"}</p>
                         </div>
-                        <div className="font-semibold">{normalizeNumber(collection.net_liters).toFixed(2)} L</div>
+
+                        <div className="hidden min-w-0 rounded-2xl border border-border/60 bg-background/70 px-4 py-3 text-left sm:block">
+                          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <Weight className="h-4 w-4" />
+                            Envases
+                          </div>
+                          <p className="font-semibold text-foreground">{collection.container_number || 0} ({collection.container_type || "-"})</p>
+                        </div>
+
+                        <div className="min-w-0 rounded-2xl border border-border/60 bg-primary/5 px-4 py-3 text-left">
+                          <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            <CheckCircle className="h-4 w-4" />
+                            Litros registrados
+                          </div>
+                          <p className="font-semibold text-foreground">{normalizeNumber(collection.net_liters).toFixed(2)} L</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="rounded-lg bg-primary/10 p-3">
-                      <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-                        <Euro className="h-4 w-4" />
-                        Importe
+                    <div className="flex flex-col justify-between gap-4 border-t border-border/70 bg-primary/5 p-4 sm:p-5 lg:border-l lg:border-t-0">
+                      <div className="text-left lg:text-right">
+                        <div className="mb-1 text-xs uppercase tracking-wide text-muted-foreground">Importe total</div>
+                        <p className="text-2xl font-bold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</p>
                       </div>
-                      <div className="font-semibold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</div>
+
+                      <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
+                        <Eye className="h-4 w-4" />
+                        Ver
+                      </Button>
                     </div>
                   </div>
-                </div>
-
-                {collection.notes && (
-                  <div className="mt-4 border-t border-border pt-4">
-                    <p className="text-left text-sm text-muted-foreground">
-                      <strong>Notas:</strong> {collection.notes}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-3 grid grid-cols-1 gap-2 border-t border-border pt-3 sm:grid-cols-2 xl:grid-cols-3">
-                  <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
-                    <Eye className="h-4 w-4" />
-                    Ver
-                  </Button>
-                  {canManageCollection && (
-                    <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
-                      <Edit className="h-4 w-4" />
-                      Editar
-                    </Button>
-                  )}
-                  {canManageCollection && (
-                    <Button variant="destructive" size="sm" className="gap-2" onClick={() => askDelete(collection)}>
-                      <Trash2 className="h-4 w-4" />
-                      Eliminar
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
@@ -413,23 +497,31 @@ export default function CollectionsList() {
         </Card>
       )}
 
-      <Card className="bg-gradient-primary text-primary-foreground">
-        <CardContent className="pt-6">
-          <div className="text-center">
-            <Weight className="mx-auto mb-4 h-12 w-12 opacity-90" />
-            <h3 className="mb-2 text-xl font-semibold">{isClient ? "Resumen de mis recogidas" : "Resumen de pagina"}</h3>
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <div className="text-2xl font-bold">{collections.length}</div>
-                <p className="opacity-90">Recogidas visibles</p>
+      <Card className="overflow-hidden border-primary/15 bg-card/95 shadow-sm">
+        <CardContent className="p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-3 text-left">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Weight className="h-6 w-6" />
               </div>
               <div>
-                <div className="text-2xl font-bold">{totalNetLiters.toFixed(2)}L</div>
-                <p className="opacity-90">{isClient ? "Litros registrados" : "Litros netos"}</p>
+                <h3 className="text-lg font-semibold text-foreground">{isClient ? "Resumen de mis recogidas" : "Resumen de pagina"}</h3>
+                <p className="text-sm text-muted-foreground">Totales de las recogidas visibles en esta pagina.</p>
               </div>
-              <div>
-                <div className="text-2xl font-bold">{totalPrice.toFixed(2)} EUR</div>
-                <p className="opacity-90">{isClient ? "Importe asociado" : "Importe facturable"}</p>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[38rem]">
+              <div className="rounded-2xl bg-primary/5 px-4 py-3 text-center">
+                <div className="text-xl font-bold text-primary">{collections.length}</div>
+                <p className="text-xs text-muted-foreground">Recogidas visibles</p>
+              </div>
+              <div className="rounded-2xl bg-primary/5 px-4 py-3 text-center">
+                <div className="text-xl font-bold text-primary">{totalNetLiters.toFixed(2)} L</div>
+                <p className="text-xs text-muted-foreground">{isClient ? "Litros registrados" : "Litros netos"}</p>
+              </div>
+              <div className="rounded-2xl bg-primary/5 px-4 py-3 text-center">
+                <div className="text-xl font-bold text-primary">{totalPrice.toFixed(2)} EUR</div>
+                <p className="text-xs text-muted-foreground">{isClient ? "Importe asociado" : "Importe facturable"}</p>
               </div>
             </div>
           </div>

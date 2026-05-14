@@ -1,13 +1,25 @@
-﻿import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
-import { handleApiError, getCollectionStatusClass, getCollectionStatusLabel } from "@/components/Utils";
+import { handleApiError, getCollectionStatusLabel } from "@/components/Utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
-import { ArrowLeft, Edit, Package, Trash2, Weight, Euro } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CheckCircle,
+  ClipboardList,
+  Edit,
+  Euro,
+  MapPin,
+  Package,
+  Scale,
+  Trash2,
+  UserRound,
+  Weight,
+} from "lucide-react";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -19,6 +31,18 @@ function formatDate(dateStr) {
 function asNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function FieldItem({ icon: Icon, label, value, strong = false }) {
+  return (
+    <div className="min-w-0 rounded-2xl border border-border/70 bg-background/75 px-4 py-3 text-left">
+      <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {Icon && <Icon className="h-4 w-4 shrink-0" />}
+        {label}
+      </div>
+      <p className={`truncate text-sm ${strong ? "font-bold text-primary" : "font-semibold text-foreground"}`}>{value}</p>
+    </div>
+  );
 }
 
 export default function CollectionDetail() {
@@ -34,6 +58,12 @@ export default function CollectionDetail() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [collection, setCollection] = useState(null);
   const billableLabel = collection?.billable_label || (collection?.billable ? "Facturable" : "No facturable");
+  const title = loading ? "Cargando..." : `${isClient ? "Mi recogida" : "Recogida"} #${collection?.id || id}`;
+  const collectionDate = formatDate(collection?.collection_date);
+  const netLitersLabel = `${asNumber(collection?.net_liters).toFixed(2)} L`;
+  const totalPriceLabel = `${asNumber(collection?.total_price).toFixed(2)} EUR`;
+  const pricePerLiterLabel = `${asNumber(collection?.price_per_liter).toFixed(2)} EUR`;
+  const statusLabel = collection?.status ? getCollectionStatusLabel(collection.status) : "-";
 
   const fetchCollection = useCallback(async () => {
     if (!id) return;
@@ -78,7 +108,7 @@ export default function CollectionDetail() {
           </Button>
           <div className="min-w-0 flex-1">
             <h1 className="text-left text-xl font-bold leading-tight text-foreground sm:text-2xl lg:text-3xl">
-              {loading ? "Cargando..." : `${isClient ? "Mi recogida" : "Recogida"} #${collection?.id || id}`}
+              {title}
             </h1>
             <p className="mt-1 text-left text-sm leading-relaxed text-muted-foreground sm:text-base">
               {isClient ? "Consulta el detalle de tu recogida y los litros registrados." : "Detalle de recogida y sus importes."}
@@ -101,64 +131,52 @@ export default function CollectionDetail() {
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-primary" />
-            Datos generales
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
-          <div><span className="text-muted-foreground">Cliente:</span> {collection?.client_name || "-"}</div>
-          <div><span className="text-muted-foreground">Ruta:</span> {collection?.route_name || "Sin ruta"}</div>
-          <div><span className="text-muted-foreground">Fecha:</span> {formatDate(collection?.collection_date)}</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">Estado:</span>
-            <Badge className={getCollectionStatusClass(collection?.status)}>{getCollectionStatusLabel(collection?.status)}</Badge>
-          </div>
-          <div><span className="text-muted-foreground">Trabajador:</span> {collection?.worker_name || "-"}</div>
-          <div><span className="text-muted-foreground">Planificacion:</span> {collection?.route_day_client ? "Asignada a una ruta" : "Sin planificacion previa"}</div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <Card className="border-border/70 bg-card/95 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-left">
+              <ClipboardList className="h-5 w-5 text-primary" />
+              Datos de la recogida
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {!isClient && <FieldItem icon={UserRound} label="Cliente" value={collection?.client_name || "-"} strong />}
+            {!isClient && <FieldItem icon={MapPin} label="Ruta" value={collection?.route_name || "-"} />}
+            <FieldItem icon={CalendarDays} label="Fecha" value={collectionDate} strong />
+            <FieldItem icon={UserRound} label={isClient ? "Registrada por" : "Trabajador"} value={collection?.worker_name || "-"} />
+            {!isClient && <FieldItem icon={CheckCircle} label="Estado" value={statusLabel} strong />}
+          </CardContent>
+        </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Weight className="h-5 w-5 text-primary" />
-            Litros y envases
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
-          <p><span className="text-muted-foreground">Tipo envase:</span> {collection?.container_type || "-"}</p>
-          <p><span className="text-muted-foreground">Numero envases:</span> {collection?.container_number || 0}</p>
-          <p><span className="text-muted-foreground">Litros estimados:</span> {asNumber(collection?.estimated_liters).toFixed(2)} L</p>
-          <p><span className="text-muted-foreground">Litros medidos:</span> {collection?.measured_liters !== null ? asNumber(collection?.measured_liters).toFixed(2) : "-"} L</p>
-          <p><span className="text-muted-foreground">Litros deducidos:</span> {asNumber(collection?.deduction_liters).toFixed(2)} L</p>
-          <p><span className="text-muted-foreground">Litros netos:</span> {asNumber(collection?.net_liters).toFixed(2)} L</p>
-          <p><span className="text-muted-foreground">Motivo deduccion:</span> {collection?.deduction_reason_label || collection?.deduction_reason || "-"}</p>
-          <p><span className="text-muted-foreground">Notas deduccion:</span> {collection?.deduction_notes || "-"}</p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Euro className="h-5 w-5 text-primary" />
-            Precio y facturacion
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-4 text-left text-sm md:grid-cols-2">
-          <div><span className="text-muted-foreground">Precio por litro:</span> {asNumber(collection?.price_per_liter).toFixed(3)} EUR</div>
-          <div><span className="text-muted-foreground">Total:</span> {asNumber(collection?.total_price).toFixed(2)} EUR</div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground">Facturable:</span>
-            <Badge variant="outline" className={collection?.billable ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-slate-200 bg-slate-50 text-slate-600"}>
-              {billableLabel}
-            </Badge>
-          </div>
-          <div className="md:col-span-2"><span className="text-muted-foreground">Notas:</span> {collection?.notes || "-"}</div>
-        </CardContent>
-      </Card>
+        <Card className="border-border/70 bg-card/95 shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-left">
+              <Scale className="h-5 w-5 text-primary" />
+              Medicion e importe
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <FieldItem icon={Package} label="Tipo envase" value={collection?.container_type || "-"} />
+              <FieldItem icon={Package} label="Numero envases" value={collection?.container_number || 0} strong />
+              {!isClient && <FieldItem icon={Weight} label="Litros estimados" value={`${asNumber(collection?.estimated_liters).toFixed(2)} L`} />}
+              {!isClient && <FieldItem icon={Weight} label="Litros medidos" value={collection?.measured_liters !== null ? `${asNumber(collection?.measured_liters).toFixed(2)} L` : "-"} />}
+              {!isClient && <FieldItem icon={Weight} label="Litros deducidos" value={`${asNumber(collection?.deduction_liters).toFixed(2)} L`} />}
+              <FieldItem icon={CheckCircle} label={isClient ? "Litros registrados" : "Litros netos"} value={netLitersLabel} strong />
+              <FieldItem icon={Euro} label="Precio por litro" value={pricePerLiterLabel} />
+              <FieldItem icon={Euro} label="Total" value={totalPriceLabel} strong />
+              {!isClient && <FieldItem icon={CheckCircle} label="Facturacion" value={billableLabel} />}
+            </div>
+            {!isClient && (
+              <div className="grid grid-cols-1 gap-3 border-t border-border/70 pt-3 sm:grid-cols-2 xl:grid-cols-3">
+                <FieldItem icon={ClipboardList} label="Motivo deduccion" value={collection?.deduction_reason_label || collection?.deduction_reason || "-"} />
+                <FieldItem icon={ClipboardList} label="Notas deduccion" value={collection?.deduction_notes || "-"} />
+                <FieldItem icon={ClipboardList} label="Notas" value={collection?.notes || "-"} />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       {isOwner && (
         <ConfirmDeleteDialog

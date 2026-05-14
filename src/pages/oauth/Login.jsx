@@ -1,26 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { AnimatedLogo } from "@/components/common/AnimatedLogo";
 import greenPathLogo from "@/assets/greenpath.png";
-import { Leaf, Eye, EyeOff } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 
+const getLoginErrorMessage = (err) => {
+  const data = err?.response?.data;
+  if (typeof data === "string") return data;
+  return data?.Error || data?.error || data?.detail || data?.message || "Contraseña o nombre de usuario incorrectos";
+};
+
 export default function Login() {
-  
   const { login } = useAuth();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoginError("");
     setLoading(true);
     try {
       await login(user, password);
     } catch (err) {
-      console.error("Login error:", err);
+      const message = getLoginErrorMessage(err);
+      setLoginError(message);
     } finally {
       setLoading(false);
     }
@@ -46,19 +54,26 @@ export default function Login() {
                   type="text"
                   placeholder="Usuario"
                   value={user}
-                  onChange={(e) => setUser(e.target.value)}
+                  onChange={(e) => {
+                    setUser(e.target.value);
+                    setLoginError("");
+                  }}
                   required
                 />
               </div>
 
-              <div className="space-y-2">
-                <div className="relative">
+              <div className="min-w-0 space-y-2">
+                <div className="relative min-w-0">
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
                     placeholder="Contraseña"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setLoginError("");
+                    }}
+                    className="truncate pr-12"
                     required
                   />
                   <Button
@@ -77,6 +92,17 @@ export default function Login() {
                 </div>
               </div>
 
+              {loginError && (
+                <div
+                  className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-left text-sm text-red-700"
+                  role="alert"
+                  aria-live="polite"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={loading}
@@ -87,11 +113,10 @@ export default function Login() {
                 </svg>
                 {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
               </button>
-
             </form>
           </div>
         </div>
-        
+
         <div className="text-center mt-6">
           <p className="text-xs text-gray-500">
             Diseñado por Guillermo Gómez {new Date().getFullYear()}

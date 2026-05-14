@@ -106,13 +106,6 @@ function sortRequests(rows) {
   });
 }
 
-function getFinalSourceLabel(source) {
-  if (source === "CLIENT") return "Respuesta del cliente";
-  if (source === "AUTO") return "Autoestimada";
-  if (source === "MANUAL") return "Ajuste manual";
-  return "Sin respuesta";
-}
-
 export default function CollectionRequestsPage() {
   const { api } = useAuth();
   const showSnackbar = useSnackbar();
@@ -151,6 +144,15 @@ export default function CollectionRequestsPage() {
     const expired = requests.filter((row) => isExpired(row.expires_at) && (row.status === "PENDING" || row.status === "AUTO_ESTIMATED")).length;
     return { total, pending, answered, expired };
   }, [requests]);
+  const statCards = useMemo(
+    () => [
+      ["Total", stats.total, "text-primary"],
+      ["Pendientes", stats.pending, "text-blue-500"],
+      ["Respondidas", stats.answered, "text-success"],
+      ["Expiradas", stats.expired, "text-destructive"],
+    ],
+    [stats]
+  );
 
   const selectedSummary = useMemo(
     () => getContainerSummary(containerDraft.container_type, containerDraft.container_number),
@@ -193,39 +195,36 @@ export default function CollectionRequestsPage() {
   const renderRequestCard = (row) => {
     const canAnswer = (row.status === "PENDING" || row.status === "AUTO_ESTIMATED") && !isExpired(row.expires_at);
     const summary = getContainerSummary(row.container_type, row.container_number || 1);
-    const finalLabel = row.final_liters ? `${formatLiters(row.final_liters)} L` : "-";
 
     return (
-      <Card key={row.id} className="transition-shadow hover:shadow-elegant">
-        <CardContent className="pt-6">
-          <div className="flex flex-col gap-5 xl:flex-row xl:items-start">
-            <div className="flex-1 space-y-3">
+      <Card key={row.id} className="overflow-hidden border-border/70 bg-card/95 shadow-sm transition-shadow hover:shadow-elegant">
+        <CardContent className="p-0">
+          <div className="grid lg:grid-cols-[1fr_17rem]">
+            <div className="space-y-4 p-4 sm:p-5">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
+                <div className="min-w-0">
                   <h3 className="flex items-center gap-2 text-lg font-semibold text-foreground">
-                    <CalendarClock className="h-4 w-4 text-primary" />
-                    {row.route_name || "Ruta planificada"}
+                    <CalendarClock className="h-4 w-4 shrink-0 text-primary" />
+                    <span className="truncate">Solicitud #{row.id}</span>
                   </h3>
-                  <p className="mt-1 text-sm text-muted-foreground">Solicitud #{row.id} - {formatDate(row.route_day_date)}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Recogida prevista: {formatDate(row.route_day_date)}</p>
                 </div>
-
-                <Badge className={`${getCollectionRequestStatusClass(row.status)} w-fit self-start`}>
-                  {getCollectionRequestStatusLabel(row.status)}
-                </Badge>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
-                <div>
-                  <span className="text-muted-foreground">Creada:</span>{" "}
-                  <span className="font-medium">{formatDateTime(row.created_date)}</span>
+              <div className="grid gap-3 text-sm md:grid-cols-3">
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Creada</p>
+                  <p className="mt-1 font-medium leading-snug text-foreground">{formatDateTime(row.created_date)}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Limite:</span>{" "}
-                  <span className="font-medium">{formatDateTime(row.expires_at)}</span>
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Limite</p>
+                  <p className="mt-1 font-medium leading-snug text-foreground">{formatDateTime(row.expires_at)}</p>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Respuesta:</span>{" "}
-                  <span className="font-medium">{getFinalSourceLabel(row.final_source)}</span>
+                <div className="rounded-2xl border border-border/70 bg-background/70 px-3 py-3">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Respuesta</p>
+                  <Badge className={`${getCollectionRequestStatusClass(row.status)} mt-2 w-fit`}>
+                    {getCollectionRequestStatusLabel(row.status)}
+                  </Badge>
                 </div>
               </div>
 
@@ -237,37 +236,29 @@ export default function CollectionRequestsPage() {
               )}
             </div>
 
-            <div className="w-full space-y-3 xl:w-80">
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="rounded-lg bg-accent/50 p-3">
-                  <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex flex-col justify-between gap-4 border-t border-border/70 bg-primary/5 p-4 sm:p-5 lg:border-l lg:border-t-0">
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-primary/10 bg-background/80 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm text-muted-foreground">
                     <PackageCheck className="h-4 w-4" />
-                    Envases
+                    Envases y litros
                   </div>
-                  <div className="font-semibold">{summary.label}</div>
+                  <div className="text-lg font-semibold text-foreground">{summary.label}</div>
                   <p className="text-xs text-muted-foreground">{formatLiters(summary.liters)} L aprox.</p>
                 </div>
-
-                <div className="rounded-lg bg-primary/10 p-3">
-                  <div className="mb-1 flex items-center gap-2 text-sm text-muted-foreground">
-                    <CheckCircle className="h-4 w-4" />
-                    Final
-                  </div>
-                  <div className="font-semibold text-primary">{finalLabel}</div>
-                </div>
               </div>
-            </div>
-          </div>
 
-          <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:justify-end">
-            {canAnswer ? (
-              <Button size="sm" className="w-full gap-1 sm:w-auto" onClick={() => openAnswerModal(row)}>
-                <CheckCircle className="h-4 w-4" />
-                Responder
-              </Button>
-            ) : (
-              <Badge variant="outline" className="w-fit">Sin accion pendiente</Badge>
-            )}
+              {canAnswer ? (
+                <Button size="sm" className="w-full gap-1" onClick={() => openAnswerModal(row)}>
+                  <CheckCircle className="h-4 w-4" />
+                  Responder
+                </Button>
+              ) : (
+                <Badge variant="outline" className="w-fit bg-background/80">
+                  Sin accion pendiente
+                </Badge>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -275,14 +266,38 @@ export default function CollectionRequestsPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="text-left">
-        <div>
+    <div className="space-y-5">
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_14rem_minmax(35rem,auto)] lg:items-end">
+        <div className="text-left">
           <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
             <CalendarClock className="h-8 w-8 text-primary" />
             Solicitudes de Recogida
           </h1>
           <p className="text-left text-muted-foreground">Responde tus proximas recogidas indicando bidones o IBC.</p>
+        </div>
+
+        <div className="w-full space-y-2 sm:w-56 lg:w-full">
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger id="request_status_filter">
+              <SelectValue placeholder="Filtrar por estado" />
+            </SelectTrigger>
+            <SelectContent>
+              {FILTER_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="hidden gap-2 md:grid md:grid-cols-4">
+          {statCards.map(([label, value, colorClass]) => (
+            <div key={label} className="rounded-2xl border border-border/70 bg-card/95 px-4 py-3 text-center shadow-sm">
+              <div className={`text-xl font-bold ${colorClass}`}>{value}</div>
+              <p className="text-xs text-muted-foreground">{label}</p>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -300,71 +315,20 @@ export default function CollectionRequestsPage() {
 
             {isStatsOpen && (
               <div className="grid grid-cols-2 gap-3 border-t px-4 py-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                  <p className="text-xl font-bold text-primary">{stats.total}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Pendientes</p>
-                  <p className="text-xl font-bold text-blue-500">{stats.pending}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Respondidas</p>
-                  <p className="text-xl font-bold text-success">{stats.answered}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Expiradas</p>
-                  <p className="text-xl font-bold text-destructive">{stats.expired}</p>
-                </div>
+                {statCards.map(([label, value, colorClass]) => (
+                  <div key={label}>
+                    <p className="text-xs text-muted-foreground">{label}</p>
+                    <p className={`text-xl font-bold ${colorClass}`}>{value}</p>
+                  </div>
+                ))}
               </div>
             )}
           </CardContent>
         </Card>
       </div>
 
-      <div className="hidden gap-3 md:grid md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Total", stats.total, "text-primary"],
-          ["Pendientes", stats.pending, "text-blue-500"],
-          ["Respondidas", stats.answered, "text-success"],
-          ["Expiradas", stats.expired, "text-destructive"],
-        ].map(([label, value, colorClass]) => (
-          <Card key={label}>
-            <CardContent className="pt-6 text-center">
-              <div className={`text-2xl font-bold ${colorClass}`}>{value}</div>
-              <p className="text-sm text-muted-foreground">{label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <Card>
-        <CardContent className="pt-6">
-          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-end">
-            <div className="hidden sm:block" />
-
-            <h2 className="flex items-center justify-center gap-2 text-center text-lg font-semibold text-foreground">
-              <PackageCheck className="h-5 w-5 text-primary" />
-              Solicitudes
-            </h2>
-
-            <div className="w-full space-y-2 sm:w-56 sm:justify-self-end">
-              <Label htmlFor="request_status_filter">Estado</Label>
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger id="request_status_filter">
-                  <SelectValue placeholder="Filtrar por estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {FILTER_OPTIONS.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
+      <Card className="border-border/70 bg-card/95 shadow-sm">
+        <CardContent className="min-h-[24rem] p-4 sm:p-5 lg:min-h-[calc(100vh-24rem)]">
           {loading ? (
             <div className="py-12 text-center text-muted-foreground">Cargando solicitudes...</div>
           ) : requests.length === 0 ? (
