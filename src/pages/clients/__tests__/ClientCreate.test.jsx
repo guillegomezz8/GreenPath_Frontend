@@ -1,5 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import ClientCreate from "../ClientCreate";
 
 const mocks = vi.hoisted(() => {
@@ -48,21 +47,29 @@ describe("ClientCreate", () => {
     mocks.apiFactory.mockClear();
   });
 
+  const fillRequiredClientFields = ({
+    name = "Bar Nuevo",
+    address = "Calle Real 10",
+    city = "Sevilla",
+    postalCode = "41001",
+    country = "Espana",
+    phone = "600123123",
+  } = {}) => {
+    fireEvent.change(screen.getByLabelText(/^nombre \*/i), { target: { value: name } });
+    fireEvent.change(screen.getByLabelText(/direccion \*/i), { target: { value: address } });
+    fireEvent.change(screen.getByLabelText(/ciudad \*/i), { target: { value: city } });
+    fireEvent.change(screen.getByLabelText(/codigo postal \*/i), { target: { value: postalCode } });
+    fireEvent.change(screen.getByLabelText(/pais \*/i), { target: { value: country } });
+    fireEvent.change(screen.getByLabelText(/telefono \*/i), { target: { value: phone } });
+  };
+
   it("permite crear un cliente sin username, email ni cif cuando no se da acceso", async () => {
     mocks.post.mockResolvedValue({ data: { id: 7 } });
-    const user = userEvent.setup();
 
     render(<ClientCreate />);
 
-    await user.type(screen.getByLabelText(/^nombre \*/i), "Bar Nuevo");
-    await user.type(screen.getByLabelText(/direccion \*/i), "Calle Real 10");
-    await user.type(screen.getByLabelText(/ciudad \*/i), "Sevilla");
-    await user.type(screen.getByLabelText(/codigo postal \*/i), "41001");
-    await user.clear(screen.getByLabelText(/pais \*/i));
-    await user.type(screen.getByLabelText(/pais \*/i), "España");
-    await user.type(screen.getByLabelText(/telefono \*/i), "600123123");
-
-    await user.click(screen.getByRole("button", { name: /crear cliente/i }));
+    fillRequiredClientFields();
+    fireEvent.click(screen.getByRole("button", { name: /crear cliente/i }));
 
     await waitFor(() => expect(mocks.post).toHaveBeenCalledTimes(1));
 
@@ -80,31 +87,32 @@ describe("ClientCreate", () => {
       cif: "",
       city: "Sevilla",
       postal_code: "41001",
-      country: "España",
+      country: "Espana",
       frequency: "WEEKLY",
     });
     expect(mocks.navigate).toHaveBeenCalledWith("/clients");
   });
 
   it("exige email cuando se marca acceso a la plataforma", async () => {
-    const user = userEvent.setup();
-
     render(<ClientCreate />);
 
-    await user.click(screen.getByLabelText(/dar acceso a la plataforma/i));
-    await user.type(screen.getByLabelText(/^nombre \*/i), "Cliente Acceso");
-    await user.type(screen.getByLabelText(/direccion \*/i), "Calle Sol 2");
-    await user.type(screen.getByLabelText(/ciudad \*/i), "Sevilla");
-    await user.type(screen.getByLabelText(/codigo postal \*/i), "41002");
-    await user.clear(screen.getByLabelText(/pais \*/i));
-    await user.type(screen.getByLabelText(/pais \*/i), "España");
-    await user.type(screen.getByLabelText(/telefono \*/i), "600123124");
-    await user.click(screen.getByRole("button", { name: /crear cliente/i }));
+    fireEvent.click(screen.getByLabelText(/dar acceso a la plataforma/i));
+    await waitFor(() => expect(screen.getByLabelText(/email \*/i)).toBeInTheDocument());
+
+    fillRequiredClientFields({
+      name: "Cliente Acceso",
+      address: "Calle Sol 2",
+      postalCode: "41002",
+      phone: "600123124",
+    });
+    fireEvent.click(screen.getByRole("button", { name: /crear cliente/i }));
 
     expect(mocks.post).not.toHaveBeenCalled();
-    expect(mocks.snackbar).toHaveBeenCalledWith(
-      "Debes indicar un email si quieres enviar acceso a la plataforma.",
-      "error"
-    );
+    await waitFor(() => {
+      expect(mocks.snackbar).toHaveBeenCalledWith(
+        "Debes indicar un email si quieres enviar acceso a la plataforma.",
+        "error"
+      );
+    });
   });
 });

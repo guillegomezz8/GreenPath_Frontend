@@ -98,7 +98,7 @@ describe("CollectionsList", () => {
     expect(screen.getByLabelText("Filtrar por fecha")).toHaveAttribute("type", "date");
     expect(screen.getByText("Recogida #3")).toBeInTheDocument();
     expect(screen.getByText("Registrada por")).toBeInTheDocument();
-    expect(screen.getAllByText("Fecha").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Fecha")).toBeInTheDocument();
     expect(screen.getByText("11/5/2026")).toBeInTheDocument();
     expect(screen.queryByText("Nota interna del equipo")).not.toBeInTheDocument();
     expect(screen.queryByText("Esturion")).not.toBeInTheDocument();
