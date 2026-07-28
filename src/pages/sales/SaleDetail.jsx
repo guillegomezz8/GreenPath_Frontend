@@ -82,6 +82,12 @@ export default function SaleDetail() {
     ];
   }, [sale]);
 
+  const saleLines = useMemo(() => {
+    if (!sale) return [];
+    if (Array.isArray(sale.lines) && sale.lines.length > 0) return sale.lines;
+    return [sale];
+  }, [sale]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -160,31 +166,47 @@ export default function SaleDetail() {
                 <CardHeader className="text-left">
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="h-5 w-5 text-primary" />
-                    Concepto facturado
+                    Conceptos facturados
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-4 text-left">
-                  <div className="rounded-xl border border-border/80 p-4">
-                    <p className="text-sm text-muted-foreground">Descripcion</p>
-                    <p className="mt-2 whitespace-pre-wrap text-foreground">{sale.product_description || "-"}</p>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                    <div className="rounded-xl border border-border/80 p-4">
-                      <p className="text-sm text-muted-foreground">Cantidad</p>
-                      <p className="mt-2 font-semibold text-foreground">{toNumber(sale.quantity).toFixed(2)} {sale.unit || "-"}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/80 p-4">
-                      <p className="text-sm text-muted-foreground">Precio unitario</p>
-                      <p className="mt-2 font-semibold text-foreground">{formatCurrency(sale.unit_price, sale.currency || "EUR")}</p>
-                    </div>
-                    <div className="rounded-xl border border-border/80 p-4">
-                      <p className="text-sm text-muted-foreground">IVA</p>
-                      <p className="mt-2 font-semibold text-foreground">{toNumber(sale.tax_rate).toFixed(2)}%</p>
-                    </div>
-                    <div className="rounded-xl border border-border/80 p-4">
-                      <p className="text-sm text-muted-foreground">Importe IVA</p>
-                      <p className="mt-2 font-semibold text-foreground">{formatCurrency(sale.tax_amount, sale.currency || "EUR")}</p>
-                    </div>
+                <CardContent className="text-left">
+                  <div className="max-h-[38rem] divide-y divide-border overflow-y-auto overscroll-contain border-y border-border pr-1 sm:pr-2">
+                    {saleLines.map((line, index) => (
+                      <section key={line.id || index} className="space-y-4 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-primary">Concepto {index + 1}</p>
+                          <p className="mt-1 whitespace-pre-wrap break-words text-foreground">
+                            {line.product_description || "-"}
+                          </p>
+                        </div>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Cantidad</p>
+                            <p className="font-semibold text-foreground">
+                              {toNumber(line.quantity).toFixed(2)} {line.unit || "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Precio unitario</p>
+                            <p className="font-semibold text-foreground">
+                              {formatCurrency(line.unit_price, sale.currency || "EUR")}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">IVA</p>
+                            <p className="font-semibold text-foreground">
+                              {toNumber(line.tax_rate).toFixed(2)}%
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-muted-foreground">Total</p>
+                            <p className="font-semibold text-foreground">
+                              {formatCurrency(line.total, sale.currency || "EUR")}
+                            </p>
+                          </div>
+                        </div>
+                      </section>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

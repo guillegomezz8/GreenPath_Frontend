@@ -302,7 +302,9 @@ export default function Stats() {
                     {[...kpiCards, ...countCards].map((card) => (
                       <div key={card.title} className="flex items-center justify-between gap-3 border-b pb-2 last:border-b-0 last:pb-0">
                         <span className="text-sm text-muted-foreground">{card.title}</span>
-                        <span className={`text-lg font-bold ${card.className}`}>{card.value}</span>
+                        <span className={`min-w-0 max-w-[60%] break-words text-right text-lg font-bold leading-tight [overflow-wrap:anywhere] ${card.className}`}>
+                          {card.value}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -311,14 +313,16 @@ export default function Stats() {
             </Card>
           </div>
 
-          <div className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="hidden grid-cols-1 gap-4 md:grid md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
             {kpiCards.map((card) => (
-              <Card key={card.title} className="transition-shadow hover:shadow-elegant">
-                <CardContent className="pt-6 text-left">
+              <Card key={card.title} className="min-w-0 transition-shadow hover:shadow-elegant">
+                <CardContent className="min-w-0 pt-6 text-left">
                   <div className="mb-3 flex items-center justify-between">
                     <card.icon className={`h-5 w-5 ${card.className}`} />
                   </div>
-                  <div className={`text-2xl font-bold ${card.className}`}>{card.value}</div>
+                  <div className={`min-w-0 break-words text-xl font-bold leading-tight [overflow-wrap:anywhere] 2xl:text-2xl ${card.className}`}>
+                    {card.value}
+                  </div>
                   <p className="text-xs text-muted-foreground">{card.title}</p>
                 </CardContent>
               </Card>
