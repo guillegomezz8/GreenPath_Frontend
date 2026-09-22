@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Save, Route, Users, MapPin, CalendarDays } from "lucide-react";
+import { ArrowLeft, Save, Route, Users, MapPin, CalendarDays, Gauge } from "lucide-react";
 
 const WEEKDAYS = [
   { value: 0, label: "Lunes" },
@@ -81,6 +81,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
     week_start: "0",
     week_end: "6",
     worker: "",
+    default_capacity_liters: "",
   });
   const [zoneConfig, setZoneConfig] = useState(buildEmptyZoneConfig());
 
@@ -120,6 +121,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
         week_start: String(route.week_start ?? 0),
         week_end: String(route.week_end ?? 6),
         worker: route.worker ? String(route.worker) : "",
+        default_capacity_liters: route.default_capacity_liters ?? "",
       });
       setZoneConfig(normalizeZoneConfig(zoneDays));
     } catch (e) {
@@ -186,6 +188,10 @@ export default function RouteForm({ mode = "create", routeId = null }) {
       showSnackbar("Debes seleccionar un trabajador para la ruta.", "error");
       return;
     }
+    if (formData.default_capacity_liters !== "" && Number(formData.default_capacity_liters) <= 0) {
+      showSnackbar("La capacidad por viaje debe ser mayor que cero.", "error");
+      return;
+    }
 
     try {
       setSubmitting(true);
@@ -196,6 +202,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
         end_date: formData.end_date || null,
         week_start: Number(formData.week_start),
         week_end: Number(formData.week_end),
+        default_capacity_liters: formData.default_capacity_liters === "" ? null : formData.default_capacity_liters,
       };
 
       let targetRouteId = routeId;
@@ -250,7 +257,7 @@ export default function RouteForm({ mode = "create", routeId = null }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 max-w-xl mx-auto w-full">
+            <div className="grid w-full grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(220px,1fr)]">
               <div className="space-y-2">
                 <Label htmlFor="route_name">Nombre *</Label>
                 <Input
@@ -260,6 +267,23 @@ export default function RouteForm({ mode = "create", routeId = null }) {
                   placeholder="Ej: Ruta Centro"
                   disabled={loading || submitting}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="default_capacity_liters" className="flex items-center gap-2">
+                  <Gauge className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Capacidad por viaje (L)
+                </Label>
+                <Input
+                  id="default_capacity_liters"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={formData.default_capacity_liters}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, default_capacity_liters: e.target.value }))}
+                  placeholder="Ej: 750"
+                  disabled={loading || submitting}
+                />
+                <p className="text-left text-xs text-muted-foreground">Si queda vacío, se usa la capacidad del camión asignado.</p>
               </div>
             </div>
 

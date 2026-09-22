@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import RouteDayMap from "@/components/routes/RouteDayMap";
 import RouteActionButton from "@/components/routes/RouteActionButton";
+import NavigationLinksDialog from "@/components/routes/NavigationLinksDialog";
 import { ArrowLeft, Calendar, ClipboardCheck, Eye, RefreshCcw } from "lucide-react";
 const CONTAINER_TYPES = [
   { value: "BIDONES", label: "Bidones (60L)" },
@@ -90,6 +91,7 @@ export default function RouteExecution() {
   const [workingRouteDayId, setWorkingRouteDayId] = useState(null);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [finishDecisionModalOpen, setFinishDecisionModalOpen] = useState(false);
+  const [navigationUrls, setNavigationUrls] = useState([]);
   const [finishDecisionContext, setFinishDecisionContext] = useState({ routeDayId: null, date: "", pendingStops: 0 });
   const [activeStop, setActiveStop] = useState(null);
   const [submittingStop, setSubmittingStop] = useState(false);
@@ -250,22 +252,18 @@ export default function RouteExecution() {
     try {
       setWorkingRouteDayId(routeDayId);
       const res = await api().get(`routes/${encodeURIComponent(id)}/route-days/${encodeURIComponent(routeDayId)}/google-navigation/`);
-      const navigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
-      if (navigationUrls.length === 0) {
+      const fetchedNavigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
+      if (fetchedNavigationUrls.length === 0) {
         showSnackbar("No se pudo generar el enlace de navegacion.", "error");
         return;
       }
       const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent || "");
-      if (navigationUrls.length > 1) {
-        showSnackbar(`La ruta se ha dividido en ${navigationUrls.length} enlaces de navegacion.`, "info");
-      }
-      if (isMobileDevice) {
-        window.location.assign(navigationUrls[0]);
+      if (fetchedNavigationUrls.length > 1) {
+        setNavigationUrls(fetchedNavigationUrls);
         return;
       }
-      navigationUrls.forEach((navigationUrl) => {
-        window.open(navigationUrl, "_blank", "noopener,noreferrer");
-      });
+      if (isMobileDevice) window.location.assign(fetchedNavigationUrls[0]);
+      else window.open(fetchedNavigationUrls[0], "_blank", "noopener,noreferrer");
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la navegacion de Google.");
       showSnackbar(msg, "error");
@@ -544,6 +542,14 @@ export default function RouteExecution() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <NavigationLinksDialog
+        open={navigationUrls.length > 1}
+        onOpenChange={(open) => {
+          if (!open) setNavigationUrls([]);
+        }}
+        urls={navigationUrls}
+      />
     </div>
   );
 }

@@ -45,7 +45,7 @@ export default function GenerateWeekDialog({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="capacity">Capacidad diaria (litros)</Label>
+              <Label htmlFor="capacity">Capacidad por viaje (litros)</Label>
               <Input
                 id="capacity"
                 type="number"

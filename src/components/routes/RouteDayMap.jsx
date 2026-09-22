@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import RouteActionButton from "@/components/routes/RouteActionButton";
+import RouteOptimizationBadge from "@/components/routes/RouteOptimizationBadge";
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -276,6 +277,10 @@ export default function RouteDayMap({
               <Badge className={getRouteStatusClass(selectedRouteDay.status)}>
                 {getRouteStatusLabel(selectedRouteDay.status)}
               </Badge>
+              <RouteOptimizationBadge
+                status={selectedRouteDay.optimization_status}
+                message={selectedRouteDay.optimization_message}
+              />
               <Badge variant="outline">
                 <CalendarDays className="mr-1 h-3.5 w-3.5" />
                 {formatDate(selectedRouteDay.date)}
@@ -283,6 +288,19 @@ export default function RouteDayMap({
             </div>
           ) : null}
         </div>
+
+        {selectedRouteDay?.optimization_status === "FAILED" || selectedRouteDay?.optimization_status === "FALLBACK" ? (
+          <div
+            role="status"
+            className={`rounded-md border px-3 py-2 text-left text-xs ${
+              selectedRouteDay.optimization_status === "FAILED"
+                ? "border-red-200 bg-red-50 text-red-700"
+                : "border-amber-200 bg-amber-50 text-amber-700"
+            }`}
+          >
+            {selectedRouteDay.optimization_message || "La jornada no pudo optimizarse completamente."}
+          </div>
+        ) : null}
 
         <div className="md:hidden">
           <Select value={selectedRouteDay ? String(selectedRouteDay.id) : ""} onValueChange={(value) => onSelectRouteDay?.(value)}>
