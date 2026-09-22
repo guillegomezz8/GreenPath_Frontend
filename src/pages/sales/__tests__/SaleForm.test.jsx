@@ -145,4 +145,27 @@ describe("SaleForm", () => {
     expect(screen.getByLabelText(/producto o descripcion/i)).toHaveValue("Aceite usado filtrado");
     expect(screen.getAllByText("kg").length).toBeGreaterThan(0);
   });
+
+  it("permite añadir y eliminar conceptos dentro del mismo formulario", async () => {
+    mocks.get.mockImplementation((url) => {
+      if (url === "buyers/") {
+        return Promise.resolve({ data: { results: [] } });
+      }
+      if (url === "sales/") {
+        return Promise.resolve({ data: { results: [] } });
+      }
+      return Promise.reject(new Error(`Unexpected GET ${url}`));
+    });
+
+    render(<SaleForm mode="create" />);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: /añadir concepto/i })).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /añadir concepto/i }));
+
+    expect(screen.getAllByLabelText(/producto o descripcion/i)).toHaveLength(2);
+    expect(screen.getByLabelText(/conceptos de la factura/i)).toHaveClass("overflow-y-auto");
+
+    fireEvent.click(screen.getByRole("button", { name: /eliminar concepto 2/i }));
+    expect(screen.getAllByLabelText(/producto o descripcion/i)).toHaveLength(1);
+  });
 });

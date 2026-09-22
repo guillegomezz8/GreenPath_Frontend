@@ -49,6 +49,14 @@ function buildMediaUrl(url) {
   return `${import.meta.env.VITE_APP_API_URL}${url}`;
 }
 
+function toDateInputValue(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value.slice(0, 10);
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
 export default function ProfilePage() {
   const { api, updateAuthUser, user } = useAuth();
   const showSnackbar = useSnackbar();
@@ -69,7 +77,15 @@ export default function ProfilePage() {
     username: "",
     email: "",
     name: "",
+    surname: "",
     phone: "",
+    address: "",
+    dni: "",
+    birth_date: "",
+    cif: "",
+    city: "",
+    postal_code: "",
+    country: "",
   });
   const [passwordForm, setPasswordForm] = useState({
     password: "",
@@ -88,7 +104,15 @@ export default function ProfilePage() {
       username: data?.username || "",
       email: data?.email || "",
       name: typeof profile?.name === "string" ? profile.name : "",
+      surname: typeof profile?.surname === "string" ? profile.surname : "",
       phone: typeof profile?.phone === "string" ? profile.phone : "",
+      address: typeof profile?.address === "string" ? profile.address : "",
+      dni: typeof profile?.dni === "string" ? profile.dni : "",
+      birth_date: toDateInputValue(profile?.birth_date),
+      cif: typeof profile?.cif === "string" ? profile.cif : "",
+      city: typeof profile?.city === "string" ? profile.city : "",
+      postal_code: typeof profile?.postal_code === "string" ? profile.postal_code : "",
+      country: typeof profile?.country === "string" ? profile.country : "",
     });
   }, []);
 
@@ -182,9 +206,22 @@ export default function ProfilePage() {
       setSavingProfile(true);
       const payload = {
         email: profileForm.email.trim(),
+        name: profileForm.name.trim(),
+        phone: profileForm.phone.trim(),
       };
-      if (profileForm.name.trim()) payload.name = profileForm.name.trim();
-      if (profileForm.phone.trim()) payload.phone = profileForm.phone.trim();
+
+      if (effectiveRoleType === "client") {
+        payload.cif = profileForm.cif.trim();
+        payload.address = profileForm.address.trim();
+        payload.city = profileForm.city.trim();
+        payload.postal_code = profileForm.postal_code.trim();
+        payload.country = profileForm.country.trim();
+      } else {
+        payload.surname = profileForm.surname.trim();
+        payload.address = profileForm.address.trim();
+        payload.dni = profileForm.dni.trim();
+        payload.birth_date = profileForm.birth_date || null;
+      }
 
       const res = await api().put("users/profile/", payload);
       const updatedProfile = res.data || {};
@@ -259,38 +296,25 @@ export default function ProfilePage() {
     [profileMeta.is_active]
   );
   const displayName = useMemo(() => {
-    const composed = [profileForm.name, profileExtra?.surname].filter(Boolean).join(" ").trim();
+    const composed = [profileForm.name, profileForm.surname].filter(Boolean).join(" ").trim();
     return composed || profileForm.username || "Usuario";
-  }, [profileExtra?.surname, profileForm.name, profileForm.username]);
+  }, [profileForm.name, profileForm.surname, profileForm.username]);
 
   const detailItems = useMemo(() => {
     const commonItems = [
       { key: "username", label: "Usuario", icon: User, value: profileForm.username },
-      { key: "email", label: "Email", icon: Mail, value: profileForm.email },
-      { key: "phone", label: "Telefono", icon: Phone, value: profileForm.phone || profileExtra?.phone },
       { key: "company", label: "Empresa", icon: Building2, value: profileExtra?.company || profileExtra?.companies },
     ];
 
     if (effectiveRoleType === "client") {
       return [
         ...commonItems,
-        { key: "cif", label: "CIF", icon: IdCard, value: profileExtra?.cif },
-        { key: "address", label: "Direccion", icon: MapPin, value: profileExtra?.address },
-        { key: "city", label: "Ciudad", icon: Building2, value: profileExtra?.city },
-        { key: "postal_code", label: "Codigo postal", icon: Building2, value: profileExtra?.postal_code },
-        { key: "country", label: "Pais", icon: Building2, value: profileExtra?.country },
         { key: "frequency", label: "Frecuencia", icon: Calendar, value: profileExtra?.frequency },
       ];
     }
 
-    return [
-      ...commonItems,
-      { key: "surname", label: "Apellidos", icon: User, value: profileExtra?.surname },
-      { key: "dni", label: "DNI", icon: IdCard, value: profileExtra?.dni },
-      { key: "birth_date", label: "Fecha nacimiento", icon: Calendar, value: profileExtra?.birth_date },
-      { key: "address", label: "Direccion", icon: MapPin, value: profileExtra?.address },
-    ];
-  }, [effectiveRoleType, profileExtra, profileForm.email, profileForm.phone, profileForm.username]);
+    return commonItems;
+  }, [effectiveRoleType, profileExtra, profileForm.username]);
 
   return (
     <div className="space-y-6">
@@ -311,7 +335,7 @@ export default function ProfilePage() {
             <Avatar size="xl" className="border-4 border-white shadow-sm">
               {avatarSrc && <AvatarImage src={avatarSrc} alt={displayName} className="object-cover" />}
               <AvatarFallback size="xl" className="bg-primary text-primary-foreground font-bold">
-                {getInitials(profileForm.name || profileForm.username, profileExtra?.surname || "")}
+                {getInitials(profileForm.name || profileForm.username, profileForm.surname || "")}
               </AvatarFallback>
             </Avatar>
             <input
@@ -374,14 +398,13 @@ export default function ProfilePage() {
                 <Mail className="w-5 h-5 text-primary" />
                 Datos editables
               </CardTitle>
-              <CardDescription className="text-left">Puedes actualizar email, nombre y telefono.</CardDescription>
             </CardHeader>
             <CardContent>
               {loading ? (
                 <p className="text-sm text-muted-foreground text-left">Cargando perfil...</p>
               ) : (
                 <form onSubmit={handleSaveProfile} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="profile_email">Email</Label>
                       <Input
@@ -402,9 +425,20 @@ export default function ProfilePage() {
                         placeholder="Nombre"
                       />
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {effectiveRoleType !== "client" ? (
+                      <div className="space-y-2">
+                        <Label htmlFor="profile_surname">Apellidos</Label>
+                        <Input
+                          id="profile_surname"
+                          value={profileForm.surname}
+                          onChange={(e) => handleProfileChange("surname", e.target.value)}
+                          disabled={savingProfile}
+                          placeholder="Apellidos"
+                        />
+                      </div>
+                    ) : null}
+
                     <div className="space-y-2">
                       <Label htmlFor="profile_phone">Telefono</Label>
                       <Input
@@ -415,10 +449,104 @@ export default function ProfilePage() {
                         placeholder="Telefono de contacto"
                       />
                     </div>
+
+                    {effectiveRoleType !== "client" ? (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_dni">DNI</Label>
+                          <Input
+                            id="profile_dni"
+                            value={profileForm.dni}
+                            onChange={(e) => handleProfileChange("dni", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="12345678Z"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_birth_date">Fecha de nacimiento</Label>
+                          <Input
+                            id="profile_birth_date"
+                            type="date"
+                            value={profileForm.birth_date}
+                            onChange={(e) => handleProfileChange("birth_date", e.target.value)}
+                            disabled={savingProfile}
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                          <Label htmlFor="profile_address">Direccion</Label>
+                          <Input
+                            id="profile_address"
+                            value={profileForm.address}
+                            onChange={(e) => handleProfileChange("address", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="Direccion completa"
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_cif">CIF</Label>
+                          <Input
+                            id="profile_cif"
+                            value={profileForm.cif}
+                            onChange={(e) => handleProfileChange("cif", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="B12345678"
+                          />
+                        </div>
+
+                        <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                          <Label htmlFor="profile_address">Direccion</Label>
+                          <Input
+                            id="profile_address"
+                            value={profileForm.address}
+                            onChange={(e) => handleProfileChange("address", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="Calle, numero, ciudad"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_city">Ciudad</Label>
+                          <Input
+                            id="profile_city"
+                            value={profileForm.city}
+                            onChange={(e) => handleProfileChange("city", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="Ciudad"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_postal_code">Codigo postal</Label>
+                          <Input
+                            id="profile_postal_code"
+                            value={profileForm.postal_code}
+                            onChange={(e) => handleProfileChange("postal_code", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="41001"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="profile_country">Pais</Label>
+                          <Input
+                            id="profile_country"
+                            value={profileForm.country}
+                            onChange={(e) => handleProfileChange("country", e.target.value)}
+                            disabled={savingProfile}
+                            placeholder="España"
+                          />
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="pt-2">
-                    <Button type="submit" disabled={savingProfile} className="gap-2">
+                    <Button type="submit" disabled={savingProfile} className="w-full gap-2 sm:w-auto">
                       <Save className="w-4 h-4" />
                       {savingProfile ? "Guardando..." : "Guardar cambios"}
                     </Button>
@@ -428,10 +556,12 @@ export default function ProfilePage() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card role="region" aria-labelledby="profile-readonly-details-title">
             <CardHeader>
-              <CardTitle>Detalles del perfil</CardTitle>
-              <CardDescription className="text-left">Informacion de tu cuenta y perfil asociado.</CardDescription>
+              <CardTitle id="profile-readonly-details-title" className="flex items-center gap-2">
+                <IdCard className="w-5 h-5 text-primary" />
+                Detalles del perfil
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

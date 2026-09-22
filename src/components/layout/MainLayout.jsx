@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthProvider';
 import Topbar from '@/components/layout/Topbar';
 import Sidebar from '@/components/layout/Sidebar';
@@ -64,15 +65,14 @@ export const MainLayout = ({ children }) => {
         >
           {isMobile && isSidebarOpen ? <X size={20} /> : <Menu size={20} />}
         </Button>
-        <div className="flex items-center gap-4 px-2">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-green-800 hidden sm:inline">
-              GreenPath - {roleLabel}
-            </span>
-            <span className="font-semibold text-green-800 sm:hidden">
-              GreenPath - {roleLabel}
-            </span>
-          </div>
+        <div className="flex min-w-0 items-center px-2">
+          <Link
+            to="/dashboard"
+            aria-label="Ir al dashboard"
+            className="truncate rounded-sm font-semibold text-green-800 transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            GreenPath - {roleLabel}
+          </Link>
         </div>
       </div>
       

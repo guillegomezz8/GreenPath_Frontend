@@ -9,10 +9,11 @@ import { Label } from "@/components/ui/label";
 import {
   Route,
   MapPin,
-  Clock,
-  Users,
   Search,
   Calendar,
+  CalendarRange,
+  Gauge,
+  UserRound,
   RefreshCcw,
   WandSparkles,
   Eye,
@@ -27,6 +28,7 @@ import { handleApiError } from "@/components/Utils";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 import RouteActionButton from "@/components/routes/RouteActionButton";
 import GenerateWeekDialog from "@/components/routes/GenerateWeekDialog";
+import { getRouteOptimizationFeedback } from "@/utils/routeOptimization";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 
@@ -35,6 +37,13 @@ function formatDate(dateStr) {
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("es-ES");
+}
+
+function formatCapacityLiters(value) {
+  if (value === null || value === undefined || value === "") return "Sin definir";
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return "Sin definir";
+  return `${parsed.toLocaleString("es-ES", { maximumFractionDigits: 2 })} L`;
 }
 
 export default function RoutesList() {
@@ -154,8 +163,13 @@ export default function RoutesList() {
         regenerate: hasExistingWeekStops ? regenerate : false,
         auto_estimate_without_contact: autoEstimateWithoutContact,
       };
-      await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
-      showSnackbar("Semana operativa generada correctamente.", "success");
+      const response = await api().post(`routes/${encodeURIComponent(selectedRoute.id)}/generate-week/`, payload);
+      const optimizationFeedback = getRouteOptimizationFeedback(response.data?.route_days);
+      showSnackbar(
+        optimizationFeedback || "Semana operativa generada y optimizada correctamente.",
+        optimizationFeedback ? "warning" : "success",
+        optimizationFeedback ? 9000 : 6000,
+      );
       setGenerateModalOpen(false);
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la semana operativa.");
@@ -366,61 +380,80 @@ export default function RoutesList() {
             const assignedWorkerLabel = assignedWorkerId ? (workersMap[assignedWorkerId] || `Trabajador ${assignedWorkerId}`) : null;
 
             return (
-              <Card key={route.id} className="hover:shadow-elegant transition-shadow">
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Route className="w-5 h-5 text-primary" />
-                        {route.name}
+              <Card key={route.id} className="flex h-full flex-col overflow-hidden transition-shadow hover:shadow-elegant">
+                <CardHeader className="border-b border-primary/15 bg-primary/5 px-4 py-4 sm:px-5">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="min-w-0 text-left">
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Route className="h-5 w-5 shrink-0 text-primary" />
+                        <span className="truncate">{route.name}</span>
                       </CardTitle>
-                      <CardDescription className="flex items-center gap-2 mt-1">
-                        <MapPin className="w-4 h-4" />
-                        {route.company_name || `Empresa #${route.company}`}
+                      <CardDescription className="mt-1 flex items-center gap-2">
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{route.company_name || `Empresa #${route.company}`}</span>
                       </CardDescription>
                     </div>
                     {canManageRoutes && (
                       <RouteActionButton
                         size="sm"
                         tone="danger"
-                        className="h-10 w-10 flex-shrink-0 rounded-full p-0"
+                        className="h-9 w-9 shrink-0 p-0"
                         onClick={() => askDelete(route)}
+                        title={`Eliminar ${route.name}`}
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Eliminar ruta</span>
                       </RouteActionButton>
                     )}
                   </div>
                 </CardHeader>
 
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Inicio:</span>
-                        <span className="font-medium">{formatDate(route.start_date)}</span>
+                <CardContent className="flex flex-1 flex-col p-0 text-sm">
+                  <div className="flex items-start justify-between gap-6 px-4 pt-4 sm:px-5 sm:pt-5">
+                    <div className="min-w-0 text-left">
+                      <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                        <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+                        Inicio
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Fin:</span>
-                        <span className="font-medium">{route.end_date ? formatDate(route.end_date) : "Sin fin"}</span>
+                      <p className="text-base font-semibold text-foreground">{formatDate(route.start_date)}</p>
+                    </div>
+                    <div className="min-w-0 text-right">
+                      <div className="mb-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                        Fin
+                        <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Semana:</span>
-                        <span className="font-medium">
+                      <p className="text-base font-semibold text-foreground">
+                        {route.end_date ? formatDate(route.end_date) : "Sin fin"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:gap-10 sm:px-5">
+                    <div className="flex min-w-0 items-start gap-3 text-left">
+                      <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Semana operativa</p>
+                        <p className="mt-1 font-medium text-foreground">
                           {WEEKDAY_LABELS[route.week_start] || "-"} - {WEEKDAY_LABELS[route.week_end] || "-"}
-                        </span>
+                        </p>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Users className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">Trabajador:</span>
-                        <span className="font-medium">{assignedWorkerId ? 1 : 0}</span>
+                    <div className="flex min-w-0 items-start gap-3 text-left">
+                      <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-muted-foreground">Capacidad por viaje</p>
+                        <p className="mt-1 font-medium text-foreground">
+                          {formatCapacityLiters(route.default_capacity_liters ?? route.default_daily_capacity_liters)}
+                        </p>
                       </div>
-                      <div className="flex flex-wrap gap-1">
+                    </div>
+                  </div>
+
+                  <div className="mx-4 mb-4 flex min-w-0 flex-1 items-start gap-3 rounded-md bg-muted/30 px-3 py-2.5 text-left sm:mx-5 sm:mb-5">
+                    <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                    <div className="min-w-0">
+                      <p className="mb-2 text-xs text-muted-foreground">Trabajador asignado</p>
+                      <div className="flex flex-wrap gap-2">
                         {!assignedWorkerLabel ? (
                           <Badge variant="outline">Sin asignar</Badge>
                         ) : (
@@ -430,25 +463,24 @@ export default function RoutesList() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-2 border-t border-border p-4 sm:grid-cols-2">
                     <RouteActionButton size="sm" tone="primary" icon={Route} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/execute`)}>
                       Realizar ruta
                     </RouteActionButton>
                     <RouteActionButton size="sm" tone="secondary" icon={Eye} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}`)}>
                       Ver detalle
                     </RouteActionButton>
+                    {canManageRoutes && (
+                      <>
+                        <RouteActionButton size="sm" tone="secondary" icon={Edit} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/edit`)}>
+                          Editar
+                        </RouteActionButton>
+                        <RouteActionButton size="sm" tone="accent" icon={WandSparkles} className="w-full justify-start sm:justify-center" onClick={() => askGenerateWeek(route)}>
+                          Generar semana
+                        </RouteActionButton>
+                      </>
+                    )}
                   </div>
-
-                  {canManageRoutes && (
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <RouteActionButton size="sm" tone="secondary" icon={Edit} className="w-full justify-start sm:justify-center" onClick={() => navigate(`/routes/${route.id}/edit`)}>
-                        Editar
-                      </RouteActionButton>
-                      <RouteActionButton size="sm" tone="accent" icon={WandSparkles} className="w-full justify-start sm:justify-center" onClick={() => askGenerateWeek(route)}>
-                        Generar semana
-                      </RouteActionButton>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             );

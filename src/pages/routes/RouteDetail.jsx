@@ -25,7 +25,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
 import RouteActionButton from "@/components/routes/RouteActionButton";
 import GenerateWeekDialog from "@/components/routes/GenerateWeekDialog";
-import { ArrowLeft, Calendar, CheckCircle, Edit, Route, Trash2, WandSparkles, RefreshCcw, MapPin, Play, Square, Navigation2, ClipboardCheck, ChevronDown, ChevronUp } from "lucide-react";
+import NavigationLinksDialog from "@/components/routes/NavigationLinksDialog";
+import RouteOptimizationBadge from "@/components/routes/RouteOptimizationBadge";
+import { getRouteOptimizationFeedback } from "@/utils/routeOptimization";
+import { ArrowLeft, Calendar, CalendarRange, CheckCircle, Edit, Gauge, Route, Trash2, UserRound, WandSparkles, RefreshCcw, MapPin, Play, Square, Navigation2, ClipboardCheck, ChevronDown, ChevronUp, SlidersHorizontal } from "lucide-react";
 
 const WEEKDAY_LABELS = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 const CONTAINER_TYPES = [
@@ -68,6 +71,43 @@ function formatDate(dateStr) {
   const d = new Date(`${dateStr}T00:00:00`);
   if (Number.isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("es-ES");
+}
+
+function getRouteDayDateParts(dateStr) {
+  if (!dateStr) return { weekday: "Dia", day: "-", month: "", longLabel: "Fecha sin definir" };
+  const date = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(date.getTime())) {
+    return { weekday: "Dia", day: "-", month: "", longLabel: dateStr };
+  }
+
+  const capitalize = (value) => value.charAt(0).toUpperCase() + value.slice(1);
+  return {
+    weekday: capitalize(date.toLocaleDateString("es-ES", { weekday: "long" })),
+    day: date.toLocaleDateString("es-ES", { day: "2-digit" }),
+    month: capitalize(date.toLocaleDateString("es-ES", { month: "short" }).replace(".", "")),
+    longLabel: capitalize(date.toLocaleDateString("es-ES", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    })),
+  };
+}
+
+function getRouteDayAccentClasses(status, hasStops) {
+  if (!hasStops) return "border-slate-200 bg-slate-50/70";
+  switch (status) {
+    case "IN_PROGRESS":
+      return "border-sky-300 bg-sky-50/40";
+    case "COMPLETED":
+      return "border-emerald-300 bg-emerald-50/40";
+    case "PARTIAL":
+      return "border-amber-300 bg-amber-50/40";
+    case "CANCELED":
+      return "border-rose-300 bg-rose-50/40";
+    default:
+      return "border-primary/30 bg-background";
+  }
 }
 
 function formatDateTime(dateTime) {
@@ -166,6 +206,7 @@ export default function RouteDetail() {
   const [workingRouteDayId, setWorkingRouteDayId] = useState(null);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [finishDecisionModalOpen, setFinishDecisionModalOpen] = useState(false);
+  const [navigationUrls, setNavigationUrls] = useState([]);
   const [finishDecisionContext, setFinishDecisionContext] = useState({
     routeDayId: null,
     date: "",
@@ -176,6 +217,7 @@ export default function RouteDetail() {
   const [selectedStopByRouteDay, setSelectedStopByRouteDay] = useState({});
   const [expandedRouteDays, setExpandedRouteDays] = useState({});
   const [routeDayStatusFilter, setRouteDayStatusFilter] = useState("ALL");
+  const [routeSummaryExpanded, setRouteSummaryExpanded] = useState(false);
   const [completePayload, setCompletePayload] = useState({
     container_type: "BIDONES",
     container_number: "1",
@@ -353,13 +395,18 @@ export default function RouteDetail() {
 
     try {
       setSubmittingGenerate(true);
-      await api().post(`routes/${encodeURIComponent(id)}/generate-week/`, {
+      const response = await api().post(`routes/${encodeURIComponent(id)}/generate-week/`, {
         week_start_date: normalizedWeekStartDate,
         daily_capacity_liters: dailyCapacityLiters,
         regenerate: hasExistingWeekStops ? regenerate : false,
         auto_estimate_without_contact: autoEstimateWithoutContact,
       });
-      showSnackbar("Semana operativa generada correctamente.", "success");
+      const optimizationFeedback = getRouteOptimizationFeedback(response.data?.route_days);
+      showSnackbar(
+        optimizationFeedback || "Semana operativa generada y optimizada correctamente.",
+        optimizationFeedback ? "warning" : "success",
+        optimizationFeedback ? 9000 : 6000,
+      );
       setGenerateModalOpen(false);
       setWeekFilter(normalizedWeekStartDate);
       await fetchOverview();
@@ -553,17 +600,16 @@ export default function RouteDetail() {
     try {
       setWorkingRouteDayId(routeDayId);
       const res = await api().get(`routes/${encodeURIComponent(id)}/route-days/${encodeURIComponent(routeDayId)}/google-navigation/`);
-      const navigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
-      if (navigationUrls.length === 0) {
+      const fetchedNavigationUrls = Array.isArray(res.data?.urls) && res.data.urls.length > 0 ? res.data.urls : (res.data?.url ? [res.data.url] : []);
+      if (fetchedNavigationUrls.length === 0) {
         showSnackbar("No se pudo generar el enlace de navegacion.", "error");
         return;
       }
-      if (navigationUrls.length > 1) {
-        showSnackbar(`La ruta se ha dividido en ${navigationUrls.length} enlaces de navegacion.`, "info");
+      if (fetchedNavigationUrls.length > 1) {
+        setNavigationUrls(fetchedNavigationUrls);
+        return;
       }
-      navigationUrls.forEach((navigationUrl) => {
-        window.open(navigationUrl, "_blank", "noopener,noreferrer");
-      });
+      window.open(fetchedNavigationUrls[0], "_blank", "noopener,noreferrer");
     } catch (e) {
       const msg = handleApiError(e, "No se pudo generar la navegacion de Google.");
       showSnackbar(msg, "error");
@@ -664,28 +710,60 @@ export default function RouteDetail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
+      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+        <Card className="overflow-hidden">
+          <CardHeader className="border-b border-primary/15 bg-primary/5 px-4 py-4 sm:px-5">
             <CardTitle className="flex items-center gap-2">
               <Route className="w-5 h-5 text-primary" />
               Datos de Ruta
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-left text-sm">
-            <p><span className="text-muted-foreground">Inicio:</span> {formatDate(overview.route?.start_date)}</p>
-            <p><span className="text-muted-foreground">Fin:</span> {overview.route?.end_date ? formatDate(overview.route.end_date) : "Sin fin"}</p>
-            <p>
-              <span className="text-muted-foreground">Semana operativa:</span>{" "}
-              {WEEKDAY_LABELS[overview.route?.week_start ?? 0]} - {WEEKDAY_LABELS[overview.route?.week_end ?? 6]}
-            </p>
-            <p>
-              <span className="text-muted-foreground">Capacidad diaria:</span> {routeDefaultCapacityLabel}
-            </p>
-            <div className="pt-2">
-              <p className="text-muted-foreground mb-1">Trabajador:</p>
-              <div className="flex flex-wrap gap-2">
-                {assignedWorkers.length === 0 ? <Badge variant="outline">Sin asignar</Badge> : assignedWorkers.map((label) => <Badge key={label} variant="outline">{label}</Badge>)}
+          <CardContent className="p-0 text-sm">
+            <div className="flex items-start justify-between gap-6 px-4 pt-4 sm:px-5 sm:pt-5">
+              <div className="min-w-0 text-left">
+                <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+                  Inicio
+                </div>
+                <p className="text-base font-semibold text-foreground sm:text-lg">{formatDate(overview.route?.start_date)}</p>
+              </div>
+              <div className="min-w-0 text-right">
+                <div className="mb-2 flex items-center justify-end gap-2 text-xs text-muted-foreground">
+                  Fin
+                  <Calendar className="h-4 w-4 text-primary" aria-hidden="true" />
+                </div>
+                <p className="text-base font-semibold text-foreground sm:text-lg">
+                  {overview.route?.end_date ? formatDate(overview.route.end_date) : "Sin fin"}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-4 px-4 py-5 sm:flex-row sm:gap-10 sm:px-5">
+              <div className="flex min-w-0 items-start gap-3 text-left">
+                <CalendarRange className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Semana operativa</p>
+                  <p className="mt-1 font-medium text-foreground">
+                    {WEEKDAY_LABELS[overview.route?.week_start ?? 0]} - {WEEKDAY_LABELS[overview.route?.week_end ?? 6]}
+                  </p>
+                </div>
+              </div>
+              <div className="flex min-w-0 items-start gap-3 text-left">
+                <Gauge className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Capacidad por viaje</p>
+                  <p className="mt-1 font-medium text-foreground">{routeDefaultCapacityLabel}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mx-4 mb-4 flex items-start gap-3 rounded-md bg-muted/30 px-3 py-2.5 text-left sm:mx-5 sm:mb-5">
+              <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" aria-hidden="true" />
+              <div className="min-w-0">
+                <p className="mb-2 text-xs text-muted-foreground">Trabajador asignado</p>
+                <div className="flex flex-wrap gap-2">
+                  {assignedWorkers.length === 0 ? <Badge variant="outline">Sin asignar</Badge> : assignedWorkers.map((label) => <Badge key={label} variant="outline">{label}</Badge>)}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -738,50 +816,82 @@ export default function RouteDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Dias operativos</p>
-              <p className="mt-1 text-xl font-semibold">{routeDays.length}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Paradas previstas</p>
-              <p className="mt-1 text-xl font-semibold">{routeDayOverview.totalStops}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Paradas registradas</p>
-              <p className="mt-1 text-xl font-semibold text-success">{routeDayOverview.completedStops}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-muted/20 p-3 text-left">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">Pendientes</p>
-              <p className="mt-1 text-xl font-semibold text-amber-600">{routeDayOverview.pendingStops}</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            {ROUTE_DAY_STATUS_FILTERS.map((statusOption) => {
-              const count = statusOption.value === "ALL"
-                ? routeDays.length
-                : routeDayOverview.statusCounts[statusOption.value] || 0;
-              const selected = routeDayStatusFilter === statusOption.value;
-              return (
-                <button
-                  key={statusOption.value}
-                  type="button"
-                  className={getRouteDayStatusFilterClasses(statusOption.value, selected)}
-                  onClick={() => setRouteDayStatusFilter(statusOption.value)}
-                >
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium">{statusOption.label}</p>
-                    <p className="text-[11px] opacity-70">
-                      {selected ? "Filtro activo" : "Pulsa para filtrar"}
-                    </p>
-                  </div>
-                  <span className={`inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-semibold ${selected ? "bg-white/80 text-current" : "bg-muted text-muted-foreground"}`}>
-                    {count}
+          <div className="overflow-hidden rounded-lg border border-border bg-background">
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-auto w-full justify-between gap-3 rounded-none px-3 py-3 text-left hover:bg-muted/40 sm:px-4"
+              aria-expanded={routeSummaryExpanded}
+              aria-controls="route-summary-filters"
+              onClick={() => setRouteSummaryExpanded((current) => !current)}
+            >
+              <span className="flex min-w-0 items-center gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-foreground">Resumen y filtros</span>
+                  <span className="block text-xs font-normal text-muted-foreground">
+                    {routeDayOverview.totalStops} paradas · {routeDayOverview.pendingStops} pendientes
                   </span>
-                </button>
-              );
-            })}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-2 text-xs font-medium text-muted-foreground">
+                <span className="hidden sm:inline">{routeSummaryExpanded ? "Ocultar" : "Mostrar"}</span>
+                {routeSummaryExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              </span>
+            </Button>
+
+            {routeSummaryExpanded ? (
+              <div id="route-summary-filters" className="space-y-3 border-t border-border bg-muted/10 p-3 sm:p-4">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-md border border-border bg-background p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Dias operativos</p>
+                    <p className="mt-1 text-lg font-semibold">{routeDays.length}</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Paradas previstas</p>
+                    <p className="mt-1 text-lg font-semibold">{routeDayOverview.totalStops}</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Registradas</p>
+                    <p className="mt-1 text-lg font-semibold text-success">{routeDayOverview.completedStops}</p>
+                  </div>
+                  <div className="rounded-md border border-border bg-background p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Pendientes</p>
+                    <p className="mt-1 text-lg font-semibold text-amber-600">{routeDayOverview.pendingStops}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  {ROUTE_DAY_STATUS_FILTERS.map((statusOption) => {
+                    const count = statusOption.value === "ALL"
+                      ? routeDays.length
+                      : routeDayOverview.statusCounts[statusOption.value] || 0;
+                    const selected = routeDayStatusFilter === statusOption.value;
+                    return (
+                      <button
+                        key={statusOption.value}
+                        type="button"
+                        className={getRouteDayStatusFilterClasses(statusOption.value, selected)}
+                        aria-pressed={selected}
+                        onClick={() => setRouteDayStatusFilter(statusOption.value)}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{statusOption.label}</p>
+                          <p className="text-[11px] opacity-70">
+                            {selected ? "Filtro activo" : "Pulsa para filtrar"}
+                          </p>
+                        </div>
+                        <span className={`inline-flex min-w-8 items-center justify-center rounded-full px-2 py-1 text-xs font-semibold ${selected ? "bg-white/80 text-current" : "bg-muted text-muted-foreground"}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {loading ? (
@@ -824,6 +934,8 @@ export default function RouteDetail() {
                 ).length;
                 const pendingStops = Math.max(plannedStops - completedStops - canceledStops, 0);
                 const progress = plannedStops > 0 ? Math.round((completedStops / plannedStops) * 100) : 0;
+                const hasStops = plannedStops > 0;
+                const dateParts = getRouteDayDateParts(routeDay.date);
                 const progressBarClass = routeDay.status === "CANCELED"
                   ? "bg-destructive"
                   : routeDay.status === "COMPLETED"
@@ -833,48 +945,83 @@ export default function RouteDetail() {
                 return (
                 <div
                   key={routeDay.id}
-                  className={`border rounded-lg p-3 ${routeDay.status === "IN_PROGRESS" ? "border-primary/40 bg-primary/5" : ""}`}
+                  className={`overflow-hidden rounded-lg border shadow-sm ${getRouteDayAccentClasses(routeDay.status, hasStops)}`}
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-left">
-                      <p className="font-medium">{formatDate(routeDay.date)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Capacidad: {formatCapacityLiters(routeDay.daily_capacity_liters)} | Paradas: {plannedStops}
-                      </p>
+                  <div className="flex flex-col sm:flex-row">
+                    <div className={`flex shrink-0 items-center gap-3 border-b px-4 py-3 sm:w-36 sm:flex-col sm:justify-center sm:gap-0 sm:border-b-0 sm:border-r sm:text-center ${hasStops ? "border-primary/20 bg-primary/10" : "border-slate-200 bg-slate-100/80"}`}>
+                      <span className={`text-sm font-semibold ${hasStops ? "text-primary" : "text-slate-500"}`}>
+                        {dateParts.weekday}
+                      </span>
+                      <span className={`text-2xl font-bold leading-none sm:mt-1 ${hasStops ? "text-foreground" : "text-slate-500"}`}>
+                        {dateParts.day}
+                      </span>
+                      <span className="text-xs text-muted-foreground sm:mt-1">{dateParts.month}</span>
                     </div>
-                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-                      <Badge className={getRouteStatusClass(routeDay.status)}>{getRouteStatusLabel(routeDay.status)}</Badge>
-                    </div>
-                  </div>
+                    <div className={`min-w-0 flex-1 p-4 ${hasStops ? "" : "py-3"}`}>
+                      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                        <div className="text-left">
+                          <p className={`font-semibold ${hasStops ? "text-foreground" : "text-slate-600"}`}>{dateParts.longLabel}</p>
+                          {hasStops ? (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {plannedStops} {plannedStops === 1 ? "parada programada" : "paradas programadas"} · Capacidad por viaje: {formatCapacityLiters(routeDay.daily_capacity_liters)}
+                            </p>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">Sin paradas programadas</p>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                          <Badge className={getRouteStatusClass(routeDay.status)}>{getRouteStatusLabel(routeDay.status)}</Badge>
+                          {hasStops ? (
+                            <RouteOptimizationBadge
+                              status={routeDay.optimization_status}
+                              message={routeDay.optimization_message}
+                            />
+                          ) : null}
+                        </div>
+                      </div>
 
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{completedStops} registradas</span>
-                      <span>{pendingStops} pendientes</span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-secondary">
-                      <div
-                        className={`h-2 rounded-full transition-all ${progressBarClass}`}
-                        style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
-                      />
-                    </div>
-                  </div>
+                      {hasStops ? (
+                        <>
+                          {routeDay.optimization_status === "FAILED" || routeDay.optimization_status === "FALLBACK" ? (
+                            <p className={`mt-3 rounded-md border px-3 py-2 text-left text-xs ${
+                              routeDay.optimization_status === "FAILED"
+                                ? "border-red-200 bg-red-50 text-red-700"
+                                : "border-amber-200 bg-amber-50 text-amber-700"
+                            }`}>
+                              {routeDay.optimization_message || "La jornada no pudo optimizarse completamente."}
+                            </p>
+                          ) : null}
 
-                  {(() => {
-                    const tableExpanded = expandedRouteDays[routeDay.id] === true;
-                    return (
-                      <>
-                        <div className="mt-3 rounded-lg border border-border bg-muted/20 p-3">
-                          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                            <div className="grid grid-cols-1 gap-2 text-left text-xs sm:grid-cols-3">
-                              <p><span className="text-muted-foreground">Pendientes:</span> {pendingStops}</p>
-                              <p><span className="text-muted-foreground">Registradas:</span> {completedStops}</p>
-                              <p><span className="text-muted-foreground">Canceladas:</span> {canceledStops}</p>
+                          <div className="mt-4 space-y-1.5">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{completedStops} de {plannedStops} registradas</span>
+                              <span>{progress}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-secondary">
+                              <div
+                                className={`h-2 rounded-full transition-all ${progressBarClass}`}
+                                style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
+                              />
                             </div>
                           </div>
-                        </div>
 
-                        {tableExpanded ? (
+                          {(() => {
+                            const tableExpanded = expandedRouteDays[routeDay.id] === true;
+                            return (
+                              <>
+                                <div className="mt-4 flex flex-col gap-3 border-y border-border/70 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                  <div className="grid grid-cols-3 gap-4 text-left text-xs">
+                                    <p><span className="block text-muted-foreground">Pendientes</span><strong className="mt-0.5 block text-sm text-foreground">{pendingStops}</strong></p>
+                                    <p><span className="block text-muted-foreground">Registradas</span><strong className="mt-0.5 block text-sm text-foreground">{completedStops}</strong></p>
+                                    <p><span className="block text-muted-foreground">Canceladas</span><strong className="mt-0.5 block text-sm text-foreground">{canceledStops}</strong></p>
+                                  </div>
+                                  <Button size="sm" variant="outline" className="w-full gap-1 sm:w-auto" onClick={() => toggleRouteDayExpanded(routeDay.id)}>
+                                    {tableExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                                    {tableExpanded ? "Ocultar paradas" : "Ver paradas"}
+                                  </Button>
+                                </div>
+
+                                {tableExpanded ? (
                           routeDay.clients.length === 0 ? (
                             <p className="mt-2 text-xs text-muted-foreground text-left">No hay clientes asignados en este dia.</p>
                           ) : (
@@ -992,18 +1139,15 @@ export default function RouteDetail() {
                                 </table>
                               </div>
                             </>
-                          )
-                        ) : null}
-
-                        <div className="mt-3 flex justify-end">
-                          <Button size="sm" variant="outline" className="w-full gap-1 sm:w-auto" onClick={() => toggleRouteDayExpanded(routeDay.id)}>
-                            {tableExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                            {tableExpanded ? "Ocultar tabla de paradas" : "Mostrar tabla de paradas"}
-                          </Button>
-                        </div>
-                      </>
-                    );
-                  })()}
+                                  )
+                                ) : null}
+                              </>
+                            );
+                          })()}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
                 );
               })}
@@ -1192,6 +1336,14 @@ export default function RouteDetail() {
           loading={deleting}
         />
       )}
+
+      <NavigationLinksDialog
+        open={navigationUrls.length > 1}
+        onOpenChange={(open) => {
+          if (!open) setNavigationUrls([]);
+        }}
+        urls={navigationUrls}
+      />
     </div>
   );
 }

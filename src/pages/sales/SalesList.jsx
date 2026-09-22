@@ -27,6 +27,12 @@ function formatDate(value) {
   return parsed.toLocaleDateString("es-ES");
 }
 
+function getSaleLines(sale) {
+  return Array.isArray(sale.lines) && sale.lines.length > 0
+    ? sale.lines
+    : [sale];
+}
+
 export default function SalesList() {
   const navigate = useNavigate();
   const { api } = useAuth();
@@ -134,7 +140,14 @@ export default function SalesList() {
         onPrevPage={() => setPage((prev) => Math.max(1, prev - 1))}
         onNextPage={() => setPage((prev) => Math.min(totalPages, prev + 1))}
       >
-        {sales.map((sale) => (
+        {sales.map((sale) => {
+          const lines = getSaleLines(sale);
+          const description = lines
+            .map((line) => line.product_description)
+            .filter(Boolean)
+            .join(" · ");
+
+          return (
           <Card key={sale.id} className="transition-shadow hover:shadow-elegant">
             <CardHeader className="pb-3 text-left">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -153,15 +166,16 @@ export default function SalesList() {
             </CardHeader>
             <CardContent className="space-y-4 text-left">
               <div className="space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-start gap-2">
+                <div className="flex min-w-0 items-center gap-2">
                   <FileText className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span>{sale.product_description || "Sin descripcion"}</span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {description || "Sin descripcion"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                  <div><span className="font-medium text-foreground">Cantidad:</span> {toNumber(sale.quantity).toFixed(2)} {sale.unit || "-"}</div>
-                  <div><span className="font-medium text-foreground">Precio:</span> {formatCurrency(sale.unit_price, sale.currency || "EUR")}</div>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                  <div><span className="font-medium text-foreground">Conceptos:</span> {lines.length}</div>
                   <div><span className="font-medium text-foreground">Base:</span> {formatCurrency(sale.subtotal, sale.currency || "EUR")}</div>
-                  <div><span className="font-medium text-foreground">IVA:</span> {toNumber(sale.tax_rate).toFixed(2)}%</div>
+                  <div><span className="font-medium text-foreground">IVA:</span> {formatCurrency(sale.tax_amount, sale.currency || "EUR")}</div>
                 </div>
               </div>
 
@@ -187,7 +201,8 @@ export default function SalesList() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </PaginatedScaffold>
 
       <ConfirmDeleteDialog

@@ -2,15 +2,14 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthProvider";
 import PaginatedScaffold from "@/components/common/PaginatedScaffold";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Eye, Edit, Trash2, Truck, User, Calendar } from "lucide-react";
+import { Plus, Edit, Trash2, Truck, User, Gauge, Fuel } from "lucide-react";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
 import ConfirmDeleteDialog from "@/components/common/ConfirmDeleteDialog";
-import { EmptyState } from "@/components/common/EmptyState";
 
 const STATUS_OPTIONS = ["Todos", "Activo", "En Servicio", "Mantenimiento", "Fuera de Servicio", "Retirado"];
 const STATUS_MAP = {
@@ -172,28 +171,106 @@ export default function TrucksList() {
             <CardTitle>Lista de Camiones</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Matrícula</TableHead>
-                  <TableHead>Marca / Modelo</TableHead>
-                  <TableHead>Año</TableHead>
-                  <TableHead>Capacidad</TableHead>
-                  <TableHead>Conductor</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Combustible</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {trucks.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
-                      No hay camiones disponibles.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  trucks.map((truck) => (
+            {trucks.length === 0 ? (
+              <p className="py-6 text-center text-muted-foreground">
+                No hay camiones disponibles.
+              </p>
+            ) : (
+              <>
+                <div className="space-y-3 xl:hidden" aria-label="Lista de camiones">
+                  {trucks.map((truck) => (
+                    <article
+                      key={truck.id}
+                      className="rounded-md border border-border bg-background p-4"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-base font-semibold text-foreground">
+                            {truck.registration_number}
+                          </p>
+                          <p className="truncate text-sm text-muted-foreground">
+                            {[truck.brand, truck.model].filter(Boolean).join(" ") || "Sin marca ni modelo"}
+                            {truck.year ? ` · ${truck.year}` : ""}
+                          </p>
+                        </div>
+                        <Badge className={`${getStatusColor(truck.status)} shrink-0`}>
+                          {truck.status_display}
+                        </Badge>
+                      </div>
+
+                      <dl className="mt-4 divide-y divide-border border-y border-border text-sm">
+                        <div className="flex min-w-0 items-center justify-between gap-4 py-2.5">
+                          <dt className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                            <Gauge className="h-4 w-4" aria-hidden="true" />
+                            Capacidad
+                          </dt>
+                          <dd className="truncate text-right font-semibold text-foreground">
+                            {truck.capacity
+                              ? `${parseFloat(truck.capacity).toLocaleString("es-ES")} L`
+                              : "-"}
+                          </dd>
+                        </div>
+                        <div className="flex min-w-0 items-center justify-between gap-4 py-2.5">
+                          <dt className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                            <User className="h-4 w-4" aria-hidden="true" />
+                            Conductor
+                          </dt>
+                          <dd className="truncate text-right font-medium text-foreground">
+                            {truck.driver_name && truck.driver_name !== "-"
+                              ? truck.driver_name
+                              : "Sin asignar"}
+                          </dd>
+                        </div>
+                        <div className="flex min-w-0 items-center justify-between gap-4 py-2.5">
+                          <dt className="flex shrink-0 items-center gap-2 text-muted-foreground">
+                            <Fuel className="h-4 w-4" aria-hidden="true" />
+                            Combustible
+                          </dt>
+                          <dd className="truncate text-right font-medium text-foreground">
+                            {truck.fuel_display || "-"}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      <div className="mt-4 flex justify-end gap-2 border-t border-border pt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/trucks/${truck.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4" aria-hidden="true" />
+                          Editar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => askDelete(truck)}
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                          Eliminar
+                        </Button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+
+                <div className="hidden xl:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Matrícula</TableHead>
+                        <TableHead>Marca / Modelo</TableHead>
+                        <TableHead>Año</TableHead>
+                        <TableHead>Capacidad</TableHead>
+                        <TableHead>Conductor</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Combustible</TableHead>
+                        <TableHead className="text-right">Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {trucks.map((truck) => (
                     <TableRow key={truck.id}>
                       <TableCell className="font-medium">{truck.registration_number}</TableCell>
                       <TableCell>
@@ -202,7 +279,7 @@ export default function TrucksList() {
                       <TableCell>{truck.year || "-"}</TableCell>
                       <TableCell>
                         {truck.capacity
-                          ? `${parseFloat(truck.capacity).toLocaleString()} L`
+                          ? `${parseFloat(truck.capacity).toLocaleString("es-ES")} L`
                           : "-"}
                       </TableCell>
                       <TableCell>
@@ -226,6 +303,8 @@ export default function TrucksList() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            aria-label={`Editar camión ${truck.registration_number}`}
+                            title="Editar"
                             onClick={() => navigate(`/trucks/${truck.id}/edit`)}
                           >
                             <Edit className="w-4 h-4" />
@@ -234,6 +313,8 @@ export default function TrucksList() {
                             variant="ghost"
                             size="sm"
                             className="text-destructive hover:text-destructive"
+                            aria-label={`Eliminar camión ${truck.registration_number}`}
+                            title="Eliminar"
                             onClick={() => askDelete(truck)}
                           >
                             <Trash2 className="w-4 h-4" />
@@ -241,10 +322,12 @@ export default function TrucksList() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
       </PaginatedScaffold>

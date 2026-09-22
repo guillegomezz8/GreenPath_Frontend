@@ -22,6 +22,7 @@ describe("GenerateWeekDialog", () => {
   it("oculta la opcion de regenerar si no hay paradas existentes", () => {
     render(<GenerateWeekDialog {...baseProps} />);
 
+    expect(screen.getByLabelText(/capacidad por viaje/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/regenerar paradas existentes/i)).not.toBeInTheDocument();
     expect(screen.getByText(/no hay paradas existentes en esa semana/i)).toBeInTheDocument();
   });
