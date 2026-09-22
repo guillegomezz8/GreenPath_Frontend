@@ -2,28 +2,72 @@ import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 import axios from "axios";
 
+const API_FIELD_LABELS = {
+  user: "Usuario",
+  username: "Nombre de usuario",
+  email: "Correo electronico",
+  name: "Nombre",
+  surname: "Apellidos",
+  phone: "Telefono",
+  dni: "DNI",
+  address: "Direccion",
+  birth_date: "Fecha de nacimiento",
+  photo: "Foto",
+  get_access: "Acceso a la plataforma",
+  company: "Empresa",
+};
+
+function getApiFieldLabel(field) {
+  return API_FIELD_LABELS[field] || field.replaceAll("_", " ");
+}
+
+export function formatApiErrors(data) {
+  const errors = [];
+
+  const collectErrors = (value, path = []) => {
+    if (value === null || value === undefined || value === "") return;
+
+    if (Array.isArray(value)) {
+      value.forEach((item) => collectErrors(item, path));
+      return;
+    }
+
+    if (typeof value === "object") {
+      Object.entries(value).forEach(([field, nestedValue]) => {
+        const nextPath = field === "non_field_errors" ? path : [...path, field];
+        collectErrors(nestedValue, nextPath);
+      });
+      return;
+    }
+
+    const fieldLabel = path.map(getApiFieldLabel).join(" · ");
+    const message = String(value);
+    errors.push(fieldLabel ? `${fieldLabel}: ${message}` : message);
+  };
+
+  collectErrors(data);
+  return errors.join(" | ");
+}
+
 export function handleApiError(error, defaultErrorMessage) {
   let errorMessage = defaultErrorMessage;
-  console.log('Error recibido:', error);
   if (error.response?.data) {
     const data = error.response.data;
     if (typeof data === 'string') {
       errorMessage = data;
     }
     else if (data.detail) {
-      errorMessage = data.detail;
+      errorMessage = typeof data.detail === "string"
+        ? data.detail
+        : formatApiErrors(data.detail) || defaultErrorMessage;
     }
     else if (data.message) {
-      errorMessage = data.message;
+      errorMessage = typeof data.message === "string"
+        ? data.message
+        : formatApiErrors(data.message) || defaultErrorMessage;
     }
     else if (typeof data === 'object') {
-      const errors = Object.entries(data)
-        .map(([field, msgs]) => {
-          const messages = Array.isArray(msgs) ? msgs : [msgs];
-          return `${field}: ${messages.join(', ')}`;
-        })
-        .join(' | ');
-      errorMessage = errors || defaultErrorMessage;
+      errorMessage = formatApiErrors(data) || defaultErrorMessage;
     }
   }  
   return errorMessage;

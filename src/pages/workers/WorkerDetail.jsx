@@ -381,7 +381,8 @@ export default function WorkerDetail() {
                   <div className="space-y-3">
                     {collections.map((c) => {
                       const normalizedStatus = normalizeCollectionStatus(c.status);
-                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
+                      const liters = c.measured_liters ?? c.estimated_liters;
+                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${liters ?? "-"} L`;
                       const priceLabel = normalizedStatus === "CONFIRMED"
                         ? (c.billable ? `${formatCurrency(c.total_price)} facturable` : `${formatCurrency(c.total_price)} no facturable`)
                         : "-";

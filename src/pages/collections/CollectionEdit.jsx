@@ -45,6 +45,18 @@ function formatDecimal(value, decimals = 2) {
   return Number.isFinite(n) ? n.toFixed(decimals) : "-";
 }
 
+export function calculateDeductionLiters(estimatedLiters, measuredLiters) {
+  const measured = toOptionalNumber(measuredLiters);
+  if (measured === null) return 0;
+  return Math.max(0, Number(estimatedLiters || 0) - measured);
+}
+
+export function calculateCollectionTotal(estimatedLiters, measuredLiters, pricePerLiter, isCanceled = false) {
+  if (isCanceled) return 0;
+  const payableLiters = toOptionalNumber(measuredLiters) ?? toOptionalNumber(estimatedLiters) ?? 0;
+  return payableLiters * (toOptionalNumber(pricePerLiter) || 0);
+}
+
 export default function CollectionEdit() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -66,12 +78,12 @@ export default function CollectionEdit() {
     collection_date: "",
     container_type: "BIDONES",
     container_number: "1",
+    estimated_liters: "0",
     measured_liters: "",
     deduction_liters: "0",
     deduction_reason: "",
     deduction_notes: "",
     price_per_liter: "0.000",
-    total_price: "0.00",
     billable: true,
     status: "PENDING_MEASUREMENT",
     notes: "",
@@ -135,12 +147,14 @@ export default function CollectionEdit() {
         collection_date: item.collection_date || "",
         container_type: item.container_type || "BIDONES",
         container_number: String(item.container_number ?? "1"),
+        estimated_liters: item.estimated_liters ?? "0",
         measured_liters: item.measured_liters ?? "",
-        deduction_liters: item.deduction_liters ?? "0",
+        deduction_liters: item.measured_liters === null || item.measured_liters === undefined
+          ? "0"
+          : String(calculateDeductionLiters(item.estimated_liters, item.measured_liters)),
         deduction_reason: item.deduction_reason || "",
         deduction_notes: item.deduction_notes || "",
         price_per_liter: item.price_per_liter ?? "0.000",
-        total_price: item.total_price ?? "0.00",
         billable: item.billable !== false,
         status: item.status_code || statusCode,
         notes: item.notes || "",
@@ -207,20 +221,29 @@ export default function CollectionEdit() {
         next.deduction_reason = "";
       }
 
-      if (field === "deduction_liters" && (toOptionalNumber(value) || 0) <= 0) {
-        next.deduction_reason = "";
+      if (field === "measured_liters" && toOptionalNumber(value) !== null) {
+        const deduction = calculateDeductionLiters(prev.estimated_liters, value);
+        next.deduction_liters = deduction.toFixed(2);
+        if (deduction === 0) next.deduction_reason = "";
       }
 
       return next;
     });
   };
 
-  const litersPreview = useMemo(() => {
-    const measured = toOptionalNumber(formData.measured_liters);
-    const deduction = toOptionalNumber(formData.deduction_liters) || 0;
-    if (measured === null) return null;
-    return Math.max(0, measured - deduction);
-  }, [formData.measured_liters, formData.deduction_liters]);
+  const estimatedLiters = useMemo(
+    () => toOptionalNumber(formData.estimated_liters) || 0,
+    [formData.estimated_liters],
+  );
+  const calculatedTotal = useMemo(
+    () => calculateCollectionTotal(
+      estimatedLiters,
+      formData.measured_liters,
+      formData.price_per_liter,
+      isCanceled,
+    ),
+    [estimatedLiters, formData.measured_liters, formData.price_per_liter, isCanceled],
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -236,7 +259,9 @@ export default function CollectionEdit() {
         showSnackbar("Para confirmar la recogida debes indicar los litros medidos.", "error");
         return;
       }
-      const deductionValue = normalizedStatus === "CANCELED" ? 0 : Number(formData.deduction_liters || 0);
+      const deductionValue = normalizedStatus === "CANCELED" || measuredValue === null
+        ? 0
+        : calculateDeductionLiters(estimatedLiters, measuredValue);
       if (deductionValue > 0 && !formData.deduction_reason) {
         showSnackbar("Indica el motivo de deduccion cuando hay litros descontados.", "error");
         return;
@@ -249,7 +274,6 @@ export default function CollectionEdit() {
         container_type: formData.container_type,
         container_number: Number(formData.container_number || 1),
         measured_liters: normalizedStatus === "CANCELED" ? null : measuredValue,
-        deduction_liters: deductionValue,
         deduction_reason: deductionValue > 0 ? formData.deduction_reason : "",
         deduction_notes: formData.deduction_notes || "",
         price_per_liter: Number(formData.price_per_liter || 0),
@@ -399,16 +423,16 @@ export default function CollectionEdit() {
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label>Litros medidos</Label>
+                <Label>Litros medidos finales</Label>
                 <Input type="number" min="0" step="0.01" value={formData.measured_liters} onChange={(e) => handleChange("measured_liters", e.target.value)} disabled={loading || submitting || isCanceled} />
               </div>
               <div className="space-y-2">
                 <Label>Litros deducidos</Label>
-                <Input type="number" min="0" step="0.01" value={formData.deduction_liters} onChange={(e) => handleChange("deduction_liters", e.target.value)} disabled={loading || submitting || isCanceled || measuredValue === null} />
+                <Input value={formatDecimal(formData.deduction_liters, 2)} disabled />
               </div>
               <div className="space-y-2">
-                <Label>Litros netos prev.</Label>
-                <Input value={litersPreview === null ? "-" : litersPreview.toFixed(2)} disabled />
+                <Label>Litros estimados iniciales</Label>
+                <Input value={formatDecimal(formData.estimated_liters, 2)} disabled />
               </div>
             </div>
 
@@ -430,11 +454,18 @@ export default function CollectionEdit() {
               </div>
               <div className="space-y-2">
                 <Label>Precio por litro</Label>
-                <Input type="number" min="0" step="0.001" value={formData.price_per_liter} disabled />
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.001"
+                  value={formData.price_per_liter}
+                  onChange={(e) => handleChange("price_per_liter", e.target.value)}
+                  disabled={loading || submitting || isCanceled}
+                />
               </div>
               <div className="space-y-2">
-                <Label>Importe abonado</Label>
-                <Input value={`${formatDecimal(formData.total_price, 2)} EUR`} disabled />
+                <Label>Importe calculado</Label>
+                <Input value={`${formatDecimal(calculatedTotal, 2)} EUR`} disabled />
               </div>
               <div className="space-y-2">
                 <Label>Estado</Label>

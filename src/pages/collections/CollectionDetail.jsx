@@ -60,7 +60,8 @@ export default function CollectionDetail() {
   const billableLabel = collection?.billable_label || (collection?.billable ? "Facturable" : "No facturable");
   const title = loading ? "Cargando..." : `${isClient ? "Mi recogida" : "Recogida"} #${collection?.id || id}`;
   const collectionDate = formatDate(collection?.collection_date);
-  const netLitersLabel = `${asNumber(collection?.net_liters).toFixed(2)} L`;
+  const registeredLitersLabel = `${asNumber(collection?.measured_liters ?? collection?.estimated_liters).toFixed(2)} L`;
+  const registeredLitersTitle = collection?.measured_liters == null ? "Litros estimados" : "Litros registrados";
   const totalPriceLabel = `${asNumber(collection?.total_price).toFixed(2)} EUR`;
   const pricePerLiterLabel = `${asNumber(collection?.price_per_liter).toFixed(2)} EUR`;
   const statusLabel = collection?.status ? getCollectionStatusLabel(collection.status) : "-";
@@ -162,7 +163,7 @@ export default function CollectionDetail() {
               {!isClient && <FieldItem icon={Weight} label="Litros estimados" value={`${asNumber(collection?.estimated_liters).toFixed(2)} L`} />}
               {!isClient && <FieldItem icon={Weight} label="Litros medidos" value={collection?.measured_liters !== null ? `${asNumber(collection?.measured_liters).toFixed(2)} L` : "-"} />}
               {!isClient && <FieldItem icon={Weight} label="Litros deducidos" value={`${asNumber(collection?.deduction_liters).toFixed(2)} L`} />}
-              <FieldItem icon={CheckCircle} label={isClient ? "Litros registrados" : "Litros netos"} value={netLitersLabel} strong />
+              {isClient && <FieldItem icon={CheckCircle} label={registeredLitersTitle} value={registeredLitersLabel} strong />}
               <FieldItem icon={Euro} label="Precio por litro" value={pricePerLiterLabel} />
               <FieldItem icon={Euro} label="Total" value={totalPriceLabel} strong />
               {!isClient && <FieldItem icon={CheckCircle} label="Facturacion" value={billableLabel} />}

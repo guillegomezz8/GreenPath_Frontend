@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import CollectionsList from "../CollectionsList";
 
 const mocks = vi.hoisted(() => {
@@ -6,10 +6,12 @@ const mocks = vi.hoisted(() => {
   const snackbar = vi.fn();
   const get = vi.fn();
   const del = vi.fn();
+  const patch = vi.fn();
   const user = { role_type: "client" };
   const apiFactory = vi.fn(() => ({
     get,
     delete: del,
+    patch,
   }));
 
   return {
@@ -17,6 +19,7 @@ const mocks = vi.hoisted(() => {
     snackbar,
     get,
     del,
+    patch,
     user,
     apiFactory,
   };
@@ -43,6 +46,8 @@ describe("CollectionsList", () => {
     mocks.snackbar.mockReset();
     mocks.get.mockReset();
     mocks.del.mockReset();
+    mocks.patch.mockReset();
+    mocks.patch.mockResolvedValue({ data: {} });
     mocks.apiFactory.mockClear();
     mocks.user.role_type = "client";
   });
@@ -82,7 +87,7 @@ describe("CollectionsList", () => {
               container_type: "BIDONES",
               container_number: 3,
               estimated_liters: "180.00",
-              net_liters: "180.00",
+              measured_liters: "180.00",
               total_price: "216.00",
               notes: "Nota interna del equipo",
             },
@@ -150,7 +155,7 @@ describe("CollectionsList", () => {
               container_type: "BIDONES",
               container_number: 3,
               estimated_liters: "180.00",
-              net_liters: "180.00",
+              measured_liters: "180.00",
               total_price: "216.00",
             },
           ],
@@ -180,5 +185,52 @@ describe("CollectionsList", () => {
         })
       );
     });
+  });
+
+  it("confirma rapidamente una recogida pendiente con los litros medidos", async () => {
+    mocks.user.role_type = "owner";
+    mocks.get.mockImplementation((url, config = {}) => {
+      if (url !== "collections") return Promise.reject(new Error(`Unexpected GET ${url}`));
+      if (config.params?.page_size === 1) return Promise.resolve({ data: { count: 1, results: [] } });
+      return Promise.resolve({
+        data: {
+          count: 1,
+          results: [{
+            id: 9,
+            client_name: "Cliente Pendiente",
+            route_name: "Ruta Norte",
+            collection_date: "2026-09-23",
+            status: "PENDING_MEASUREMENT",
+            worker_name: "Trabajador Demo",
+            billable: true,
+            container_type: "BIDONES",
+            container_number: 3,
+            estimated_liters: "180.00",
+            measured_liters: null,
+            total_price: "180.00",
+          }],
+        },
+      });
+    });
+
+    render(<CollectionsList />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Confirmar" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("180.00 L")).toBeInTheDocument();
+
+    fireEvent.change(within(dialog).getByLabelText("Litros medidos finales *"), {
+      target: { value: "180" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Confirmar" }));
+
+    await waitFor(() => {
+      expect(mocks.patch).toHaveBeenCalledWith("collections/9/", {
+        measured_liters: 180,
+        deduction_reason: "",
+        status: "CONFIRMED",
+      });
+    });
+    expect(mocks.snackbar).toHaveBeenCalledWith("Recogida confirmada correctamente.", "success");
   });
 });

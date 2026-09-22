@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Package,
   Truck,
@@ -19,6 +22,7 @@ import {
   Edit,
   Trash2,
   ChevronDown,
+  ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
@@ -32,6 +36,13 @@ const STATUS_MAP = {
   Confirmada: "CONFIRMED",
   Cancelada: "CANCELED",
 };
+const EMPTY_DEDUCTION_REASON = "__none__";
+const DEDUCTION_OPTIONS = [
+  { value: "WATER", label: "Agua" },
+  { value: "RESIDUE", label: "Residuo" },
+  { value: "MIXED", label: "Mezcla" },
+  { value: "OTHER", label: "Otro" },
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return "-";
@@ -43,6 +54,10 @@ function formatDate(dateStr) {
 function normalizeNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function getCollectionLiters(collection) {
+  return normalizeNumber(collection.measured_liters ?? collection.estimated_liters);
 }
 
 export default function CollectionsList() {
@@ -68,6 +83,11 @@ export default function CollectionsList() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [toDelete, setToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [toConfirm, setToConfirm] = useState(null);
+  const [measuredLiters, setMeasuredLiters] = useState("");
+  const [deductionReason, setDeductionReason] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const [isCountsOpen, setIsCountsOpen] = useState(false);
   const searchPlaceholder = isClient
     ? "Buscar por trabajador..."
@@ -140,8 +160,8 @@ export default function CollectionsList() {
     setPage(1);
   }, [searchTerm, selectedDate, selectedStatus]);
 
-  const totalNetLiters = useMemo(
-    () => collections.filter((item) => normalizeCollectionStatus(item.status) !== "CANCELED").reduce((acc, item) => acc + normalizeNumber(item.net_liters), 0),
+  const totalMeasuredLiters = useMemo(
+    () => collections.filter((item) => normalizeCollectionStatus(item.status) === "CONFIRMED").reduce((acc, item) => acc + normalizeNumber(item.measured_liters), 0),
     [collections]
   );
 
@@ -153,6 +173,57 @@ export default function CollectionsList() {
   const askDelete = (collection) => {
     setToDelete(collection);
     setDeleteOpen(true);
+  };
+
+  const openConfirmDialog = (collection) => {
+    setToConfirm(collection);
+    setMeasuredLiters("");
+    setDeductionReason("");
+    setConfirmOpen(true);
+  };
+
+  const closeConfirmDialog = () => {
+    if (confirming) return;
+    setConfirmOpen(false);
+    setToConfirm(null);
+    setMeasuredLiters("");
+    setDeductionReason("");
+  };
+
+  const estimatedLiters = normalizeNumber(toConfirm?.estimated_liters);
+  const measuredLitersValue = measuredLiters === "" ? null : Number(measuredLiters);
+  const validMeasuredLiters = measuredLitersValue !== null && Number.isFinite(measuredLitersValue) && measuredLitersValue >= 0;
+  const deductedLiters = validMeasuredLiters ? Math.max(0, estimatedLiters - measuredLitersValue) : 0;
+
+  const handleQuickConfirm = async () => {
+    if (!toConfirm?.id || !validMeasuredLiters) {
+      showSnackbar("Indica una cantidad valida de litros medidos.", "error");
+      return;
+    }
+    if (deductedLiters > 0 && !deductionReason) {
+      showSnackbar("Indica el motivo de deduccion.", "error");
+      return;
+    }
+
+    try {
+      setConfirming(true);
+      await api().patch(`collections/${encodeURIComponent(toConfirm.id)}/`, {
+        measured_liters: measuredLitersValue,
+        deduction_reason: deductedLiters > 0 ? deductionReason : "",
+        status: "CONFIRMED",
+      });
+      showSnackbar("Recogida confirmada correctamente.", "success");
+      setConfirmOpen(false);
+      setToConfirm(null);
+      setMeasuredLiters("");
+      setDeductionReason("");
+      await Promise.all([fetchCollections(), fetchCounts()]);
+    } catch (e) {
+      const msg = handleApiError(e, "No se pudo confirmar la recogida.");
+      showSnackbar(msg, "error");
+    } finally {
+      setConfirming(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -276,7 +347,7 @@ export default function CollectionsList() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Litros pagina</span>
-                  <span className="text-lg font-bold text-primary">{Math.round(totalNetLiters)}L</span>
+                  <span className="text-lg font-bold text-primary">{Math.round(totalMeasuredLiters)}L</span>
                 </div>
               </div>
             )}
@@ -291,7 +362,7 @@ export default function CollectionsList() {
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-blue-500">{counts.pending}</div><p className="text-sm text-muted-foreground">Pendientes</p></CardContent></Card>
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-success">{counts.confirmed}</div><p className="text-sm text-muted-foreground">Confirmadas</p></CardContent></Card>
         <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-destructive">{counts.canceled}</div><p className="text-sm text-muted-foreground">Canceladas</p></CardContent></Card>
-        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{Math.round(totalNetLiters)}L</div><p className="text-sm text-muted-foreground">Litros (pagina)</p></CardContent></Card>
+        <Card><CardContent className="pt-6 text-center"><div className="text-2xl font-bold text-primary">{Math.round(totalMeasuredLiters)}L</div><p className="text-sm text-muted-foreground">Litros (pagina)</p></CardContent></Card>
       </div>
       )}
 
@@ -379,9 +450,9 @@ export default function CollectionsList() {
                           <div className="min-w-0 rounded-2xl border border-border/60 bg-primary/5 px-4 py-3 text-left">
                             <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                               <CheckCircle className="h-4 w-4" />
-                              Litros
+                              {collection.measured_liters == null ? "Litros estimados" : "Litros medidos"}
                             </div>
-                            <p className="font-semibold text-foreground">{normalizeNumber(collection.net_liters).toFixed(2)} L</p>
+                            <p className="font-semibold text-foreground">{getCollectionLiters(collection).toFixed(2)} L</p>
                           </div>
                         </div>
                       </div>
@@ -392,11 +463,17 @@ export default function CollectionsList() {
                           <p className="text-2xl font-bold text-primary">{normalizeNumber(collection.total_price).toFixed(2)} EUR</p>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1">
+                        <div className="grid grid-cols-2 gap-2 lg:grid-cols-1">
                           <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}`)}>
                             <Eye className="h-4 w-4" />
                             Ver
                           </Button>
+                          {canManageCollection && normalizeCollectionStatus(collection.status) === "PENDING_MEASUREMENT" && (
+                            <Button size="sm" className="gap-2" onClick={() => openConfirmDialog(collection)}>
+                              <ClipboardCheck className="h-4 w-4" />
+                              Confirmar
+                            </Button>
+                          )}
                           {canManageCollection && (
                             <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate(`/collections/${collection.id}/edit`)}>
                               <Edit className="h-4 w-4" />
@@ -457,9 +534,9 @@ export default function CollectionsList() {
                         <div className="min-w-0 rounded-2xl border border-border/60 bg-primary/5 px-4 py-3 text-left">
                           <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                             <CheckCircle className="h-4 w-4" />
-                            Litros registrados
+                            {collection.measured_liters == null ? "Litros estimados" : "Litros medidos"}
                           </div>
-                          <p className="font-semibold text-foreground">{normalizeNumber(collection.net_liters).toFixed(2)} L</p>
+                          <p className="font-semibold text-foreground">{getCollectionLiters(collection).toFixed(2)} L</p>
                         </div>
                       </div>
                     </div>
@@ -516,8 +593,8 @@ export default function CollectionsList() {
                 <p className="text-xs text-muted-foreground">Recogidas visibles</p>
               </div>
               <div className="rounded-2xl bg-primary/5 px-4 py-3 text-center">
-                <div className="text-xl font-bold text-primary">{totalNetLiters.toFixed(2)} L</div>
-                <p className="text-xs text-muted-foreground">{isClient ? "Litros registrados" : "Litros netos"}</p>
+                <div className="text-xl font-bold text-primary">{totalMeasuredLiters.toFixed(2)} L</div>
+                <p className="text-xs text-muted-foreground">Litros medidos</p>
               </div>
               <div className="rounded-2xl bg-primary/5 px-4 py-3 text-center">
                 <div className="text-xl font-bold text-primary">{totalPrice.toFixed(2)} EUR</div>
@@ -527,6 +604,75 @@ export default function CollectionsList() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={confirmOpen} onOpenChange={(open) => (open ? setConfirmOpen(true) : closeConfirmDialog())}>
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-md overflow-y-auto rounded-lg p-0 sm:max-h-[90vh]">
+          <DialogHeader className="border-b border-border/70 px-4 py-4 text-left sm:px-6">
+            <DialogTitle>Confirmar medicion</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 px-4 py-5 sm:px-6">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="min-w-0 border-l-4 border-primary bg-primary/5 px-3 py-2 text-left">
+                <p className="text-xs text-muted-foreground">Litros estimados</p>
+                <p className="text-lg font-semibold text-foreground">{estimatedLiters.toFixed(2)} L</p>
+              </div>
+              <div className="min-w-0 border-l-4 border-amber-500 bg-amber-500/5 px-3 py-2 text-left">
+                <p className="text-xs text-muted-foreground">Litros deducidos</p>
+                <p className="text-lg font-semibold text-foreground">{deductedLiters.toFixed(2)} L</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label htmlFor="quick-measured-liters">Litros medidos finales *</Label>
+              <Input
+                id="quick-measured-liters"
+                type="number"
+                min="0"
+                step="0.01"
+                value={measuredLiters}
+                onChange={(event) => {
+                  setMeasuredLiters(event.target.value);
+                  const nextValue = Number(event.target.value);
+                  if (event.target.value !== "" && Number.isFinite(nextValue) && nextValue >= estimatedLiters) {
+                    setDeductionReason("");
+                  }
+                }}
+                placeholder="Introduce los litros medidos"
+                disabled={confirming}
+              />
+            </div>
+
+            <div className="space-y-2 text-left">
+              <Label>Motivo de deduccion{deductedLiters > 0 ? " *" : ""}</Label>
+              <Select
+                value={deductionReason || EMPTY_DEDUCTION_REASON}
+                onValueChange={(value) => setDeductionReason(value === EMPTY_DEDUCTION_REASON ? "" : value)}
+                disabled={confirming || deductedLiters <= 0}
+              >
+                <SelectTrigger><SelectValue placeholder="Sin deduccion" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EMPTY_DEDUCTION_REASON}>Sin deduccion</SelectItem>
+                  {DEDUCTION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {deductedLiters > 0 && (
+                <p className="text-xs text-muted-foreground">La diferencia respecto a la estimacion requiere indicar un motivo.</p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="grid grid-cols-2 gap-2 border-t border-border/70 px-4 py-4 sm:flex sm:px-6">
+            <Button type="button" variant="outline" onClick={closeConfirmDialog} disabled={confirming}>Cancelar</Button>
+            <Button type="button" onClick={handleQuickConfirm} disabled={confirming || !validMeasuredLiters} className="gap-2">
+              <ClipboardCheck className="h-4 w-4" />
+              {confirming ? "Confirmando..." : "Confirmar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {canManageCollection && (
         <ConfirmDeleteDialog

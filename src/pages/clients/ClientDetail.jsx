@@ -172,7 +172,7 @@ export default function ClientDetail() {
     (c) => isCompleted(c.status) && isInCurrentMonth(c.collection_date)
   );
   const currentMonthLiters = monthCollections.reduce(
-    (acc, c) => acc + Number(c.net_liters || 0),
+    (acc, c) => acc + Number(c.measured_liters || 0),
     0
   );
   const currentMonthCount = monthCollections.length;
@@ -367,7 +367,8 @@ export default function ClientDetail() {
                   <div className="space-y-3">
                     {historyPageItems.map((c) => {
                       const normalizedStatus = normalizeCollectionStatus(c.status);
-                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${c.net_liters ?? "-"} L`;
+                      const liters = c.measured_liters ?? c.estimated_liters;
+                      const litersLabel = normalizedStatus === "CANCELED" ? "-" : `${liters ?? "-"} L`;
                       const priceLabel = normalizedStatus === "CONFIRMED"
                         ? (c.billable ? `${formatCurrency(c.total_price)} facturable` : `${formatCurrency(c.total_price)} no facturable`)
                         : "-";

@@ -345,7 +345,7 @@ export default function Stats() {
               <CardHeader className="text-left">
                 <div className="flex flex-col gap-3">
                   <CardTitle className="flex items-center gap-2">
-                    <Euro className="h-5 w-5 text-primary" />
+                    <Euro className="h-6 w-6 shrink-0 text-primary sm:h-5 sm:w-5" />
                     Ingresos vs costes
                   </CardTitle>
                   <ColorLegend
@@ -399,7 +399,7 @@ export default function Stats() {
               <CardHeader className="text-left">
                 <div className="flex flex-col gap-3">
                   <CardTitle className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-primary" />
+                    <Wallet className="h-6 w-6 shrink-0 text-primary sm:h-5 sm:w-5" />
                     Beneficio mensual
                   </CardTitle>
                   <ColorLegend
@@ -444,8 +444,8 @@ export default function Stats() {
           <Card>
             <CardHeader className="text-left">
               <div className="flex flex-col gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Droplets className="h-5 w-5 text-primary" />
+                <CardTitle className="flex items-center gap-3">
+                  <Droplets className="h-8 w-8 shrink-0 text-primary sm:h-6 sm:w-6" />
                   Volumen comprado vs vendido
                 </CardTitle>
                 <ColorLegend

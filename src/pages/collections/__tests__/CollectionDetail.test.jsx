@@ -63,9 +63,8 @@ describe("CollectionDetail", () => {
         container_type: "BIDONES",
         container_number: 2,
         estimated_liters: "120.00",
-        measured_liters: "110.00",
-        deduction_liters: "10.00",
-        net_liters: "100.00",
+        measured_liters: "100.00",
+        deduction_liters: "20.00",
         deduction_reason: "RESIDUE",
         deduction_reason_label: "Residuos/posos",
         deduction_notes: "Posos",
@@ -99,7 +98,6 @@ describe("CollectionDetail", () => {
         estimated_liters: "120.00",
         measured_liters: null,
         deduction_liters: "0.00",
-        net_liters: "120.00",
         price_per_liter: "1.200",
         total_price: "144.00",
         notes: "Notas demo",
@@ -109,7 +107,7 @@ describe("CollectionDetail", () => {
     render(<CollectionDetail />);
 
     expect(await screen.findByText("Mi recogida #4")).toBeInTheDocument();
-    expect(screen.getAllByText("Litros registrados").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Litros estimados").length).toBeGreaterThan(0);
     expect(screen.getByText("1.20 EUR")).toBeInTheDocument();
     expect(screen.queryByText("Cliente Demo")).not.toBeInTheDocument();
     expect(screen.queryByText("Ruta Demo")).not.toBeInTheDocument();
