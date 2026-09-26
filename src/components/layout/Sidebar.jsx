@@ -13,10 +13,12 @@ import {
   Settings2,
   Building2,
   ReceiptText,
+  PackagePlus,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { getAvatarSrc, getInitials, normalizeRoleType } from "@/components/Utils";
+import useCompanyFeatures from "@/hooks/useCompanyFeatures";
 
 const ownerMenuItems = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
@@ -26,6 +28,7 @@ const ownerMenuItems = [
   { id: "zonas", label: "Zonas de Recogida", icon: Map, path: "/collection-zones" },
   { id: "rutas", label: "Rutas", icon: Route, path: "/routes" },
   { id: "recogidas", label: "Recogidas", icon: Package, path: "/collections" },
+  { id: "recogidas-mayoristas", label: "Recogidas al por mayor", icon: PackagePlus, path: "/bulk-collections" },
   { id: "compradores", label: "Compradores", icon: Building2, path: "/buyers" },
   { id: "ventas", label: "Ventas", icon: ReceiptText, path: "/sales" },
   { id: "estadisticas", label: "Estadisticas", icon: BarChart3, path: "/stats" },
@@ -50,11 +53,15 @@ const Sidebar = ({ onItemClick }) => {
   const userAvatar = getAvatarSrc(user);
   const isProfileActive = location.pathname.startsWith("/profile") || location.pathname.startsWith("/perfil");
   const roleType = normalizeRoleType(user?.role_type || "");
+  const { features } = useCompanyFeatures();
   const menuItems = useMemo(() => {
-    if (roleType === "client") return clientMenuItems;
-    if (roleType === "worker") return workerMenuItems;
-    return ownerMenuItems;
-  }, [roleType]);
+    const source = roleType === "client" ? clientMenuItems : roleType === "worker" ? workerMenuItems : ownerMenuItems;
+    return source.filter((item) => {
+      if (item.id === "recogidas" || item.id === "solicitudes") return features.collections_enabled;
+      if (item.id === "recogidas-mayoristas") return features.bulk_collections_enabled;
+      return true;
+    });
+  }, [features.bulk_collections_enabled, features.collections_enabled, roleType]);
 
   const handleNavigation = (path) => {
     navigate(path);

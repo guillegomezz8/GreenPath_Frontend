@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Building2, ChevronDown, ChevronUp, Euro, Landmark, Mail, MapPin, Phone, Save, Settings2 } from "lucide-react";
+import { Building2, ChevronDown, ChevronUp, Euro, Landmark, Mail, MapPin, Phone, Save, Scale, Settings2 } from "lucide-react";
 import { useAuth } from "@/context/AuthProvider";
 import { useSnackbar } from "@/context/SnackbarProvider";
 import { handleApiError } from "@/components/Utils";
@@ -52,6 +52,9 @@ function normalizeSettingsPayload(payload = {}) {
       payload.default_price_per_liter !== undefined && payload.default_price_per_liter !== null
         ? String(payload.default_price_per_liter)
         : DEFAULT_PRICE_PER_LITER,
+    conversion: {
+      oil_density_kg_per_liter: String(payload.oil_density_kg_per_liter || "0.9200"),
+    },
     hub:
       payload?.hub?.location &&
       Number.isFinite(Number(payload.hub.location.lat)) &&
@@ -106,6 +109,7 @@ export default function CompanySettingsPage() {
   const [savingPrice, setSavingPrice] = useState(false);
   const [savingHub, setSavingHub] = useState(false);
   const [savingBilling, setSavingBilling] = useState(false);
+  const [savingConversion, setSavingConversion] = useState(false);
 
   const [companyName, setCompanyName] = useState("");
   const [priceDraft, setPriceDraft] = useState(DEFAULT_PRICE_PER_LITER);
@@ -114,8 +118,10 @@ export default function CompanySettingsPage() {
   const [savedHub, setSavedHub] = useState(null);
   const [billingDraft, setBillingDraft] = useState(normalizeBillingPayload());
   const [savedBilling, setSavedBilling] = useState(normalizeBillingPayload());
+  const [conversion, setConversion] = useState({ oil_density_kg_per_liter: "0.9200" });
   const [openSections, setOpenSections] = useState({
     price: true,
+    conversion: false,
     billing: false,
     hub: false,
   });
@@ -128,6 +134,7 @@ export default function CompanySettingsPage() {
     setSavedPrice(normalized.default_price_per_liter);
     setSavedHub(normalized.hub);
     setSavedBilling(normalized.billing);
+    setConversion(normalized.conversion);
 
     if (!preservePriceDraft) {
       setPriceDraft(normalized.default_price_per_liter);
@@ -159,7 +166,7 @@ export default function CompanySettingsPage() {
     fetchSettings();
   }, [fetchSettings]);
 
-  const isBusy = loading || savingPrice || savingHub || savingBilling;
+  const isBusy = loading || savingPrice || savingHub || savingBilling || savingConversion;
   const hasPriceChanges = priceDraft !== savedPrice;
   const hasHubChanges = !areSameHub(hubDraft, savedHub);
   const hasBillingChanges = !areSameBilling(billingDraft, savedBilling);
@@ -177,6 +184,23 @@ export default function CompanySettingsPage() {
   };
   const toggleSection = (sectionKey) => {
     setOpenSections((prev) => ({ ...prev, [sectionKey]: !prev[sectionKey] }));
+  };
+
+  const handleSaveConversion = async () => {
+    if (Number(conversion.oil_density_kg_per_liter) <= 0) {
+      showSnackbar("La densidad del aceite debe ser mayor que cero.", "error");
+      return;
+    }
+    try {
+      setSavingConversion(true);
+      const res = await api().put("companies/settings/", conversion);
+      setConversion(normalizeSettingsPayload(res.data?.settings || {}).conversion);
+      showSnackbar("Densidad actualizada correctamente.", "success");
+    } catch (e) {
+      showSnackbar(handleApiError(e, "No se pudo guardar la densidad del aceite."), "error");
+    } finally {
+      setSavingConversion(false);
+    }
   };
 
   const handleSavePrice = async (e) => {
@@ -458,6 +482,20 @@ export default function CompanySettingsPage() {
                   </Button>
                 </div>
               </form>
+            </div>
+          </SettingsSection>
+
+          <SettingsSection
+            icon={<Scale className="h-5 w-5 text-primary" />}
+            title="Conversion de cantidades"
+            isOpen={openSections.conversion}
+            onToggle={() => toggleSection("conversion")}
+          >
+            <div className="text-left">
+              <div className="mt-4 grid grid-cols-1 gap-4">
+                <div className="space-y-2"><Label htmlFor="oil_density">Densidad del aceite (kg por litro)</Label><Input id="oil_density" type="number" min="0.0001" step="0.0001" value={conversion.oil_density_kg_per_liter} onChange={(event) => setConversion((current) => ({ ...current, oil_density_kg_per_liter: event.target.value }))} disabled={isBusy} /><p className="text-xs text-muted-foreground">Ejemplo: 0,92 kg/L. Los kg se dividen por esta densidad para obtener litros.</p></div>
+              </div>
+              <div className="mt-4 flex justify-end"><Button type="button" className="w-full gap-2 sm:w-auto" onClick={handleSaveConversion} disabled={isBusy}><Save className="h-4 w-4" />{savingConversion ? "Guardando..." : "Guardar conversion"}</Button></div>
             </div>
           </SettingsSection>
         </div>
