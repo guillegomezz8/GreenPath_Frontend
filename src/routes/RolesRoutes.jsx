@@ -1,6 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '@/context/AuthProvider';
 import { normalizeRoleType } from '@/components/Utils';
+import useCompanyFeatures from '@/hooks/useCompanyFeatures';
 
 const getHomePathByRole = (user) => {
   const roleType = normalizeRoleType(user?.role_type);
@@ -59,6 +60,21 @@ export const RoleRoute = ({ allowedRoles = [], fallbackPath, children }) => {
     return <Navigate to={fallbackPath || getHomePathByRole(user)} replace />;
   }
 
+  return children || <Outlet />;
+};
+
+export const FeatureRoute = ({ feature, fallbackPath = "/dashboard", children }) => {
+  const { features, loading } = useCompanyFeatures();
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary" />
+      </div>
+    );
+  }
+
+  if (!features?.[feature]) return <Navigate to={fallbackPath} replace />;
   return children || <Outlet />;
 };
 

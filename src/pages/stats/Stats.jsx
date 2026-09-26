@@ -9,71 +9,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
-const EMPTY_DATE_RANGE = { startDate: "", endDate: "" };
-
-function toNumber(value) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatCurrency(value) {
-  return new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format(toNumber(value));
-}
-
-function formatLiters(value) {
-  return `${Math.round(toNumber(value)).toLocaleString("es-ES")} L`;
-}
-
-function formatBusinessDate(value) {
-  if (!value) return "";
-  const parsed = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("es-ES");
-}
-
-function getDateRangeLabel(dateRange = EMPTY_DATE_RANGE) {
-  if (dateRange.startDate && dateRange.endDate) {
-    return `${formatBusinessDate(dateRange.startDate)} - ${formatBusinessDate(dateRange.endDate)}`;
-  }
-  return "Todo el historico";
-}
-
-function buildDateRangeParams(dateRange = EMPTY_DATE_RANGE) {
-  if (!dateRange.startDate || !dateRange.endDate) {
-    return {};
-  }
-  return {
-    start_date: dateRange.startDate,
-    end_date: dateRange.endDate,
-  };
-}
-
-function buildMonthlyRows(rawRows = []) {
-  return rawRows.map((row) => {
-    const referenceDate = new Date(row.year, (row.month || 1) - 1, 1);
-    const monthLabel = new Intl.DateTimeFormat("es-ES", { month: "short" }).format(referenceDate).replace(".", "");
-    return {
-      ...row,
-      label: monthLabel,
-      income: toNumber(row.income),
-      cost: toNumber(row.cost),
-      profit: toNumber(row.profit),
-      sold_volume: toNumber(row.sold_volume),
-      bought_volume: toNumber(row.bought_volume),
-    };
-  });
-}
-
-function getHeight(value, maxValue, minPercent = 6) {
-  if (maxValue <= 0 || value <= 0) return 0;
-  return Math.max(minPercent, Math.min(100, (value / maxValue) * 100));
-}
-
-function getChartContainerClass(size = "compact") {
-  const minWidthClass = size === "wide" ? "min-w-[520px]" : "min-w-[420px]";
-  return `flex h-64 ${minWidthClass} items-end gap-3 p-3 sm:h-72 sm:gap-4 sm:p-4 md:min-w-0`;
-}
+import useCompanyFeatures from "@/hooks/useCompanyFeatures";
+import {
+  buildDateRangeParams,
+  buildMonthlyRows,
+  EMPTY_DATE_RANGE,
+  formatCurrency,
+  formatQuantity,
+  getChartContainerClass,
+  getDateRangeError,
+  getDateRangeLabel,
+  getHeight,
+  getUnitSuffix,
+  STATS_MESSAGES,
+  toNumber,
+  UNIT_OPTIONS,
+} from "./statsUtils";
 
 function ColorLegend({ items = [] }) {
   if (!Array.isArray(items) || items.length === 0) return null;
@@ -99,15 +50,18 @@ function ColorLegend({ items = [] }) {
 export default function Stats() {
   const { api } = useAuth();
   const showSnackbar = useSnackbar();
+  const { features } = useCompanyFeatures();
 
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState(null);
   const [buyersCount, setBuyersCount] = useState(0);
   const [salesCount, setSalesCount] = useState(0);
   const [confirmedCollectionsCount, setConfirmedCollectionsCount] = useState(0);
+  const [bulkCollectionsCount, setBulkCollectionsCount] = useState(0);
   const [dateRange, setDateRange] = useState(EMPTY_DATE_RANGE);
   const [appliedDateRange, setAppliedDateRange] = useState(EMPTY_DATE_RANGE);
   const [isCountersOpen, setIsCountersOpen] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState("KG");
 
   const dateRangeParams = useMemo(() => buildDateRangeParams(appliedDateRange), [appliedDateRange]);
   const appliedDateRangeLabel = useMemo(() => getDateRangeLabel(appliedDateRange), [appliedDateRange]);
@@ -117,24 +71,30 @@ export default function Stats() {
   const fetchStatsData = useCallback(async () => {
     try {
       setLoading(true);
-      const [summaryRes, buyersRes, salesRes, collectionsRes] = await Promise.all([
+      const [summaryRes, buyersRes, salesRes, collectionsRes, bulkCollectionsRes] = await Promise.all([
         api().get("sales/economic-summary/", { params: dateRangeParams }),
         api().get("buyers/", { params: { page: 1, page_size: 1 } }),
         api().get("sales/", { params: { page: 1, page_size: 1, ...dateRangeParams } }),
-        api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED", billable: true, ...dateRangeParams } }),
+        features.collections_enabled
+          ? api().get("collections", { params: { page: 1, page_size: 1, status: "CONFIRMED", billable: true, ...dateRangeParams } })
+          : Promise.resolve({ data: { count: 0 } }),
+        features.bulk_collections_enabled
+          ? api().get("bulk-collections/", { params: { page: 1, page_size: 1, billable: true, ...dateRangeParams } })
+          : Promise.resolve({ data: { count: 0 } }),
       ]);
 
       setSummary(summaryRes.data || null);
       setBuyersCount(Number(buyersRes.data?.count || 0));
       setSalesCount(Number(salesRes.data?.count || 0));
       setConfirmedCollectionsCount(Number(collectionsRes.data?.count || 0));
+      setBulkCollectionsCount(Number(bulkCollectionsRes.data?.count || 0));
     } catch (e) {
-      const msg = handleApiError(e, "No se pudieron cargar las estadisticas economicas.");
+      const msg = handleApiError(e, STATS_MESSAGES.loadError);
       showSnackbar(msg, "error");
     } finally {
       setLoading(false);
     }
-  }, [api, dateRangeParams, showSnackbar]);
+  }, [api, dateRangeParams, features.bulk_collections_enabled, features.collections_enabled, showSnackbar]);
 
   useEffect(() => {
     fetchStatsData();
@@ -149,19 +109,12 @@ export default function Stats() {
   }, []);
 
   const applyDateRange = useCallback(() => {
-    const { startDate, endDate } = dateRange;
-
-    if ((startDate && !endDate) || (!startDate && endDate)) {
-      showSnackbar("Debes indicar fecha inicial y fecha final.", "error");
+    const error = getDateRangeError(dateRange);
+    if (error) {
+      showSnackbar(error, "error");
       return;
     }
-
-    if (startDate && endDate && startDate > endDate) {
-      showSnackbar("La fecha inicial no puede ser posterior a la final.", "error");
-      return;
-    }
-
-    setAppliedDateRange({ startDate, endDate });
+    setAppliedDateRange({ ...dateRange });
   }, [dateRange, showSnackbar]);
 
   const clearDateRange = useCallback(() => {
@@ -174,22 +127,22 @@ export default function Stats() {
     const totalIncome = toNumber(summary?.total_income);
     const totalCost = toNumber(summary?.total_cost);
     const netProfit = toNumber(summary?.net_profit);
-    const boughtVolume = toNumber(summary?.total_bought_volume);
-    const soldVolume = toNumber(summary?.total_sold_volume);
+    const boughtQuantity = toNumber(summary?.bought_quantities?.[selectedUnit]);
+    const soldQuantity = toNumber(summary?.sold_quantities?.[selectedUnit]);
     const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
 
     return {
       totalIncome,
       totalCost,
       netProfit,
-      boughtVolume,
-      soldVolume,
+      boughtQuantity,
+      soldQuantity,
       margin,
     };
-  }, [summary]);
+  }, [selectedUnit, summary]);
 
   const maxFinance = useMemo(() => Math.max(1, ...monthlyData.flatMap((item) => [item.income, item.cost, Math.abs(item.profit)])), [monthlyData]);
-  const maxVolume = useMemo(() => Math.max(1, ...monthlyData.flatMap((item) => [item.bought_volume, item.sold_volume])), [monthlyData]);
+  const maxQuantity = useMemo(() => Math.max(1, ...monthlyData.flatMap((item) => [item.bought_quantities[selectedUnit], item.sold_quantities[selectedUnit]])), [monthlyData, selectedUnit]);
 
   const kpiCards = useMemo(
     () => [
@@ -197,19 +150,25 @@ export default function Stats() {
       { title: "Coste invertido", value: formatCurrency(totals.totalCost), icon: TrendingDown, className: "text-red-600" },
       { title: "Beneficio neto", value: formatCurrency(totals.netProfit), icon: Wallet, className: totals.netProfit >= 0 ? "text-primary" : "text-red-600" },
       { title: "Margen", value: `${totals.margin.toFixed(1)}%`, icon: Euro, className: totals.margin >= 0 ? "text-primary" : "text-red-600" },
-      { title: "Volumen comprado", value: formatLiters(totals.boughtVolume), icon: Droplets, className: "text-blue-600" },
-      { title: "Volumen vendido", value: formatLiters(totals.soldVolume), icon: Receipt, className: "text-orange-500" },
+      { title: "Cantidad comprada", value: formatQuantity(totals.boughtQuantity, getUnitSuffix(selectedUnit)), icon: Droplets, className: "text-blue-600" },
+      { title: "Cantidad vendida", value: formatQuantity(totals.soldQuantity, getUnitSuffix(selectedUnit)), icon: Receipt, className: "text-orange-500" },
     ],
-    [totals.boughtVolume, totals.margin, totals.netProfit, totals.soldVolume, totals.totalCost, totals.totalIncome]
+    [selectedUnit, totals.boughtQuantity, totals.margin, totals.netProfit, totals.soldQuantity, totals.totalCost, totals.totalIncome]
   );
 
+  const totalCollectionsCount = (
+    (features.collections_enabled ? confirmedCollectionsCount : 0)
+    + (features.bulk_collections_enabled ? bulkCollectionsCount : 0)
+  );
   const countCards = useMemo(
     () => [
       { title: "Compradores", value: buyersCount, className: "text-primary" },
       { title: "Ventas registradas", value: salesCount, className: "text-foreground" },
-      { title: "Compras facturables", value: confirmedCollectionsCount, className: "text-blue-600" },
+      ...((features.collections_enabled || features.bulk_collections_enabled)
+        ? [{ title: "Recogidas facturables", value: totalCollectionsCount, className: "text-blue-600" }]
+        : []),
     ],
-    [buyersCount, confirmedCollectionsCount, salesCount]
+    [buyersCount, features.bulk_collections_enabled, features.collections_enabled, salesCount, totalCollectionsCount]
   );
 
   return (
@@ -446,30 +405,40 @@ export default function Stats() {
               <div className="flex flex-col gap-3">
                 <CardTitle className="flex items-center gap-3">
                   <Droplets className="h-8 w-8 shrink-0 text-primary sm:h-6 sm:w-6" />
-                  Volumen comprado vs vendido
+                  Cantidad comprada vs vendida
                 </CardTitle>
+                <div className="flex w-full rounded-lg border border-border bg-muted/40 p-1 sm:w-fit" aria-label="Unidad de la grafica">
+                  {UNIT_OPTIONS.map((unit) => (
+                    <button key={unit.value} type="button" onClick={() => setSelectedUnit(unit.value)} className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors sm:flex-none ${selectedUnit === unit.value ? "bg-background text-primary shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{unit.label}</button>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-4 text-muted-foreground/70">
+                  Incluye recogidas, recogidas al por mayor y ventas en litros o kilogramos. Las ventas en unidades no se incluyen. Conversion usada: 1 L = {summary?.conversion?.oil_density_kg_per_liter || "-"} kg.
+                </p>
                 <ColorLegend
                   items={[
-                    { label: "Volumen comprado", color: "#3b82f6" },
-                    { label: "Volumen vendido", color: "#f97316" },
+                    { label: "Comprado", color: "#3b82f6" },
+                    { label: "Vendido", color: "#f97316" },
                   ]}
                 />
               </div>
             </CardHeader>
             <CardContent>
               {monthlyData.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">Sin volumen registrado en el periodo seleccionado.</div>
+                <div className="py-12 text-center text-sm text-muted-foreground">Sin cantidades registradas en esta unidad.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <div className={getChartContainerClass("wide")}>
                     {monthlyData.map((item, index) => {
-                      const boughtHeight = getHeight(item.bought_volume, maxVolume);
-                      const soldHeight = getHeight(item.sold_volume, maxVolume);
+                      const boughtValue = item.bought_quantities[selectedUnit];
+                      const soldValue = item.sold_quantities[selectedUnit];
+                      const boughtHeight = getHeight(boughtValue, maxQuantity);
+                      const soldHeight = getHeight(soldValue, maxQuantity);
                       return (
                         <div key={`${item.year}-${item.month}-volume`} className="flex flex-1 flex-col items-center gap-2">
                           <div className="grid w-full grid-cols-2 gap-2 text-[11px] text-muted-foreground">
-                            <span className="text-center">{Math.round(item.bought_volume)}</span>
-                            <span className="text-center">{Math.round(item.sold_volume)}</span>
+                            <span className="text-center">{Math.round(boughtValue)}</span>
+                            <span className="text-center">{Math.round(soldValue)}</span>
                           </div>
                           <div className="flex h-44 w-full items-end gap-2">
                             <motion.div
@@ -525,8 +494,8 @@ export default function Stats() {
                       <p className={`font-semibold ${item.profit >= 0 ? "text-primary" : "text-red-600"}`}>{formatCurrency(item.profit)}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Volumen</p>
-                      <p className="font-semibold text-foreground">{Math.round(item.bought_volume)}L / {Math.round(item.sold_volume)}L</p>
+                      <p className="text-xs uppercase tracking-wide text-muted-foreground">Comprado / vendido</p>
+                      <p className="font-semibold text-foreground">{formatQuantity(item.bought_quantities[selectedUnit], getUnitSuffix(selectedUnit))} / {formatQuantity(item.sold_quantities[selectedUnit], getUnitSuffix(selectedUnit))}</p>
                     </div>
                   </div>
                 ))

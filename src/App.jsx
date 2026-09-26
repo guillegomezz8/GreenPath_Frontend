@@ -3,7 +3,7 @@ import { HashRouter , Routes, Route, Outlet } from 'react-router-dom';
 import { SnackbarProvider } from '@/context/SnackbarProvider';
 import { AuthProvider } from '@/context/AuthProvider';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { GuestRoute, RoleRoute, UserRoute } from './routes/RolesRoutes';
+import { FeatureRoute, GuestRoute, RoleRoute, UserRoute } from './routes/RolesRoutes';
 
 import Error404 from '@/pages/error/Error404';
 import SocialLogin from '@/pages/oauth/SocialLogin';
@@ -43,6 +43,10 @@ import SalesList from '@/pages/sales/SalesList';
 import SaleDetail from '@/pages/sales/SaleDetail';
 import SaleCreate from '@/pages/sales/SaleCreate';
 import SaleEdit from '@/pages/sales/SaleEdit';
+import BulkCollectionsList from '@/pages/bulkCollections/BulkCollectionsList';
+import BulkCollectionCreate from '@/pages/bulkCollections/BulkCollectionCreate';
+import BulkCollectionDetail from '@/pages/bulkCollections/BulkCollectionDetail';
+import BulkCollectionEdit from '@/pages/bulkCollections/BulkCollectionEdit';
 
 function AppContent() {
   return (
@@ -78,7 +82,9 @@ function AppContent() {
           <Route path="/collection-zones" element={<CollectionZonesMap />} />
           <Route path="/routes/new" element={<RouteCreate />} />
           <Route path="/routes/:id/edit" element={<RouteEdit />} />
-          <Route path="/collections/:id/edit" element={<CollectionEdit />} />
+          <Route element={<FeatureRoute feature="collections_enabled" />}>
+            <Route path="/collections/:id/edit" element={<CollectionEdit />} />
+          </Route>
           <Route path="/trucks" element={<TrucksList />} />
           <Route path="/trucks/new" element={<TruckCreate />} />
           <Route path="/trucks/:id/edit" element={<TruckEdit />} />
@@ -93,23 +99,35 @@ function AppContent() {
           <Route path="/sales/new" element={<SaleCreate />} />
           <Route path="/sales/:id" element={<SaleDetail />} />
           <Route path="/sales/:id/edit" element={<SaleEdit />} />
+          <Route element={<FeatureRoute feature="bulk_collections_enabled" />}>
+            <Route path="/bulk-collections" element={<BulkCollectionsList />} />
+            <Route path="/bulk-collections/new" element={<BulkCollectionCreate />} />
+            <Route path="/bulk-collections/:id" element={<BulkCollectionDetail />} />
+            <Route path="/bulk-collections/:id/edit" element={<BulkCollectionEdit />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute allowedRoles={["owner", "worker"]} />}>
           <Route path="/routes" element={<RoutesList />} />
           <Route path="/routes/:id" element={<RouteDetail />} />
           <Route path="/routes/:id/execute" element={<RouteExecution />} />
-          <Route path="/collections/new" element={<CollectionCreate />} />
-          <Route path="/collections/:id/new" element={<CollectionCreate />} />
+          <Route element={<FeatureRoute feature="collections_enabled" fallbackPath="/routes" />}>
+            <Route path="/collections/new" element={<CollectionCreate />} />
+            <Route path="/collections/:id/new" element={<CollectionCreate />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute allowedRoles={["owner", "worker", "client"]} />}>
-          <Route path="/collections" element={<CollectionsList />} />
-          <Route path="/collections/:id" element={<CollectionDetail />} />
+          <Route element={<FeatureRoute feature="collections_enabled" />}>
+            <Route path="/collections" element={<CollectionsList />} />
+            <Route path="/collections/:id" element={<CollectionDetail />} />
+          </Route>
         </Route>
 
         <Route element={<RoleRoute allowedRoles={["client"]} />}>
-          <Route path="/my-requests" element={<CollectionRequestsPage />} />
+          <Route element={<FeatureRoute feature="collections_enabled" fallbackPath="/profile" />}>
+            <Route path="/my-requests" element={<CollectionRequestsPage />} />
+          </Route>
         </Route>
 
         <Route path="/profile" element={<ProfilePage />} />
