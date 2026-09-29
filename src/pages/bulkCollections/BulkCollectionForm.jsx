@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { QUANTITY_UNITS, calculateBulkCollectionValues, formatBulkCollectionQuantity, formatCurrency, toNumber } from "./bulkCollectionUtils";
+import { QUANTITY_UNITS, calculateBulkCollectionValues, formatBulkCollectionQuantity, formatCurrency, normalizeDecimalInput, toNumber } from "./bulkCollectionUtils";
 
 const NUMERIC_FIELDS = ["quantity", "unit_price", "total_price"];
 const MODE_BY_DERIVED_FIELD = { quantity: "QUANTITY", unit_price: "UNIT_PRICE", total_price: "TOTAL" };
@@ -94,10 +94,11 @@ export default function BulkCollectionForm({ mode = "create" }) {
   const updateField = (field, value) => setFormData((current) => ({ ...current, [field]: value }));
 
   const handleNumericChange = (field, value) => {
+    const normalizedValue = normalizeDecimalInput(value, { thousands: field === "quantity" });
     const nextManualFields = [...manualFields.filter((item) => item !== field), field].slice(-2);
     setManualFields(nextManualFields);
     setFormData((current) => {
-      const next = { ...current, [field]: value };
+      const next = { ...current, [field]: normalizedValue };
       if (nextManualFields.length < 2) return next;
       const nextDerivedField = NUMERIC_FIELDS.find((item) => !nextManualFields.includes(item));
       return calculateBulkCollectionValues({ ...next, calculation_mode: MODE_BY_DERIVED_FIELD[nextDerivedField] });
@@ -129,14 +130,14 @@ export default function BulkCollectionForm({ mode = "create" }) {
     }
   };
 
-  const renderNumberField = (field, label, step, suffix) => (
+  const renderNumberField = (field, label, suffix) => (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
         <Label htmlFor={field}>{label} *</Label>
         {derivedField === field && <span className="text-xs font-medium text-primary">Calculado</span>}
       </div>
       <div className="relative">
-        <Input id={field} type="number" min="0.0001" step={step} value={formData[field]}
+        <Input id={field} type="text" inputMode="decimal" pattern="[0-9., ]*" value={formData[field]}
           onChange={(event) => handleNumericChange(field, event.target.value)} disabled={loading || saving}
           className={`${suffix ? "pr-14" : ""} ${derivedField === field ? "border-primary/40 bg-primary/5" : ""}`} required />
         {suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{suffix}</span>}
@@ -174,9 +175,9 @@ export default function BulkCollectionForm({ mode = "create" }) {
           <CardContent className="space-y-5">
             <div className="max-w-sm space-y-2"><Label>Unidad *</Label><Select value={formData.unit} onValueChange={(value) => updateField("unit", value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{QUANTITY_UNITS.map((item) => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent></Select></div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {renderNumberField("quantity", "Cantidad", formData.unit === "UD" ? "1" : "0.01", quantitySuffix)}
-              {renderNumberField("unit_price", "Precio unitario", "0.0001", "EUR")}
-              {renderNumberField("total_price", "Importe final", "0.01", "EUR")}
+              {renderNumberField("quantity", "Cantidad", quantitySuffix)}
+              {renderNumberField("unit_price", "Precio unitario", "EUR")}
+              {renderNumberField("total_price", "Importe final", "EUR")}
             </div>
             <div className="flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
               <span className="font-semibold">{formatBulkCollectionQuantity(formData.quantity, formData.unit)}</span>
