@@ -11,8 +11,24 @@ export const CALCULATION_MODES = [
 ];
 
 export function toNumber(value) {
-  const parsed = Number(value);
+  const parsed = Number(normalizeDecimalInput(value));
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function normalizeDecimalInput(value, { thousands = false } = {}) {
+  let normalized = String(value ?? "").replace(/\s/g, "").replace(/[^\d.,]/g, "");
+  if (!normalized) return "";
+
+  if (normalized.includes(",")) {
+    normalized = normalized.replace(/\./g, "").replace(",", ".");
+  } else if (thousands && /^\d{1,3}(?:\.\d{3})+$/.test(normalized)) {
+    normalized = normalized.replace(/\./g, "");
+  }
+
+  const [integerPart, ...decimalParts] = normalized.split(".");
+  return decimalParts.length > 0
+    ? `${integerPart}.${decimalParts.join("")}`
+    : integerPart;
 }
 
 export function calculateBulkCollectionValues(values) {
