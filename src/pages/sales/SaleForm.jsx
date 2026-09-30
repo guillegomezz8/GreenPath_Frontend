@@ -496,7 +496,8 @@ export default function SaleForm({ mode = "create", saleId = null }) {
                             id={`unit_price_${index}`}
                             type="number"
                             min="0"
-                            step="0.0001"
+                            step="any"
+                            inputMode="decimal"
                             value={line.unit_price}
                             onChange={(event) => handleLineChange(index, "unit_price", event.target.value)}
                             disabled={submitting}
